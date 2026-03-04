@@ -49,6 +49,8 @@ skills-sync apply
 
 These commands initialize your local workspace, build canonical artifacts, and apply them to supported agent targets.
 
+Paste your existing agent's `mcp.json` settings and ask an AI agent to generate the corresponding `skills-sync` commands.
+
 ## Verify In Agent Chats
 
 After `apply`, run these in your agent chat to confirm skills and MCP servers are available:

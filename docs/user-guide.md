@@ -133,6 +133,8 @@ skills-sync list skills --upstream <upstream-id> --format text
 skills-sync profile add-skill <profile> --upstream <upstream-id> --path <repo-skill-path>
 # Add a stdio MCP server definition to a profile
 skills-sync profile add-mcp <profile> <mcp-name> --command <command> --args <arg1> <arg2> ...
+# Add a stdio MCP server with dash-prefixed args
+skills-sync profile add-mcp <profile> <mcp-name> --command <command> --arg <arg1> --arg <arg2> ...
 # Add an HTTP MCP server definition to a profile
 skills-sync profile add-mcp <profile> <mcp-name> --url <https-url>
 # Verify profile resources after updates
@@ -179,6 +181,8 @@ If you installed an MCP server or created a skill in one agent, add it to your p
 skills-sync profile add-skill <profile> --upstream <upstream-id> --path <repo-skill-path>
 # Add a stdio MCP server to the profile
 skills-sync profile add-mcp <profile> <mcp-name> --command <command> --args <arg1> <arg2> ...
+# Add a stdio MCP server with dash-prefixed args
+skills-sync profile add-mcp <profile> <mcp-name> --command <command> --arg <arg1> --arg <arg2> ...
 # Add an HTTP MCP server to the profile
 skills-sync profile add-mcp <profile> <mcp-name> --url <https-url>
 # Build artifacts with new skill and MCP entries

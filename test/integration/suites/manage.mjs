@@ -129,6 +129,35 @@ export async function run({ localOverridesPath }) {
     "added http mcp server url should match."
   );
 
+  // --- profile add-mcp (stdio with dashed args via repeated --arg) ---
+  runCli([
+    "profile",
+    "add-mcp",
+    "personal",
+    "unit_test_dash_args_server",
+    "--command",
+    "npx",
+    "--arg",
+    "-y",
+    "--arg",
+    "example-mcp-server@latest",
+    "--arg",
+    "--transport",
+    "--arg",
+    "stdio"
+  ]);
+  const mcpAfterDashArgsAdd = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
+  assert.equal(
+    mcpAfterDashArgsAdd.servers.unit_test_dash_args_server.command,
+    "npx",
+    "profile add-mcp with repeated --arg should preserve command."
+  );
+  assert.deepEqual(
+    mcpAfterDashArgsAdd.servers.unit_test_dash_args_server.args,
+    ["-y", "example-mcp-server@latest", "--transport", "stdio"],
+    "profile add-mcp with repeated --arg should preserve dashed args."
+  );
+
   // --- profile add-mcp validation ---
   const addMcpConflict = runCli(
     [
@@ -147,6 +176,28 @@ export async function run({ localOverridesPath }) {
     addMcpConflict.stderr.includes("Provide exactly one of --command or --url"),
     true,
     "profile add-mcp should reject combined --command and --url."
+  );
+
+  const addMcpArgsStyleConflict = runCli(
+    [
+      "profile",
+      "add-mcp",
+      "personal",
+      "unit_test_args_style_conflict_server",
+      "--command",
+      "node",
+      "--args",
+      "a",
+      "b",
+      "--arg",
+      "c"
+    ],
+    1
+  );
+  assert.equal(
+    addMcpArgsStyleConflict.stderr.includes("Use either --args or repeated --arg"),
+    true,
+    "profile add-mcp should reject mixing --args and --arg."
   );
 
   // Keep one env-bearing server for downstream projection/apply assertions.

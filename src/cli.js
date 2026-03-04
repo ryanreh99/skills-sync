@@ -130,6 +130,25 @@ function parseFormatOption(rawFormat) {
   return format;
 }
 
+function collectOptionValues(value, previous) {
+  if (Array.isArray(previous)) {
+    return [...previous, value];
+  }
+  return [value];
+}
+
+function resolveMcpArgsOption({ args, arg }) {
+  const variadicArgs = Array.isArray(args) ? args : [];
+  const repeatedArgs = Array.isArray(arg) ? arg : [];
+  if (variadicArgs.length > 0 && repeatedArgs.length > 0) {
+    throw new Error("Use either --args or repeated --arg, not both.");
+  }
+  if (repeatedArgs.length > 0) {
+    return repeatedArgs;
+  }
+  return variadicArgs;
+}
+
 async function cmdBuild(profileName, lockModeRaw) {
   const lockMode = (lockModeRaw || "write").toLowerCase();
   if (!VALID_BUILD_LOCK_MODES.has(lockMode)) {
@@ -355,6 +374,12 @@ function createProgram() {
     .option("--command <command>", "server command executable (stdio transport)")
     .option("--url <url>", "server URL (HTTP transport)")
     .option("--args <values...>", "optional command args")
+    .option(
+      "--arg <value>",
+      "single command arg (repeat to include values that start with '-')",
+      collectOptionValues,
+      []
+    )
     .option("--env <entries...>", "optional env vars as KEY=VALUE entries")
     .action((name, server, options) =>
       cmdProfileAddMcp({
@@ -362,7 +387,7 @@ function createProgram() {
         name: server,
         command: options.command,
         url: options.url,
-        args: options.args,
+        args: resolveMcpArgsOption({ args: options.args, arg: options.arg }),
         env: options.env
       }));
   profileCommand
