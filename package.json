@@ -4,19 +4,12 @@
   "description": "AI skills and MCP configuration management for development environments.",
   "license": "MIT",
   "author": "Ryan Rehman <ryanrehman99@gmail.com>",
-  "main": "dist/index.js",
-  "exports": {
-    ".": "./dist/index.js"
-  },
   "bin": {
     "skills-sync": "./dist/index.js"
   },
   "files": [
     "dist",
-    "docs/user-guide.md",
-    "docs/commands.md",
-    "README.md",
-    "LICENSE"
+    "docs"
   ],
   "type": "module",
   "engines": {

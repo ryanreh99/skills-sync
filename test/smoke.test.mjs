@@ -48,3 +48,9 @@ test("current command is a no-op with clean state", () => {
   const result = runCli(["current"]);
   assert.equal(result.status, 0);
 });
+
+test("dist entrypoint uses unix shebang line endings", async () => {
+  const contents = await fs.readFile(cliPath, "utf8");
+  assert.ok(contents.startsWith("#!/usr/bin/env node\n"));
+  assert.equal(contents.includes("\r\n"), false);
+});
