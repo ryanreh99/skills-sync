@@ -135,7 +135,7 @@ async function previewWorkspaceScaffold(localRoot, profileName) {
   return { created, skipped };
 }
 
-async function inspectDefaultProfileUpdate({ profileName, force }) {
+async function inspectDefaultProfileUpdate({ force }) {
   const configPath = path.join(LOCAL_OVERRIDES_ROOT, "config.json");
   let existing = {};
   let currentDefault = null;

@@ -134,7 +134,7 @@ export async function buildProfile(profileName, options = {}) {
         canOverride: Boolean(targets.gemini?.canOverride)
       }
     };
-  } catch (error) {
+  } catch {
     if (!quiet) {
       logWarn("Could not resolve local target config for merge-friendly projection seeding.");
     }
