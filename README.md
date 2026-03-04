@@ -1,5 +1,8 @@
 # skills-sync
 
+![npm version](https://img.shields.io/npm/v/@ryanreh99/skills-sync)
+![npm downloads](https://img.shields.io/npm/dw/@ryanreh99/skills-sync)
+
 skills-sync keeps AI agent skills and MCP servers synchronized across various AI coding agents.
 
 ---

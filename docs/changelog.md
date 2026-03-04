@@ -1,12 +1,9 @@
-# Changelog
+## 1.0.0
 
-All notable changes to this project are documented in this file.
+Initial public release.
 
-## Unreleased
-
-- Added Copilot runtime target support:
-  - skills path: `~/.copilot/skills` (Windows: `%USERPROFILE%\\.copilot\\skills`)
-  - MCP config path: `~/.copilot/mcp-config.json` (Windows: `%USERPROFILE%\\.copilot\\mcp-config.json`)
-  - default target policy: `canOverride: true`
-- Wired Copilot through build/apply/unlink/detect/doctor flows.
-- Extended integration fixtures/tests to validate Copilot behavior.
+Features
+- Skills synchronization across AI agents
+- MCP configuration management
+- Profile-based setup
+- CLI commands: init, build, apply, doctor
