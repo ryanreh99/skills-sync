@@ -8,7 +8,9 @@
 
 ```bash
 # Install the CLI globally
-npm install -g skills-sync
+npm i -g @ryanreh99/skills-sync
+# Or run without global install
+npx @ryanreh99/skills-sync
 # Initialize an empty workspace scaffold
 skills-sync init
 # Initialize workspace with bundled starter content
@@ -27,7 +29,9 @@ skills-sync doctor --profile <profile>
 
 ```bash
 # Install the CLI globally
-npm install -g skills-sync
+npm i -g @ryanreh99/skills-sync
+# Or run without global install
+npx @ryanreh99/skills-sync
 # Initialize workspace with bundled starter content
 skills-sync init --seed
 # Set personal as the default active profile

@@ -1,5 +1,5 @@
 {
-  "name": "skills-sync",
+  "name": "@ryanreh99/skills-sync",
   "version": "1.0.0",
   "description": "AI skills and MCP configuration management for development environments.",
   "license": "MIT",

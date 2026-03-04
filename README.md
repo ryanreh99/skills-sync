@@ -24,7 +24,8 @@ If you create a skill or install an MCP server for one agent, skills-sync can sy
 npm:
 
 ```bash
-npm install -g skills-sync
+npm i -g @ryanreh99/skills-sync
+npx @ryanreh99/skills-sync
 ```
 
 Homebrew:
