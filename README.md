@@ -1,6 +1,6 @@
 # skills-sync
 
-skills-sync synchronizes skills and MCP server configuration across AI coding agents.
+skills-sync keeps AI agent skills and MCP servers synchronized across various AI coding agents.
 
 ---
 
