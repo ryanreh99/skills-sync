@@ -108,6 +108,47 @@ export async function run({ localOverridesPath }) {
     "added mcp env BETA should match."
   );
 
+  // --- profile add-mcp (http/url) ---
+  runCli([
+    "profile",
+    "add-mcp",
+    "personal",
+    "unit_test_http_server",
+    "--url",
+    "https://example.com/mcp"
+  ]);
+  const mcpAfterHttpAdd = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(mcpAfterHttpAdd.servers ?? {}, "unit_test_http_server"),
+    true,
+    "profile add-mcp with --url should add HTTP server entry."
+  );
+  assert.equal(
+    mcpAfterHttpAdd.servers.unit_test_http_server.url,
+    "https://example.com/mcp",
+    "added http mcp server url should match."
+  );
+
+  // --- profile add-mcp validation ---
+  const addMcpConflict = runCli(
+    [
+      "profile",
+      "add-mcp",
+      "personal",
+      "unit_test_conflict_server",
+      "--command",
+      "node",
+      "--url",
+      "https://example.com/mcp"
+    ],
+    1
+  );
+  assert.equal(
+    addMcpConflict.stderr.includes("Provide exactly one of --command or --url"),
+    true,
+    "profile add-mcp should reject combined --command and --url."
+  );
+
   // Keep one env-bearing server for downstream projection/apply assertions.
   runCli([
     "profile",

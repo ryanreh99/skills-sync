@@ -131,8 +131,10 @@ skills-sync upstream add <upstream-id> --repo <git-url> --default-ref <ref>
 skills-sync list skills --upstream <upstream-id> --format text
 # Add a skill import to a profile
 skills-sync profile add-skill <profile> --upstream <upstream-id> --path <repo-skill-path>
-# Add an MCP server definition to a profile
+# Add a stdio MCP server definition to a profile
 skills-sync profile add-mcp <profile> <mcp-name> --command <command> --args <arg1> <arg2> ...
+# Add an HTTP MCP server definition to a profile
+skills-sync profile add-mcp <profile> <mcp-name> --url <https-url>
 # Verify profile resources after updates
 skills-sync profile show <profile>
 # Build updated profile artifacts
@@ -156,6 +158,8 @@ skills-sync profile add-skill personal --upstream anthropics --path skills/claud
 skills-sync upstream remove anthropics
 # Add filesystem MCP server to personal profile
 skills-sync profile add-mcp personal filesystem --command npx --args -y @modelcontextprotocol/server-filesystem C:\Users\ryanr\Documents
+# Add GitHub MCP server over HTTP to personal profile
+skills-sync profile add-mcp personal io.github.github/github-mcp-server --url https://api.githubcopilot.com/mcp/
 # Build updated personal profile artifacts
 skills-sync build --profile personal
 # Apply updated personal profile to detected agents
@@ -173,8 +177,10 @@ If you installed an MCP server or created a skill in one agent, add it to your p
 ```bash
 # Add a skill import to the profile
 skills-sync profile add-skill <profile> --upstream <upstream-id> --path <repo-skill-path>
-# Add an MCP server to the profile
+# Add a stdio MCP server to the profile
 skills-sync profile add-mcp <profile> <mcp-name> --command <command> --args <arg1> <arg2> ...
+# Add an HTTP MCP server to the profile
+skills-sync profile add-mcp <profile> <mcp-name> --url <https-url>
 # Build artifacts with new skill and MCP entries
 skills-sync build --profile <profile>
 # Apply updated profile to all detected agents

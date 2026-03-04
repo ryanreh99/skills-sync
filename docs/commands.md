@@ -20,7 +20,7 @@ Use either:
 13. `profile show [name] [--format text|json]`
 14. `profile add-skill <name> --upstream <id> --path <repoPath> [--ref <ref>] [--dest-prefix <prefix>]`
 15. `profile remove-skill <name> --upstream <id> --path <repoPath> [--ref <ref>] [--dest-prefix <prefix>]`
-16. `profile add-mcp <name> <server> --command <command> [--args <arg...>] [--env <KEY=VALUE...>]`
+16. `profile add-mcp <name> <server> (--command <command> [--args <arg...>] [--env <KEY=VALUE...>] | --url <url>)`
 17. `profile remove-mcp <name> <server>`
 18. `profile export [name] [--output <path>]`
 19. `profile import <name> --input <path> [--replace]`
@@ -56,7 +56,7 @@ Unknown commands fail with:
 - `list everything`: prints every discovered profile plus its local/imported skills and MCP servers.
 - `profile show [name]`: shows one profile's local skills, imported skills, and MCP servers (defaults to current profile if omitted).
 - `profile add-skill` / `profile remove-skill`: edits `workspace/packs/<name>/sources.json` skill imports.
-- `profile add-mcp` / `profile remove-mcp`: edits `workspace/packs/<name>/mcp/servers.json` (`--env` entries use `KEY=VALUE` format).
+- `profile add-mcp` / `profile remove-mcp`: edits `workspace/packs/<name>/mcp/servers.json`. For add, provide exactly one of `--command` or `--url` (`--env` entries use `KEY=VALUE` format and apply to `--command` only).
 - `profile export`: exports profile pack config and local skill files to JSON for migration.
 - `profile import`: imports exported profile config into local workspace.
 - `agent inventory`: inspects installed skills and MCP servers per detected agent, including parse issues.

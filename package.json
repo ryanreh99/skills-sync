@@ -13,6 +13,8 @@
   },
   "files": [
     "dist",
+    "docs/user-guide.md",
+    "docs/commands.md",
     "README.md",
     "LICENSE"
   ],

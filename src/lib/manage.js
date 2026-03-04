@@ -22,6 +22,14 @@ function normalizeRequiredText(value, label) {
   return value.trim();
 }
 
+function normalizeOptionalText(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
 function cloneSourcesDocument(sources) {
   return {
     imports: Array.isArray(sources?.imports)
@@ -356,6 +364,12 @@ function normalizeMcpServersDocument(document) {
   const servers = {};
   for (const name of serverNames) {
     const server = document.servers[name] ?? {};
+    if (typeof server.url === "string" && server.url.trim().length > 0) {
+      servers[name] = {
+        url: server.url.trim()
+      };
+      continue;
+    }
     const normalizedServer = {
       command: server.command,
       args: Array.isArray(server.args) ? server.args : []
@@ -383,21 +397,41 @@ async function loadMcpServersForProfile(profileName) {
   };
 }
 
-export async function cmdProfileAddMcp({ profile, name, command, args, env }) {
+export async function cmdProfileAddMcp({ profile, name, command, url, args, env }) {
   const profileName = normalizeRequiredText(profile, "Profile name");
   const serverName = normalizeRequiredText(name, "MCP server name");
-  const serverCommand = normalizeRequiredText(command, "MCP command");
+  const serverCommand = normalizeOptionalText(command);
+  const serverUrl = normalizeOptionalText(url);
+
+  if ((serverCommand ? 1 : 0) + (serverUrl ? 1 : 0) !== 1) {
+    throw new Error("Provide exactly one of --command or --url for profile add-mcp.");
+  }
+
   const serverArgs = normalizeMcpArgs(args);
   const serverEnv = normalizeMcpEnvEntries(env);
 
+  if (serverUrl && serverArgs.length > 0) {
+    throw new Error("--args cannot be used with --url.");
+  }
+  if (serverUrl && Object.keys(serverEnv).length > 0) {
+    throw new Error("--env cannot be used with --url.");
+  }
+
   const { mcpPath, document } = await loadMcpServersForProfile(profileName);
   const existed = Object.prototype.hasOwnProperty.call(document.servers, serverName);
-  const nextServer = {
-    command: serverCommand,
-    args: serverArgs
-  };
-  if (Object.keys(serverEnv).length > 0) {
-    nextServer.env = serverEnv;
+  let nextServer = null;
+  if (serverUrl) {
+    nextServer = {
+      url: serverUrl
+    };
+  } else {
+    nextServer = {
+      command: serverCommand,
+      args: serverArgs
+    };
+    if (Object.keys(serverEnv).length > 0) {
+      nextServer.env = serverEnv;
+    }
   }
   document.servers[serverName] = nextServer;
 

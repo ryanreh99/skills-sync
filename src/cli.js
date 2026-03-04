@@ -352,7 +352,8 @@ function createProgram() {
   profileCommand
     .command("add-mcp <name> <server>")
     .description("Add or update an MCP server in a profile.")
-    .requiredOption("--command <command>", "server command executable")
+    .option("--command <command>", "server command executable (stdio transport)")
+    .option("--url <url>", "server URL (HTTP transport)")
     .option("--args <values...>", "optional command args")
     .option("--env <entries...>", "optional env vars as KEY=VALUE entries")
     .action((name, server, options) =>
@@ -360,6 +361,7 @@ function createProgram() {
         profile: name,
         name: server,
         command: options.command,
+        url: options.url,
         args: options.args,
         env: options.env
       }));

@@ -9,5 +9,5 @@
 6. `skills-sync doctor`
 
 ## Next
-- Main guide: `docs/user-guide.md`
-- Full command reference: `docs/commands.md`
+- Main guide: - [user-guide.md](user-guide.md)
+- Full command reference: - [commands.md](commands.md)
