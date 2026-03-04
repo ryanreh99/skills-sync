@@ -1,0 +1,27 @@
+{
+  "codex": {
+    "skillsDir": "$HOME/.codex/skills/vendor_imports",
+    "mcpConfig": "$HOME/.codex/config.toml",
+    "canOverride": false
+  },
+  "claude": {
+    "skillsDir": "$HOME/.claude/skills",
+    "mcpConfig": "$HOME/mcp_servers.json",
+    "canOverride": true
+  },
+  "cursor": {
+    "skillsDir": "$HOME/.cursor/skills",
+    "mcpConfig": "$HOME/.cursor/mcp.json",
+    "canOverride": true
+  },
+  "copilot": {
+    "skillsDir": "$HOME/.copilot/skills",
+    "mcpConfig": "$HOME/.copilot/mcp-config.json",
+    "canOverride": true
+  },
+  "gemini": {
+    "skillsDir": "$HOME/.gemini/skills",
+    "mcpConfig": "$HOME/.gemini/settings.json",
+    "canOverride": false
+  }
+}

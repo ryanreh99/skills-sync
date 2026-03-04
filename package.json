@@ -1,0 +1,66 @@
+{
+  "name": "skills-sync",
+  "version": "1.0.0",
+  "description": "AI skills and MCP configuration management for development environments.",
+  "license": "MIT",
+  "author": "Ryan Rehman <ryanrehman99@gmail.com>",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "bin": {
+    "skills-sync": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ryanreh99/skills-sync.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ryanreh99/skills-sync/issues"
+  },
+  "homepage": "https://github.com/ryanreh99/skills-sync#readme",
+  "scripts": {
+    "clean": "node ./src/scripts/clean.mjs",
+    "build": "node ./src/scripts/build.mjs",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "test": "npm run build && node --test ./test/smoke.test.mjs && node ./test/integration/run.mjs",
+    "prepublishOnly": "npm run clean && npm run build && npm run lint && npm run test",
+    "init": "node ./src/index.js init",
+    "apply": "node ./src/index.js apply",
+    "unlink": "node ./src/index.js unlink",
+    "doctor": "node ./src/index.js doctor",
+    "detect": "node ./src/index.js detect",
+    "list": "node ./src/index.js list",
+    "search": "node ./src/index.js search",
+    "use": "node ./src/index.js use",
+    "current": "node ./src/index.js current",
+    "ls": "node ./src/index.js ls",
+    "new": "node ./src/index.js new",
+    "remove": "node ./src/index.js remove",
+    "help": "node ./src/index.js help",
+    "brew:formula": "node ./src/scripts/generate-homebrew-formula.mjs",
+    "dev": "node ./src/index.js"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "commander": "^14.0.2",
+    "deepmerge": "^4.3.1",
+    "fs-extra": "^11.3.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "eslint": "^9.22.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.6.2"
+  }
+}

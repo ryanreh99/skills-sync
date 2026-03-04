@@ -1,0 +1,23 @@
+{
+  "upstreams": [
+    {
+      "id": "anthropic",
+      "type": "git",
+      "repo": "https://github.com/anthropics/skills.git",
+      "defaultRef": "main"
+    },
+    {
+      "id": "openai",
+      "type": "git",
+      "repo": "https://github.com/openai/skills.git",
+      "defaultRef": "main"
+    },
+    {
+      "id": "awesome-copilot",
+      "type": "git",
+      "repo": "https://github.com/github/awesome-copilot.git",
+      "defaultRef": "main"
+    }
+  ]
+}
+

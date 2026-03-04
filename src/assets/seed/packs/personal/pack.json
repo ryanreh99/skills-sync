@@ -1,0 +1,7 @@
+{
+  "name": "personal",
+  "version": "1.0.0",
+  "description": "Personal profile example using upstream imports.",
+  "maintainer": "skills-sync example",
+  "tags": []
+}

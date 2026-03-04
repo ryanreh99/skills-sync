@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Upstreams Lockfile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pins"
+  ],
+  "properties": {
+    "pins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "upstream",
+          "ref",
+          "commit"
+        ],
+        "properties": {
+          "upstream": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "commit": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{7,40}$"
+          }
+        }
+      }
+    }
+  }
+}
+

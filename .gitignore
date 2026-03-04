@@ -1,0 +1,12 @@
+workspace/
+workspace.backup*/
+dist/
+node_modules/
+.cache/
+upstreams_cache/
+**/*.env
+**/*token*
+**/*secret*
+**/credentials*
+.tmp*
+*.tgz

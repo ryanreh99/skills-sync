@@ -1,0 +1,31 @@
+{
+  "imports": [
+    {
+      "upstream": "anthropic",
+      "ref": "main",
+      "paths": [
+        "skills/frontend-design",
+        "skills/skill-creator"
+      ],
+      "destPrefix": "anthropic"
+    },
+    {
+      "upstream": "openai",
+      "ref": "main",
+      "paths": [
+        "skills/.system/skill-creator",
+        "skills/.curated/spreadsheet"
+      ],
+      "destPrefix": "openai"
+    },
+    {
+      "upstream": "awesome-copilot",
+      "ref": "main",
+      "paths": [
+        "skills/copilot-cli-quickstart",
+        "skills/suggest-awesome-github-copilot-skills"
+      ],
+      "destPrefix": "awesome-copilot"
+    }
+  ]
+}

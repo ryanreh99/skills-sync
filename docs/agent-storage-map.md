@@ -1,0 +1,153 @@
+# Agent Storage Map (Validated)
+
+This document records the current source-of-truth findings for runtime storage and config behavior for:
+- Codex CLI (OpenAI)
+- Claude Code (Anthropic)
+- Cursor
+- Gemini CLI
+
+If a field is not clearly documented in official docs, it is marked **UNVERIFIED** and `skills-sync` uses a conservative default.
+
+## Codex CLI (OpenAI)
+
+### Config and MCP
+- User config: `~/.codex/config.toml` (Windows equivalent: `%USERPROFILE%\\.codex\\config.toml`)
+- Project config: `.codex/config.toml` (trusted projects)
+- MCP schema: TOML tables under `[mcp_servers.<name>]` with keys like:
+  - `transport`
+  - `command`, `args`, `env`, `env_vars`, `cwd` (stdio)
+  - `url`, `bearer_token_env_var`, `http_headers`, `env_http_headers` (HTTP)
+
+### Skills / discovery
+- Codex skills docs describe discovery from `.agents/skills` and other scopes.
+- `SKILL.md`-based folders are supported.
+
+### Precedence and env vars
+- Docs show user + project config and per-run overrides (`-c/--config`).
+- `CODEX_HOME` controls Codex home location.
+
+### Stability
+- MCP and skills are documented as first-class features (treated as stable for this repo).
+
+### Sources
+- https://developers.openai.com/codex/config-advanced
+- https://developers.openai.com/codex/mcp
+- https://developers.openai.com/codex/skills
+
+---
+
+## Claude Code (Anthropic)
+
+### Config and MCP
+- Settings files:
+  - User: `~/.claude/settings.json`
+  - Project: `.claude/settings.json`
+  - Local project override: `.claude/settings.local.json`
+- MCP config locations documented as:
+  - Main Claude config (primary): `~/.claude.json`
+  - Dedicated MCP file: `~/.claude/mcp_servers.json`
+  - Project scope: `.mcp.json`
+  - Precedence: when both user-level files are present, the main `~/.claude.json` takes priority over `~/.claude/mcp_servers.json`.
+
+### Skills / sub-agents discovery
+- Sub-agents:
+  - User: `~/.claude/agents/`
+  - Project: `.claude/agents/`
+- `~/.claude/skills` / `.claude/skills` are **UNVERIFIED** in Anthropic docs.
+  - This repo uses `.claude/skills` as a conservative compatibility path.
+
+### Precedence and env vars
+- Settings precedence is documented (managed > user/project tiers).
+- `CLAUDE_CONFIG_DIR` is documented for config/data location control.
+
+### Stability
+- Claude settings + MCP are documented.
+- Sub-agents are documented as primary feature.
+
+### Sources
+- https://docs.anthropic.com/en/docs/claude-code/settings
+- https://docs.anthropic.com/en/docs/claude-code/mcp
+- https://docs.anthropic.com/en/docs/claude-code/sub-agents
+
+---
+
+## Cursor
+
+### Config and MCP
+- MCP config:
+  - User: `~/.cursor/mcp.json`
+  - Project: `.cursor/mcp.json`
+- MCP schema uses JSON `mcpServers` objects with keys like `command`, `args`, `env`.
+
+### Skills / discovery
+- Cursor-native locations:
+  - `.agents/skills/`
+  - `.cursor/skills/`
+  - `~/.agents/skills/`
+  - `~/.cursor/skills/`
+- Compatibility loading (officially documented):
+  - `.claude/skills/`
+  - `.codex/skills/`
+  - `~/.claude/skills/`
+  - `~/.codex/skills/`
+- Discovery is **top-level only** (same constraint as Gemini). Nested skill namespaces require flat aliases at the skills directory root for reliable detection.
+
+### Precedence and env vars
+- Project vs global MCP files are documented.
+- Cursor CLI config has documented envs:
+  - `CURSOR_CONFIG_DIR`
+  - `XDG_CONFIG_HOME` (Linux/BSD)
+- MCP-specific env-override variable for config file location is **UNVERIFIED**.
+
+### Stability
+- MCP and skills pages are official docs pages.
+
+### Sources
+- https://cursor.com/docs/context/mcp
+- https://cursor.com/docs/context/skills
+- https://cursor.com/docs/context/rules
+- https://cursor.com/docs/cli/reference/configuration
+
+---
+
+## Gemini CLI (Google)
+
+### Config and MCP
+- Settings files:
+  - User: `~/.gemini/settings.json`
+  - Project: `.gemini/settings.json`
+- MCP config lives in `settings.json` under:
+  - `mcpServers` (server definitions)
+  - `mcp` (global MCP behavior settings)
+
+### Skills / sub-agents discovery
+- Skills discovery:
+  - `.gemini/skills/` and alias `.agents/skills/` (project)
+  - `~/.gemini/skills/` and alias `~/.agents/skills/` (user)
+  - discovery is path-local (`SKILL.md` or `*/SKILL.md`), so nested namespace trees require flatten/aliasing for reliable detection.
+  - documented precedence includes workspace over user over extension.
+- Custom agents/subagents:
+  - docs show `.gemini/agents/*.md` and `~/.gemini/agents/*.md`
+  - subagents are explicitly marked experimental.
+
+### Precedence and env vars
+- Settings precedence is explicitly documented.
+- `GEMINI_CLI_HOME` controls user config/storage root.
+
+### Stability
+- Settings/MCP/skills are documented.
+- Subagents/agent-mode area includes experimental labeling.
+
+### Sources
+- https://geminicli.com/docs/reference/configuration
+- https://geminicli.com/docs/tools/mcp-server/
+- https://geminicli.com/docs/cli/skills/
+- https://geminicli.com/docs/core/subagents/
+
+---
+
+## Conservative defaults used by this repo
+
+- `apply` manages **user-level targets only** by default.
+- Cursor adapter uses copy+aliases projection (same as Gemini) — skills are copied to `dist/.cursor/skills` with flat `vendor__*` aliases for any nested skill paths, then bound to `~/.cursor/skills` at apply time.
+- When schema/path behavior is ambiguous, docs are preserved in this file and implementation avoids destructive assumptions.
