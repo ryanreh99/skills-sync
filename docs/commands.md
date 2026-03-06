@@ -9,7 +9,7 @@ Running `skills-sync` with no command opens interactive shell mode.
 
 ## Root Aliases
 - `agent` is accepted as alias for `agents`
-- Any root command can be prefixed with `/` (for example `/build`, `/apply`, `/unlink`, `/list`, `/profile`)
+- Leading `/` on root commands is accepted for compatibility (for example `/build` -> `build`)
 
 ## Command Surface
 1. `init [--seed] [--dry-run] [--profile <name>]`
@@ -55,19 +55,20 @@ Unknown commands fail with:
 - Non-interactive mode stays strict and returns explicit argument errors.
 - `use [name]` and `new [name]` default to `personal` when omitted.
 - `profile add-skill [name]` falls back to current/default profile when omitted.
+- `profile add-mcp [name] [server]` and `profile remove-mcp [name] [server]` fall back to current/default profile when profile name is omitted.
 - When `--upstream` is omitted for `profile add-skill`/`profile remove-skill`, interactive mode shows configured upstream IDs as a select list.
 - `profile add-upstream` and `profile remove-upstream` are aliases of `upstream add/remove`.
 - Auto-inferred upstream IDs use `owner_repo` for GitHub URLs/SSH (for example `ryanreh99_skills`), with `_2`, `_3`, ... on conflicts.
 - `upstream add`/`profile add-upstream` auto-detect `defaultRef` from repo HEAD when `--default-ref` is omitted (fallback: `main`).
-- `/build`, `/apply`, and `/doctor` can omit `--profile` when a default profile is set with `use`.
+- `build`, `apply`, and `doctor` can omit `--profile` when a default profile is set with `use`.
 - `search skills` uses fuzzy ranking. Text output shows top 20 results; JSON returns full results.
 - First `build` can take longer while upstream cache is initialized.
 
 ## Interactive Shell Shortcuts
-- `/list`: menu for `list` subcommands
-- `/agents`: menu for `agents inventory` and `agents drift`
-- `/profile`: menu for `profile` subcommands
-- `/search`: choose search mode, then enter query text for `search skills`
+- `list`: menu for `list` subcommands
+- `agents`: menu for `agents inventory` and `agents drift`
+- `profile`: menu for `profile` subcommands
+- `search`: choose search mode, then enter query text for `search skills`
 - `:profile <name>`: set shell profile context
 - `:profile default`: reset shell profile context to default profile
 - `:profile none`: clear shell profile context

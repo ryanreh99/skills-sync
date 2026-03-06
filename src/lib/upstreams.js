@@ -727,7 +727,7 @@ export async function resolveReferences({
     } else if (requirePinned) {
       throw new Error(
         `Missing lock pin for upstream '${reference.upstreamId}' ref '${reference.ref}'. ` +
-          "Run /build --lock=write or /build --lock=refresh."
+          "Run build --lock=write or build --lock=refresh."
       );
     } else {
       commit = await fetchRefAndResolveCommit(repoPath, reference.ref);

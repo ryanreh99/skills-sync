@@ -13,6 +13,7 @@ import {
   cmdListProfiles,
   cmdNewProfile,
   cmdRemoveProfile,
+  listAvailableProfiles,
   readDefaultProfile,
   writeDefaultProfile
 } from "./lib/config.js";
@@ -364,6 +365,62 @@ async function resolveProfileForProfileMutation(profileName, usageHint) {
   }
 
   throw new Error(`Profile name is required. Set one with 'use <name>' or pass it explicitly. Usage: ${usageHint}.`);
+}
+
+async function profileExists(profileName) {
+  const normalizedProfile = normalizeOptionalText(profileName);
+  if (!normalizedProfile) {
+    return false;
+  }
+  const profiles = await listAvailableProfiles();
+  return profiles.some((profile) => profile.name === normalizedProfile);
+}
+
+async function resolveMcpProfileAndServerArgs({
+  profileArg,
+  serverArg,
+  commandName
+}) {
+  const normalizedProfileArg = normalizeOptionalText(profileArg);
+  const normalizedServerArg = normalizeOptionalText(serverArg);
+  const usageWithExplicitProfile = `${commandName} <name> <server>`;
+  const usageWithOptionalProfile = `${commandName} [name] <server>`;
+
+  if (normalizedServerArg) {
+    return {
+      profile: await resolveProfileForProfileMutation(normalizedProfileArg, usageWithOptionalProfile),
+      server: normalizedServerArg
+    };
+  }
+
+  if (normalizedProfileArg) {
+    if (await profileExists(normalizedProfileArg)) {
+      return {
+        profile: normalizedProfileArg,
+        server: await resolveRequiredTextOption({
+          value: null,
+          label: "MCP server name",
+          placeholder: "my_server",
+          missingMessage: `MCP server name is required. Usage: ${usageWithExplicitProfile}.`
+        })
+      };
+    }
+
+    return {
+      profile: await resolveProfileForProfileMutation(null, usageWithOptionalProfile),
+      server: normalizedProfileArg
+    };
+  }
+
+  return {
+    profile: await resolveProfileForProfileMutation(null, usageWithOptionalProfile),
+    server: await resolveRequiredTextOption({
+      value: null,
+      label: "MCP server name",
+      placeholder: "my_server",
+      missingMessage: `MCP server name is required. Usage: ${usageWithOptionalProfile}.`
+    })
+  };
 }
 
 async function promptForMissingMcpTransportSettings({
@@ -727,7 +784,7 @@ function createProgram() {
       }));
   profileCommand
     .command("add-mcp [name] [server]")
-    .description("Add or update an MCP server in a profile.")
+    .description("Add or update an MCP server in a profile (defaults to current profile when omitted).")
     .option("--command <command>", "server command executable (stdio transport)")
     .option("--url <url>", "server URL (HTTP transport)")
     .option("--args <values...>", "optional command args")
@@ -739,17 +796,10 @@ function createProgram() {
     )
     .option("--env <entries...>", "optional env vars as KEY=VALUE entries")
     .action(async (name, server, options) => {
-      const resolvedProfileName = await resolveRequiredTextOption({
-        value: name,
-        label: "Profile name",
-        placeholder: "personal",
-        missingMessage: "Profile name is required. Usage: profile add-mcp <name> <server>."
-      });
-      const resolvedServerName = await resolveRequiredTextOption({
-        value: server,
-        label: "MCP server name",
-        placeholder: "my_server",
-        missingMessage: "MCP server name is required. Usage: profile add-mcp <name> <server>."
+      const resolved = await resolveMcpProfileAndServerArgs({
+        profileArg: name,
+        serverArg: server,
+        commandName: "profile add-mcp"
       });
       const resolvedArgs = resolveMcpArgsOption({ args: options.args, arg: options.arg });
       const resolvedTransport = await promptForMissingMcpTransportSettings({
@@ -759,8 +809,8 @@ function createProgram() {
         env: options.env
       });
       return cmdProfileAddMcp({
-        profile: resolvedProfileName,
-        name: resolvedServerName,
+        profile: resolved.profile,
+        name: resolved.server,
         command: resolvedTransport.command,
         url: resolvedTransport.url,
         args: resolvedTransport.args,
@@ -769,22 +819,18 @@ function createProgram() {
     });
   profileCommand
     .command("remove-mcp [name] [server]")
-    .description("Remove an MCP server from a profile.")
-    .action(async (name, server) =>
-      cmdProfileRemoveMcp({
-        profile: await resolveRequiredTextOption({
-          value: name,
-          label: "Profile name",
-          placeholder: "personal",
-          missingMessage: "Profile name is required. Usage: profile remove-mcp <name> <server>."
-        }),
-        name: await resolveRequiredTextOption({
-          value: server,
-          label: "MCP server name",
-          placeholder: "my_server",
-          missingMessage: "MCP server name is required. Usage: profile remove-mcp <name> <server>."
-        })
-      }));
+    .description("Remove an MCP server from a profile (defaults to current profile when omitted).")
+    .action(async (name, server) => {
+      const resolved = await resolveMcpProfileAndServerArgs({
+        profileArg: name,
+        serverArg: server,
+        commandName: "profile remove-mcp"
+      });
+      return cmdProfileRemoveMcp({
+        profile: resolved.profile,
+        name: resolved.server
+      });
+    });
   profileCommand
     .command("export [name]")
     .description("Export a profile's config (pack manifest, sources, MCP, and local skills) to JSON.")

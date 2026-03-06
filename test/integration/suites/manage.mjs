@@ -160,6 +160,21 @@ export async function run({ localOverridesPath }) {
     "added mcp env BETA should match."
   );
 
+  // --- profile add-mcp without explicit profile uses current/default profile ---
+  runCli([
+    "profile",
+    "add-mcp",
+    "unit_test_default_profile_server",
+    "--url",
+    "https://example.com/default-profile-mcp"
+  ]);
+  const mcpAfterDefaultProfileAdd = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(mcpAfterDefaultProfileAdd.servers ?? {}, "unit_test_default_profile_server"),
+    true,
+    "profile add-mcp without profile name should target current/default profile."
+  );
+
   // --- profile add-mcp (http/url) ---
   runCli([
     "profile",
@@ -273,6 +288,15 @@ export async function run({ localOverridesPath }) {
     Object.prototype.hasOwnProperty.call(mcpAfterRemove.servers ?? {}, "unit_test_server"),
     false,
     "profile remove-mcp should remove server entry."
+  );
+
+  // --- profile remove-mcp without explicit profile uses current/default profile ---
+  runCli(["profile", "remove-mcp", "unit_test_default_profile_server"]);
+  const mcpAfterDefaultProfileRemove = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(mcpAfterDefaultProfileRemove.servers ?? {}, "unit_test_default_profile_server"),
+    false,
+    "profile remove-mcp without profile name should target current/default profile."
   );
 
   // --- upstream add ---

@@ -86,7 +86,7 @@ const SUBCOMMAND_OPTIONS = {
 };
 
 const SHELL_ALIASES = [":help", ":profile", ":clear", ":exit", "help", "clear", "exit", "quit"];
-const SHELL_SHORTCUTS = ["/list", "/agents", "/profile", "/search"];
+const SHELL_SHORTCUTS = ["list", "agents", "profile", "search"];
 
 const PROFILE_AWARE_COMMANDS = new Set(["build", "apply", "doctor"]);
 
@@ -99,6 +99,11 @@ function normalizeRootToken(token) {
     return trimmed.slice(1);
   }
   return trimmed;
+}
+
+function isShellShortcut(input) {
+  const normalized = normalizeRootToken(input);
+  return SHELL_SHORTCUTS.includes(normalized);
 }
 
 function tokenizeCommandLine(input) {
@@ -158,8 +163,7 @@ function getCompletionMatches(pool, current) {
 }
 
 function createCompleter() {
-  const slashRootCompletions = ROOT_COMMANDS.map((command) => `/${command}`);
-  const rootCompletions = uniqueSorted([...ROOT_COMMANDS, ...slashRootCompletions, ...SHELL_ALIASES, ...SHELL_SHORTCUTS]);
+  const rootCompletions = uniqueSorted([...ROOT_COMMANDS, ...SHELL_ALIASES, ...SHELL_SHORTCUTS]);
 
   return (line) => {
     const raw = String(line || "");
@@ -253,7 +257,8 @@ function handleShellAlias(rawLine, activeProfile) {
 }
 
 function resolveShortcutCommands(shortcut) {
-  if (shortcut === "/list") {
+  const normalizedShortcut = normalizeRootToken(shortcut);
+  if (normalizedShortcut === "list") {
     return {
       message: "List options",
       commands: [
@@ -267,7 +272,7 @@ function resolveShortcutCommands(shortcut) {
       ]
     };
   }
-  if (shortcut === "/agents") {
+  if (normalizedShortcut === "agents") {
     return {
       message: "Agents options",
       commands: [
@@ -277,7 +282,7 @@ function resolveShortcutCommands(shortcut) {
       ]
     };
   }
-  if (shortcut === "/profile") {
+  if (normalizedShortcut === "profile") {
     return {
       message: "Profile options",
       commands: [
@@ -293,7 +298,7 @@ function resolveShortcutCommands(shortcut) {
       ]
     };
   }
-  if (shortcut === "/search") {
+  if (normalizedShortcut === "search") {
     return {
       message: "Search options",
       commands: [
@@ -306,6 +311,7 @@ function resolveShortcutCommands(shortcut) {
 }
 
 async function resolveShortcutSelection(shortcut, rl) {
+  const normalizedShortcut = normalizeRootToken(shortcut);
   const shortcutConfig = resolveShortcutCommands(shortcut);
   if (!shortcutConfig) {
     return null;
@@ -321,7 +327,7 @@ async function resolveShortcutSelection(shortcut, rl) {
       message: shortcutConfig.message,
       options: shortcutConfig.commands
     });
-    if (shortcut !== "/search") {
+    if (normalizedShortcut !== "search") {
       return selectedCommand;
     }
 
@@ -346,8 +352,8 @@ function printShellHelp(activeProfile) {
   process.stdout.write(`  ${accent(":profile <name>")}     Set shell profile context\n`);
   process.stdout.write(`  ${accent(":profile default")}    Reset shell profile to current default profile\n`);
   process.stdout.write(`  ${accent(":profile none")}       Disable shell profile context\n`);
-  process.stdout.write(`  ${accent("/list /agents /profile /search")}  Open shortcut selection menus\n`);
-  process.stdout.write(`  ${accent("/init /build /apply /doctor /unlink")}  Direct command aliases\n`);
+  process.stdout.write(`  ${accent("list agents profile search")}  Open shortcut selection menus\n`);
+  process.stdout.write(`  ${accent("init build apply doctor unlink")}  Core commands\n`);
   process.stdout.write("\n");
   process.stdout.write(
     `${muted("Tip: press TAB for command completion. Quoted arguments are supported.")}\n`
@@ -402,13 +408,13 @@ export async function cmdShell({ profile, executeCommand }) {
     process.stdout.write(`${muted("Profile context disabled. Use :profile <name> to set one.")}\n`);
   }
   process.stdout.write(`${muted("Modes:")}\n`);
-  process.stdout.write(`${muted("  setup   -> /init | /init --seed")}\n`);
-  process.stdout.write(`${muted("  sync    -> /build -> /apply")}\n`);
+  process.stdout.write(`${muted("  setup   -> init | init --seed")}\n`);
+  process.stdout.write(`${muted("  sync    -> build -> apply")}\n`);
   process.stdout.write(`${muted("Explore and Manage:")}\n`);
-  process.stdout.write(`${muted("  /list      -> profiles, skills, MCP servers, upstreams, and detected agents")}\n`);
-  process.stdout.write(`${muted("  /agents    -> inventory/drift to identify drift and sync status")}\n`);
-  process.stdout.write(`${muted("  /profile   -> add/remove skills + MCPs; use/upstream to switch profile and manage upstreams")}\n`);
-  process.stdout.write(`${muted("  /search    -> choose search mode, then enter query")}\n`);
+  process.stdout.write(`${muted("  list      -> profiles, skills, MCP servers, upstreams, and detected agents")}\n`);
+  process.stdout.write(`${muted("  agents    -> inventory/drift to identify drift and sync status")}\n`);
+  process.stdout.write(`${muted("  profile   -> add/remove skills + MCPs; use/upstream to switch profile and manage upstreams")}\n`);
+  process.stdout.write(`${muted("  search    -> choose search mode, then enter query")}\n`);
   process.stdout.write("\n");
 
   try {
@@ -428,7 +434,7 @@ export async function cmdShell({ profile, executeCommand }) {
         continue;
       }
 
-      if (SHELL_SHORTCUTS.includes(trimmed)) {
+      if (isShellShortcut(trimmed)) {
         let shortcutCommand;
         try {
           shortcutCommand = await resolveShortcutSelection(trimmed, rl);

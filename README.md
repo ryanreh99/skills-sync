@@ -39,65 +39,65 @@ brew install ryanreh99/skills-sync/skills-sync
 
 ## Quickstart
 
-Use slash-prefixed root commands for consistency across shell and direct CLI.
-
 ### Initialize and Sync
 
 ```bash
 # 1) scaffold local workspace
-skills-sync /init --seed
+skills-sync init --seed
 
 # 2) build runtime artifacts
-skills-sync /build
+skills-sync build
 
 # 3) apply to agent targets
-skills-sync /apply
+skills-sync apply
 ```
 
 ### List Current State
 
 ```bash
 # effective skills in active profile
-skills-sync /list skills
+skills-sync list skills
 
 # effective MCP servers in active profile
-skills-sync /list mcps
+skills-sync list mcps
 
 # configured upstream repositories
-skills-sync /list upstreams
+skills-sync list upstreams
 ```
 
 ### Add Upstream, Skill, and MCP
 
 ```bash
 # add an upstream (ID inferred: matlab_skills)
-skills-sync /profile add-upstream --repo https://github.com/matlab/skills
+skills-sync profile add-upstream --repo https://github.com/matlab/skills
 
 # inspect discoverable upstream content
-skills-sync /list upstream-content --upstream matlab_skills
+skills-sync list upstream-content --upstream matlab_skills
 
 # import one upstream skill
-skills-sync /profile add-skill --upstream matlab_skills --path skills/matlab-test-generator
+skills-sync profile add-skill --upstream matlab_skills --path skills/matlab-test-generator
 
 # add GitHub MCP endpoint
-skills-sync /profile add-mcp io.github.github/github-mcp-server --url https://api.githubcopilot.com/mcp/
+skills-sync profile add-mcp io.github.github/github-mcp-server --url https://api.githubcopilot.com/mcp/
 ```
+
+#### Note: Remember to run build and apply next
 
 ### Drift and Profile Check
 
 ```bash
 # compare expected profile state vs installed agent state
-skills-sync /agents drift
+skills-sync agents drift
 
 # show profile summary
-skills-sync /profile show
+skills-sync profile show
 ```
 
 ### Search Skills
 
 ```bash
 # fuzzy search skills by keyword
-skills-sync /search skills --query design
+skills-sync search skills --query design
 ```
 
 ## Verify In Agent Chats

@@ -6,30 +6,21 @@
 Use full commands when not in shell mode.
 
 ```bash
-skills-sync /init --seed
+skills-sync init --seed
 skills-sync use personal
-skills-sync /build
-skills-sync /apply
-skills-sync /doctor
-```
-
-Slash-style root aliases are supported in direct mode too:
-
-```bash
-skills-sync /list profiles
-skills-sync /agents inventory
-skills-sync /profile show
-skills-sync /search skills --query mcp
+skills-sync build
+skills-sync apply
+skills-sync doctor
 ```
 
 ## Interactive Mode
 Run `skills-sync` with no args to open shell mode.
 
 Inside shell:
-- `/list` shows list command menu
-- `/agents` shows inventory/drift menu
-- `/profile` shows profile command menu
-- `/search` shows search mode menu, then prompts for query text
+- `list` shows list command menu
+- `agents` shows inventory/drift menu
+- `profile` shows profile command menu
+- `search` shows search mode menu, then prompts for query text
 - `:profile <name>` sets shell profile context
 - `exit` closes shell
 
@@ -37,11 +28,11 @@ Example session:
 
 ```text
 skills-sync
-skills-sync(personal) > /init --seed
+skills-sync(personal) > init --seed
 skills-sync(personal) > use personal
-skills-sync(personal) > /build
-skills-sync(personal) > /apply
-skills-sync(personal) > /doctor
+skills-sync(personal) > build
+skills-sync(personal) > apply
+skills-sync(personal) > doctor
 skills-sync(personal) > exit
 ```
 
@@ -65,9 +56,9 @@ skills-sync list upstream-content --upstream anthropic --format text
 skills-sync profile add-skill personal --upstream anthropic --path skills/claude-code-review
 skills-sync profile add-mcp personal filesystem --command npx --args -y @modelcontextprotocol/server-filesystem C:\Users\ryanr\Documents
 skills-sync profile add-mcp personal github --url https://api.githubcopilot.com/mcp/
-skills-sync /build
-skills-sync /apply
-skills-sync /doctor
+skills-sync build
+skills-sync apply
+skills-sync doctor
 ```
 
 ### Search Skills
@@ -91,14 +82,14 @@ skills-sync agents drift --format text
 
 ### Cleanup
 ```bash
-skills-sync /unlink --dry-run
-skills-sync /unlink
+skills-sync unlink --dry-run
+skills-sync unlink
 skills-sync profile remove-skill personal --upstream anthropic --path skills/claude-code-review
 skills-sync profile remove-mcp personal filesystem
 skills-sync profile remove-upstream anthropic
-skills-sync /build
-skills-sync /apply
-skills-sync /doctor
+skills-sync build
+skills-sync apply
+skills-sync doctor
 ```
 
 ## Prompt Behavior

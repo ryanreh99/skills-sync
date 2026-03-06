@@ -175,7 +175,7 @@ export async function buildProfile(profileName, options = {}) {
     logInfo(`Built profile '${profileName}'.`);
     logInfo(`Lock mode: ${lockMode} | Resolved upstream refs: ${references.length}`);
     if (suggestNextStep) {
-      logInfo("Next step: run /apply.");
+      logInfo("Next step: run apply.");
     }
     if (lockMode === "read" && references.length > 0) {
       logWarn("Build ran with --lock=read. No upstream pins were written.");
