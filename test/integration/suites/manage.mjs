@@ -33,6 +33,7 @@ export async function run({ localOverridesPath }) {
   const personalSourcesPath = path.join(localOverridesPath, "packs", "personal", "sources.json");
   const personalMcpPath = path.join(localOverridesPath, "packs", "personal", "mcp", "servers.json");
   const localUpstreamsPath = path.join(localOverridesPath, "upstreams.json");
+  const lockPath = path.join(localOverridesPath, "skills-sync.lock.json");
 
   // --- list profiles in json mode ---
   const profilesJson = runCli(["list", "profiles", "--format", "json"]);
@@ -48,8 +49,12 @@ export async function run({ localOverridesPath }) {
   const profileShow = runCli(["profile", "show", "personal", "--format", "json"]);
   const profilePayload = JSON.parse(profileShow.stdout.trim());
   assert.equal(profilePayload.profile.name, "personal", "profile show should target personal profile.");
-  assert.equal(Array.isArray(profilePayload.skills.local), true, "profile show should include skills.local array.");
-  assert.equal(Array.isArray(profilePayload.skills.imports), true, "profile show should include skills.imports array.");
+  assert.equal(Array.isArray(profilePayload.skills.items), true, "profile show should include skills.items array.");
+  assert.equal(
+    profilePayload.skills.items.every((item) => typeof item.sourceType === "string"),
+    true,
+    "profile show should expose logical inventory entries."
+  );
   assert.equal(Array.isArray(profilePayload.mcp.servers), true, "profile show should include mcp.servers array.");
 
   // --- profile add-skill ---
@@ -109,7 +114,8 @@ export async function run({ localOverridesPath }) {
     "--ref",
     "main",
     "--dest-prefix",
-    "anthropic"
+    "anthropic",
+    "--yes"
   ]);
   const sourcesAfterRemove = JSON.parse(await fs.readFile(personalSourcesPath, "utf8"));
   const stillHasSkill = sourcesAfterRemove.imports.some(
@@ -124,7 +130,8 @@ export async function run({ localOverridesPath }) {
     "--upstream",
     "anthropic",
     "--path",
-    "skills/test-skill-default-profile"
+    "skills/test-skill-default-profile",
+    "--yes"
   ]);
 
   // --- profile add-mcp ---
@@ -304,8 +311,8 @@ export async function run({ localOverridesPath }) {
     "upstream",
     "add",
     "unit-test-upstream",
-    "--repo",
-    "https://github.com/example/example.git",
+    "--source",
+    "example/example",
     "--default-ref",
     "main"
   ]);
@@ -315,14 +322,21 @@ export async function run({ localOverridesPath }) {
     true,
     "upstream add should create/update local upstreams.json with new upstream."
   );
+  assert.equal(
+    localUpstreamsAfterAdd.upstreams.some(
+      (item) => item.id === "unit-test-upstream" && item.provider === "git" && item.repo === "https://github.com/example/example.git"
+    ),
+    true,
+    "upstream add should normalize GitHub shorthand into a canonical git source."
+  );
 
   // --- profile add-upstream alias ---
   runCli([
     "profile",
     "add-upstream",
     "unit-test-upstream-alias",
-    "--repo",
-    "https://github.com/example/alias.git",
+    "--source",
+    "https://github.com/example/alias",
     "--default-ref",
     "main"
   ]);
@@ -347,8 +361,10 @@ export async function run({ localOverridesPath }) {
     "upstream",
     "add",
     "unit-test-detect-ref",
-    "--repo",
-    detectedRefRepoPath
+    "--source",
+    detectedRefRepoPath,
+    "--provider",
+    "git"
   ]);
   const localUpstreamsAfterDetectedRef = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
   const detectedRefEntry = localUpstreamsAfterDetectedRef.upstreams.find((item) => item.id === "unit-test-detect-ref");
@@ -371,7 +387,7 @@ export async function run({ localOverridesPath }) {
   runCli([
     "upstream",
     "add",
-    "--repo",
+    "--source",
     "https://github.com/example/example.git",
     "--default-ref",
     "main"
@@ -379,7 +395,7 @@ export async function run({ localOverridesPath }) {
   runCli([
     "upstream",
     "add",
-    "--repo",
+    "--source",
     "git@github.com:example/example.git",
     "--default-ref",
     "main"
@@ -391,9 +407,9 @@ export async function run({ localOverridesPath }) {
     "upstream add without id should infer upstream id from github owner/repo."
   );
   assert.equal(
-    localUpstreamsAfterAutoAdd.upstreams.some((item) => item.id === "example_example_2"),
-    true,
-    "upstream add should append numeric suffix when inferred upstream id conflicts."
+    localUpstreamsAfterAutoAdd.upstreams.filter((item) => item.id === "example_example").length,
+    1,
+    "Equivalent upstreams should reconcile idempotently instead of duplicating config entries."
   );
 
   // --- upstream remove ---
@@ -401,7 +417,6 @@ export async function run({ localOverridesPath }) {
   runCli(["profile", "remove-upstream", "unit-test-upstream-alias"]);
   runCli(["upstream", "remove", "unit-test-detect-ref"]);
   runCli(["upstream", "remove", "example_example"]);
-  runCli(["upstream", "remove", "example_example_2"]);
   const localUpstreamsAfterRemove = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
   assert.equal(
     localUpstreamsAfterRemove.upstreams.some((item) => item.id === "unit-test-upstream"),
@@ -428,6 +443,166 @@ export async function run({ localOverridesPath }) {
     everythingText.includes("MCP_TEST_HOME=$HOME"),
     true,
     "list everything text should include MCP env values."
+  );
+
+  // --- profile inspect + local-path import/provider-backed discovery ---
+  const inspectBefore = JSON.parse(runCli(["profile", "inspect", "personal", "--format", "json"]).stdout.trim());
+  assert.equal(typeof inspectBefore.summary.imports, "number", "profile inspect should summarize imports.");
+  assert.equal(Array.isArray(inspectBefore.imports), true, "profile inspect should list imported skills.");
+
+  const localSourceRoot = path.join(localOverridesPath, "fixtures", "local-source");
+  const localSkillRoot = path.join(localSourceRoot, "native-skill");
+  await fs.mkdir(path.join(localSkillRoot, "scripts"), { recursive: true });
+  await fs.mkdir(path.join(localSkillRoot, "references"), { recursive: true });
+  await fs.mkdir(path.join(localSkillRoot, "assets"), { recursive: true });
+  await fs.writeFile(
+    path.join(localSkillRoot, "SKILL.md"),
+    [
+      "---",
+      "title: native-skill",
+      "summary: Local provider fixture",
+      "---",
+      "",
+      "# native-skill",
+      "",
+      "Local provider fixture."
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(path.join(localSkillRoot, "scripts", "run.txt"), "run\n", "utf8");
+  await fs.writeFile(path.join(localSkillRoot, "references", "guide.md"), "# guide\n", "utf8");
+  await fs.writeFile(path.join(localSkillRoot, "assets", "note.txt"), "asset\n", "utf8");
+
+  const localDiscovery = JSON.parse(
+    runCli([
+      "list",
+      "upstream-content",
+      "--source",
+      localSourceRoot,
+      "--provider",
+      "local-path",
+      "--format",
+      "json"
+    ]).stdout.trim()
+  );
+  assert.equal(Array.isArray(localDiscovery.skills), true, "list upstream-content should discover local-path skills.");
+  assert.equal(
+    localDiscovery.skills.some((item) => item.path === "native-skill"),
+    true,
+    "list upstream-content should discover the local fixture skill."
+  );
+
+  runCli([
+    "profile",
+    "add-skill",
+    "personal",
+    "--source",
+    localSourceRoot,
+    "--provider",
+    "local-path",
+    "--upstream-id",
+    "local-fixtures",
+    "--all",
+    "--build"
+  ]);
+  runCli([
+    "profile",
+    "add-skill",
+    "personal",
+    "--source",
+    localSourceRoot,
+    "--provider",
+    "local-path",
+    "--upstream-id",
+    "local-fixtures",
+    "--all"
+  ]);
+
+  const upstreamsAfterLocalImport = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
+  assert.equal(
+    upstreamsAfterLocalImport.upstreams.some((item) => item.id === "local-fixtures" && item.provider === "local-path"),
+    true,
+    "profile add-skill --source should register a local-path upstream."
+  );
+
+  const sourcesAfterLocalImport = JSON.parse(await fs.readFile(personalSourcesPath, "utf8"));
+  const localImportEntries = sourcesAfterLocalImport.imports.filter((entry) => entry.upstream === "local-fixtures");
+  assert.equal(localImportEntries.length, 1, "Repeated local imports should reconcile instead of duplicating sources entries.");
+  assert.deepEqual(localImportEntries[0].paths, ["native-skill"], "Local-path import should store selected skill paths.");
+  assert.equal(localImportEntries[0].tracking, "floating", "Local-path import should default to floating tracking.");
+
+  const inventoryAfterLocalImport = JSON.parse(
+    runCli(["list", "skills", "--profile", "personal", "--detail", "full", "--format", "json"]).stdout.trim()
+  );
+  const localImportedSkill = inventoryAfterLocalImport.skills.find((item) => item.upstream === "local-fixtures");
+  assert.equal(Boolean(localImportedSkill), true, "list skills should include local-path imported skills.");
+  assert.equal(localImportedSkill.provider, "local-path", "Imported local skill should retain provider metadata.");
+  assert.equal(
+    localImportedSkill.capabilities.includes("scripts") &&
+      localImportedSkill.capabilities.includes("references") &&
+      localImportedSkill.capabilities.includes("assets") &&
+      localImportedSkill.capabilities.includes("frontmatter"),
+    true,
+    "Capability scanning should preserve optional skill capabilities."
+  );
+
+  const installedSearch = JSON.parse(
+    runCli([
+      "search",
+      "skills",
+      "--query",
+      "native",
+      "--profile",
+      "personal",
+      "--scope",
+      "installed",
+      "--format",
+      "json"
+    ]).stdout.trim()
+  );
+  assert.equal(
+    installedSearch.some((item) => item.sourceScope === "installed" && item.upstream === "local-fixtures"),
+    true,
+    "Installed-scope search should surface imported local-path skills."
+  );
+
+  const refreshDryRun = JSON.parse(
+    runCli([
+      "profile",
+      "refresh",
+      "personal",
+      "--upstream",
+      "local-fixtures",
+      "--dry-run",
+      "--format",
+      "json"
+    ]).stdout.trim()
+  );
+  assert.equal(typeof refreshDryRun.summary.unchanged, "number", "profile refresh should summarize unchanged imports.");
+  assert.equal(await fs.stat(lockPath).then(() => true).catch(() => false), true, "Build after import should write skills-sync.lock.json.");
+
+  const inspectAfterLocalImport = JSON.parse(runCli(["profile", "inspect", "personal", "--format", "json"]).stdout.trim());
+  assert.equal(
+    inspectAfterLocalImport.imports.some((item) => item.upstream === "local-fixtures"),
+    true,
+    "profile inspect should include locally imported skills."
+  );
+
+  runCli([
+    "profile",
+    "remove-skill",
+    "personal",
+    "--upstream",
+    "local-fixtures",
+    "--all",
+    "--prune-upstream",
+    "--yes"
+  ]);
+  const upstreamsAfterLocalRemove = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
+  assert.equal(
+    upstreamsAfterLocalRemove.upstreams.some((item) => item.id === "local-fixtures"),
+    false,
+    "Removing the last local-path import with --prune-upstream should deregister the upstream."
   );
 
   // --- profile export/import ---
@@ -470,4 +645,17 @@ export async function run({ localOverridesPath }) {
     true,
     "upstream-content json should include mcpServers[]."
   );
+
+  // --- workspace export/diff/sync ---
+  const manifestPath = path.join(localOverridesPath, "exports", "workspace-manifest.json");
+  runCli(["workspace", "export", "--output", manifestPath]);
+  assert.equal(
+    await fs.stat(manifestPath).then(() => true).catch(() => false),
+    true,
+    "workspace export should write a manifest file."
+  );
+  const workspaceDiff = JSON.parse(runCli(["workspace", "diff", "--input", manifestPath, "--format", "json"]).stdout.trim());
+  assert.deepEqual(workspaceDiff.profiles.onlyLeft, [], "workspace diff should be clean immediately after export.");
+  assert.deepEqual(workspaceDiff.upstreams.onlyLeft, [], "workspace diff should report no upstream drift immediately after export.");
+  runCli(["workspace", "sync", "--input", manifestPath, "--dry-run"]);
 }

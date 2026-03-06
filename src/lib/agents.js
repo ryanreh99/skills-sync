@@ -1,5 +1,6 @@
 import fs from "fs-extra";
 import path from "node:path";
+import { loadAgentRegistry, parseAgentFilterOption as parseAgentFilterOptionFromRegistry, summarizeCapabilitySupport } from "./agent-registry.js";
 import {
   MCP_MANAGED_PREFIX,
   SCHEMAS,
@@ -15,9 +16,6 @@ import { applyBindings } from "./bindings.js";
 import { buildProfile } from "./build.js";
 import { loadEffectiveTargets, readDefaultProfile, resolvePack, resolveProfile } from "./config.js";
 import { buildProfileInventory } from "./inventory.js";
-
-const AGENT_ORDER = ["codex", "claude", "cursor", "copilot", "gemini"];
-const AGENT_SET = new Set(AGENT_ORDER);
 
 function normalizeOptionalText(value) {
   if (typeof value !== "string") {
@@ -66,32 +64,8 @@ function toPosixPath(value) {
   return value.split(path.sep).join("/");
 }
 
-function parseAgentTokenList(rawAgents) {
-  if (!rawAgents) {
-    return [];
-  }
-  const raw = Array.isArray(rawAgents) ? rawAgents.join(",") : String(rawAgents);
-  return raw
-    .split(/[,\s]+/g)
-    .map((item) => item.trim().toLowerCase())
-    .filter((item) => item.length > 0);
-}
-
-export function parseAgentFilterOption(rawAgents) {
-  const tokens = parseAgentTokenList(rawAgents);
-  if (tokens.length === 0) {
-    return [...AGENT_ORDER];
-  }
-
-  const requested = new Set();
-  for (const token of tokens) {
-    if (!AGENT_SET.has(token)) {
-      throw new Error(`Unknown agent '${token}'. Valid values: ${AGENT_ORDER.join(", ")}.`);
-    }
-    requested.add(token);
-  }
-
-  return AGENT_ORDER.filter((name) => requested.has(name));
+export async function parseAgentFilterOption(rawAgents) {
+  return parseAgentFilterOptionFromRegistry(rawAgents);
 }
 
 async function detectSkillDirectories(skillsRoot, currentRelative = "", entries = []) {
@@ -340,12 +314,13 @@ async function readInstalledMcpServers(tool, configPath) {
   return readJsonInstalledMcpServers(configPath);
 }
 
-function buildAgentRows(osName, targets, agents) {
+function buildAgentRows(osName, targets, agents, registryById) {
   return agents.map((tool) => {
     const target = targets?.[tool];
     if (!target) {
       throw new Error(`Missing target mapping for agent '${tool}'.`);
     }
+    const metadata = registryById.get(tool);
     const skillsRaw = typeof target.skillsDir === "string" && target.skillsDir.trim().length > 0 ? target.skillsDir : null;
     const mcpRaw = typeof target.mcpConfig === "string" && target.mcpConfig.trim().length > 0 ? target.mcpConfig : null;
     if (!mcpRaw) {
@@ -353,10 +328,13 @@ function buildAgentRows(osName, targets, agents) {
     }
     return {
       tool,
+      displayName: metadata?.displayName ?? tool,
       support: skillsRaw ? "skills+mcp" : "mcp-only",
       skillsDir: skillsRaw ? expandTargetPath(skillsRaw, osName) : null,
       mcpConfig: expandTargetPath(mcpRaw, osName),
-      canOverride: Boolean(target?.canOverride)
+      canOverride: Boolean(target?.canOverride),
+      notes: Array.isArray(metadata?.notes) ? [...metadata.notes] : [],
+      capabilities: metadata?.capabilities ?? {}
     };
   });
 }
@@ -368,8 +346,10 @@ function formatErrorMessage(error) {
 export async function collectAgentInventories({ agents } = {}) {
   const osName = detectOsName();
   const targets = await loadEffectiveTargets(osName);
-  const selectedAgents = parseAgentFilterOption(agents);
-  const rows = buildAgentRows(osName, targets, selectedAgents);
+  const selectedAgents = await parseAgentFilterOption(agents);
+  const registry = await loadAgentRegistry();
+  const registryById = new Map(registry.map((entry) => [entry.id, entry]));
+  const rows = buildAgentRows(osName, targets, selectedAgents, registryById);
 
   const detailedRows = [];
   for (const row of rows) {
@@ -493,7 +473,12 @@ function driftToText(driftReport) {
   lines.push("");
 
   for (const agent of driftReport.agents) {
-    if (agent.summary.missingTotal === 0 && agent.summary.extraTotal === 0 && agent.summary.parseErrors === 0) {
+    if (
+      agent.summary.missingTotal === 0 &&
+      agent.summary.extraTotal === 0 &&
+      agent.summary.parseErrors === 0 &&
+      agent.summary.capabilityWarnings === 0
+    ) {
       lines.push(`${agent.tool}: in sync`);
       continue;
     }
@@ -513,6 +498,9 @@ function driftToText(driftReport) {
     }
     if (agent.summary.parseErrors > 0) {
       parts.push(`parseErrors=${agent.summary.parseErrors}`);
+    }
+    if (agent.summary.capabilityWarnings > 0) {
+      parts.push(`capabilityWarnings=${agent.summary.capabilityWarnings}`);
     }
 
     lines.push(`${agent.tool}: ${parts.join(" | ")}`);
@@ -536,12 +524,15 @@ function toPublicInventoryPayload(payload) {
     os: payload.os,
     agents: payload.agents.map((agent) => ({
       tool: agent.tool,
+      displayName: agent.displayName,
       support: agent.support,
       canOverride: agent.canOverride,
       installed: agent.installed,
       hasSkillsPath: agent.hasSkillsPath,
       hasMcpPath: agent.hasMcpPath,
       inventory: agent.inventory,
+      notes: agent.notes,
+      capabilities: agent.capabilities,
       parseErrors: toPublicParseErrors(agent.parseErrors)
     }))
   };
@@ -554,9 +545,11 @@ function toPublicDriftPayload(payload) {
     expected: payload.expected,
     agents: payload.agents.map((agent) => ({
       tool: agent.tool,
+      displayName: agent.displayName,
       support: agent.support,
       installed: agent.installed,
       parseErrors: toPublicParseErrors(agent.parseErrors),
+      capabilityWarnings: agent.capabilityWarnings,
       drift: agent.drift,
       summary: agent.summary
     }))
@@ -691,9 +684,7 @@ function collectExtraMcpCandidates({ drift, inventory }) {
 }
 
 function chooseMcpCandidate(candidates) {
-  const sorted = [...candidates].sort(
-    (left, right) => AGENT_ORDER.indexOf(left.tool) - AGENT_ORDER.indexOf(right.tool)
-  );
+  const sorted = [...candidates].sort((left, right) => left.tool.localeCompare(right.tool));
   const selected = sorted[0] ?? null;
   const conflicts = [];
   if (!selected) {
@@ -790,14 +781,13 @@ export async function buildAgentDrift({ profile, agents } = {}) {
     );
   }
 
-  const expectedInventory = await buildProfileInventory(resolvedProfile);
-  const expectedSkills = sortStrings([
-    ...expectedInventory.skills.local.map((item) => item.name),
-    ...expectedInventory.skills.imports.map((item) => item.destRelative)
-  ]);
+  const expectedInventory = await buildProfileInventory(resolvedProfile, { detail: "full" });
+  const expectedSkills = sortStrings(expectedInventory.skills.items.map((item) => item.name));
   const expectedMcpServers = normalizeDriftMcpNames(
     expectedInventory.mcp.servers.map((item) => item.name)
   );
+  const registry = await loadAgentRegistry();
+  const registryById = new Map(registry.map((entry) => [entry.id, entry]));
 
   const detected = await collectAgentInventories({ agents });
   const driftAgents = detected.agents.map((agent) => {
@@ -807,12 +797,18 @@ export async function buildAgentDrift({ profile, agents } = {}) {
     );
     const skillsDrift = computeDifference(expectedSkills, actualSkills);
     const mcpDrift = computeDifference(expectedMcpServers, actualMcp);
+    const capabilityWarnings = expectedInventory.skills.items.reduce((count, item) => {
+      const support = summarizeCapabilitySupport(item.capabilities, registryById.get(agent.tool));
+      return count + support.mismatches.length;
+    }, 0);
 
     return {
       tool: agent.tool,
+      displayName: agent.displayName,
       support: agent.support,
       installed: agent.installed,
       parseErrors: agent.parseErrors,
+      capabilityWarnings,
       drift: {
         skills: skillsDrift,
         mcpServers: mcpDrift
@@ -820,7 +816,8 @@ export async function buildAgentDrift({ profile, agents } = {}) {
       summary: {
         missingTotal: skillsDrift.missing.length + mcpDrift.missing.length,
         extraTotal: skillsDrift.extra.length + mcpDrift.extra.length,
-        parseErrors: agent.parseErrors.length
+        parseErrors: agent.parseErrors.length,
+        capabilityWarnings
       }
     };
   });

@@ -35,6 +35,11 @@ export async function run() {
     true,
     "fuzzy search should match skill paths even when separators differ."
   );
+  assert.equal(
+    fuzzyPayload.every((item) => item.sourceScope === "discoverable"),
+    true,
+    "Discoverable search results should include sourceScope metadata."
+  );
 
   // --- JSON format (fast path mode, no title extraction) ---
   const jsonResult = runCli(["search", "skills", "--query", "git", "--upstream", "anthropic", "--format", "json"]);
@@ -76,6 +81,16 @@ export async function run() {
   // --- upstream optional when profile is provided ---
   const profileSearchResult = runCli(["search", "skills", "--query", "git", "--profile", "personal"]);
   assert.equal(typeof profileSearchResult.stdout, "string", "search skills should work without --upstream.");
+
+  const allScope = JSON.parse(
+    runCli(["search", "skills", "--query", "skill", "--profile", "personal", "--scope", "all", "--format", "json"]).stdout.trim()
+  );
+  assert.equal(Array.isArray(allScope), true, "search skills --scope all should return an array.");
+  assert.equal(
+    allScope.every((item) => typeof item.sourceScope === "string"),
+    true,
+    "search skills --scope all should annotate the result source scope."
+  );
 
   // --- text output is capped at top N results ---
   const broadJson = runCli(["search", "skills", "--query", "skills", "--upstream", "anthropic", "--format", "json"]);

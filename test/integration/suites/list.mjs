@@ -16,6 +16,13 @@ export async function run() {
     assert.equal(typeof skill.name, "string", "Each local skill should have a string name.");
   }
 
+  const detailedJsonResult = runCli(["list", "skills", "--profile", "personal", "--detail", "full", "--format", "json"]);
+  const detailedListed = JSON.parse(detailedJsonResult.stdout.trim());
+  for (const skill of detailedListed.skills) {
+    assert.equal(typeof skill.sourceType, "string", "Detailed skill inventory should include sourceType.");
+    assert.equal(Array.isArray(skill.flags), true, "Detailed skill inventory should include state flags.");
+  }
+
   // --- list skills text format (default) ---
   const textResult = runCli(["list", "skills", "--profile", "personal"]);
   assert.equal(textResult.stdout.trim().length > 0, true, "list skills text output should be non-empty.");
@@ -56,6 +63,11 @@ export async function run() {
   const upstreamsPayload = JSON.parse(listUpstreamsJson.stdout.trim());
   assert.equal(Array.isArray(upstreamsPayload.upstreams), true, "list upstreams json should return upstreams array.");
   assert.equal(upstreamsPayload.upstreams.length > 0, true, "Expected at least one configured upstream.");
+  assert.equal(
+    upstreamsPayload.upstreams.every((item) => typeof item.provider === "string"),
+    true,
+    "list upstreams should include normalized provider metadata."
+  );
 
   // --- list agents ---
   const listAgentsJson = runCli(["list", "agents", "--format", "json"]);

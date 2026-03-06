@@ -25,8 +25,21 @@ import {
   promptForSelect,
   promptForText
 } from "./lib/prompt-adapter.js";
-import { cmdListEverything, cmdListLocalSkills, cmdListMcps, cmdShowProfileInventory } from "./lib/inventory.js";
+import {
+  buildProfileInventory,
+  cmdListEverything,
+  cmdListLocalSkills,
+  cmdListMcps,
+  cmdShowProfileInventory
+} from "./lib/inventory.js";
 import { cmdProfileExport, cmdProfileImport } from "./lib/profile-transfer.js";
+import {
+  cmdProfileClone,
+  cmdProfileDiff,
+  cmdProfileInspect,
+  cmdProfileNewSkill,
+  cmdProfileRefresh
+} from "./lib/profile-extensions.js";
 import {
   cmdProfileAddMcp,
   cmdProfileAddSkill,
@@ -35,9 +48,17 @@ import {
   cmdUpstreamAdd,
   cmdUpstreamRemove
 } from "./lib/manage.js";
-import { cmdListUpstreamContent, cmdListUpstreams, cmdSearchSkills, loadUpstreamsConfig } from "./lib/upstreams.js";
+import {
+  cmdListUpstreamContent,
+  cmdListUpstreams,
+  cmdSearchSkills,
+  createUpstreamFromSourceInput,
+  loadUpstreamsConfig
+} from "./lib/upstreams.js";
+import { getProvider } from "./lib/providers/index.js";
 import { cmdShell } from "./lib/shell.js";
 import { danger, styleHelpOutput } from "./lib/terminal-ui.js";
+import { cmdWorkspaceDiff, cmdWorkspaceExport, cmdWorkspaceImport, cmdWorkspaceSync } from "./lib/workspace-manifest.js";
 
 const VALID_BUILD_LOCK_MODES = new Set(["read", "write", "refresh"]);
 const KNOWN_ROOT_COMMANDS = new Set([
@@ -58,6 +79,7 @@ const KNOWN_ROOT_COMMANDS = new Set([
   "upstream",
   "detect",
   "shell",
+  "workspace",
   "help"
 ]);
 
@@ -156,6 +178,11 @@ function preflightUnknownCommandCheck(argv) {
   const searchChildren = new Set(["skills"]);
   const profileChildren = new Set([
     "show",
+    "inspect",
+    "refresh",
+    "diff",
+    "clone",
+    "new-skill",
     "add-skill",
     "remove-skill",
     "add-mcp",
@@ -167,6 +194,7 @@ function preflightUnknownCommandCheck(argv) {
   ]);
   const agentChildren = new Set(["inventory", "drift"]);
   const upstreamChildren = new Set(["add", "remove"]);
+  const workspaceChildren = new Set(["export", "import", "diff", "sync"]);
 
   if (root.startsWith("-")) {
     return;
@@ -189,6 +217,9 @@ function preflightUnknownCommandCheck(argv) {
   if (root === "upstream" && child && !child.startsWith("-") && !upstreamChildren.has(child)) {
     throw createUnknownCommandError();
   }
+  if (root === "workspace" && child && !child.startsWith("-") && !workspaceChildren.has(child)) {
+    throw createUnknownCommandError();
+  }
 }
 
 function parseFormatOption(rawFormat) {
@@ -197,6 +228,14 @@ function parseFormatOption(rawFormat) {
     throw new Error("Invalid --format value. Use text or json.");
   }
   return format;
+}
+
+function parseDetailOption(rawDetail) {
+  const detail = (rawDetail || "concise").toLowerCase();
+  if (detail !== "concise" && detail !== "full") {
+    throw new Error("Invalid --detail value. Use concise or full.");
+  }
+  return detail;
 }
 
 function collectOptionValues(value, previous) {
@@ -283,7 +322,7 @@ async function resolveUpstreamIdOption({ value, missingMessage }) {
 
   if (upstreams.length === 0) {
     throw new Error(
-      "No upstreams configured. Add one with 'profile add-upstream --repo <url>' or 'upstream add --repo <url>'."
+      "No upstreams configured. Add one with 'profile add-upstream --source <locator>' or 'upstream add --source <locator>'."
     );
   }
 
@@ -296,6 +335,202 @@ async function resolveUpstreamIdOption({ value, missingMessage }) {
     }))
   });
   return normalizeRequiredText(selectedId, "Upstream id");
+}
+
+async function resolveSelectedSkillPaths({
+  upstream,
+  source,
+  provider,
+  root,
+  ref,
+  providedPaths,
+  all,
+  interactive
+}) {
+  const normalizedProvided = uniqueValues(providedPaths.map((item) => normalizeOptionalText(item)).filter(Boolean));
+  if (normalizedProvided.length > 0 || all !== true && interactive !== true) {
+    return normalizedProvided;
+  }
+
+  let upstreamDoc = null;
+  if (source) {
+    upstreamDoc = await createUpstreamFromSourceInput({
+      source,
+      provider,
+      root,
+      defaultRef: ref
+    });
+  } else {
+    const loaded = await loadUpstreamsConfig();
+    upstreamDoc = loaded.byId.get(upstream);
+  }
+  if (!upstreamDoc) {
+    throw new Error("Could not resolve source for skill selection.");
+  }
+
+  const providerImpl = getProvider(upstreamDoc.provider);
+  const discovery = await providerImpl.discover(upstreamDoc, {
+    ref: ref || upstreamDoc.defaultRef || undefined
+  });
+  const skillPaths = discovery.skills.map((item) => item.path).sort((left, right) => left.localeCompare(right));
+  if (skillPaths.length === 0) {
+    throw new Error("No discoverable skills found in the selected source.");
+  }
+  if (all === true) {
+    return skillPaths;
+  }
+  if (!interactive) {
+    return [];
+  }
+
+  process.stdout.write("Discovered skills:\n");
+  for (const skillPath of skillPaths) {
+    process.stdout.write(`  ${skillPath}\n`);
+  }
+  const rawSelection = await promptForText({
+    message: "Skill path(s) (comma or space separated, or 'all')",
+    placeholder: "frontend-design, spreadsheet",
+    validate: (inputValue) => {
+      const normalized = normalizeOptionalText(inputValue);
+      return normalized ? undefined : "Select at least one skill path.";
+    }
+  });
+  if (rawSelection.trim().toLowerCase() === "all") {
+    return skillPaths;
+  }
+  return uniqueValues(parseCommaOrWhitespaceList(rawSelection).map((item) => normalizeRequiredText(item, "Skill path")));
+}
+
+function uniqueValues(values) {
+  return [...new Set(values)];
+}
+
+function sortStrings(values) {
+  return [...values].sort((left, right) => left.localeCompare(right));
+}
+
+function groupImportedSelectionItems(items) {
+  const grouped = new Map();
+  for (const item of items) {
+    const existing = grouped.get(item.upstream) ?? [];
+    existing.push(item.selectionPath);
+    grouped.set(item.upstream, existing);
+  }
+  return Array.from(grouped.entries())
+    .map(([upstream, skillPaths]) => ({
+      upstream,
+      skillPaths: sortStrings(uniqueValues(skillPaths))
+    }))
+    .sort((left, right) => left.upstream.localeCompare(right.upstream));
+}
+
+async function confirmProfileMutation({
+  message,
+  yes = false
+}) {
+  if (yes === true) {
+    return;
+  }
+  if (!canPrompt()) {
+    throw new Error(`${message} Re-run with --yes to confirm.`);
+  }
+  const selection = await promptForSelect({
+    message,
+    options: [
+      { value: "yes", label: "continue", hint: "apply the requested change" },
+      { value: "no", label: "cancel", hint: "abort without changes" }
+    ]
+  });
+  if (selection !== "yes") {
+    throw new Error("Operation cancelled.");
+  }
+}
+
+async function resolveImportedRemovalGroups({
+  profile,
+  upstream,
+  providedPaths,
+  all = false,
+  interactive = false
+}) {
+  const normalizedUpstream = normalizeOptionalText(upstream);
+  const normalizedProvided = uniqueValues(
+    providedPaths.map((item) => normalizeOptionalText(item)).filter(Boolean)
+  );
+  if (normalizedUpstream && normalizedProvided.length > 0 && all !== true && interactive !== true) {
+    return [
+      {
+        upstream: normalizedUpstream,
+        skillPaths: sortStrings(normalizedProvided)
+      }
+    ];
+  }
+
+  const inventory = await buildProfileInventory(profile, { detail: "full" });
+  const importedItems = inventory.skills.items.filter(
+    (item) => item.sourceType === "imported" && (!normalizedUpstream || item.upstream === normalizedUpstream)
+  );
+  if (importedItems.length === 0) {
+    throw new Error(
+      normalizedUpstream
+        ? `No imported skills found for profile '${profile}' and upstream '${normalizedUpstream}'.`
+        : `No imported skills found for profile '${profile}'.`
+    );
+  }
+
+  if (all === true) {
+    return groupImportedSelectionItems(importedItems);
+  }
+
+  let selectors = normalizedProvided;
+  if (selectors.length === 0) {
+    if (interactive !== true) {
+      throw new Error("Provide --upstream with at least one --path, or use --interactive/--all.");
+    }
+    process.stdout.write("Imported skills:\n");
+    for (const item of importedItems) {
+      process.stdout.write(`  ${item.upstream}:${item.selectionPath}\t-> ${item.name}\n`);
+    }
+    const rawSelection = await promptForText({
+      message: "Skill path selector(s)",
+      placeholder: normalizedUpstream ? "skills/my-skill, prompts/review" : "my-upstream:skills/my-skill",
+      validate: (inputValue) =>
+        normalizeOptionalText(inputValue) ? undefined : "Select at least one imported skill."
+    });
+    if (rawSelection.trim().toLowerCase() === "all") {
+      return groupImportedSelectionItems(importedItems);
+    }
+    selectors = uniqueValues(
+      parseCommaOrWhitespaceList(rawSelection).map((item) => normalizeRequiredText(item, "Skill path selector"))
+    );
+  }
+
+  const matchedItems = [];
+  for (const selector of selectors) {
+    let matches = [];
+    if (selector.includes(":")) {
+      const [selectorUpstream, ...rest] = selector.split(":");
+      const selectorPath = rest.join(":");
+      matches = importedItems.filter(
+        (item) => item.upstream === selectorUpstream && (item.selectionPath === selectorPath || item.name === selectorPath)
+      );
+    } else {
+      matches = importedItems.filter((item) => item.selectionPath === selector || item.name === selector);
+      if (!normalizedUpstream && matches.length > 1) {
+        const upstreams = sortStrings(matches.map((item) => item.upstream));
+        throw new Error(
+          `Ambiguous selector '${selector}'. Use '<upstream>:<path>'. Matches: ${upstreams.join(", ")}.`
+        );
+      }
+    }
+
+    if (matches.length === 0) {
+      throw new Error(`No imported skill matched '${selector}'.`);
+    }
+    matchedItems.push(...matches);
+  }
+
+  return groupImportedSelectionItems(matchedItems);
 }
 
 async function resolveProfileForBuild(profileName) {
@@ -526,7 +761,7 @@ async function cmdApplyWithOptionalBuild(profileName, shouldBuild, options = {})
     }
     await buildProfile(resolvedProfile, { lockMode: "write", suggestNextStep: false });
   }
-  await cmdApply(resolvedProfile, { dryRun: options.dryRun === true });
+  await cmdApply(resolvedProfile, { dryRun: options.dryRun === true, agents: options.agents });
 }
 
 function createProgram() {
@@ -567,14 +802,20 @@ function createProgram() {
     .description("Bind prebuilt runtime artifacts to tool target paths.")
     .option("--profile <name>", "profile name (optional; defaults to runtime bundle profile)")
     .option("--build", "run build before applying")
+    .option("--agents <agents>", "optional comma-separated agent filter, e.g. codex,claude")
     .option("--dry-run", "show planned changes without mutating filesystem")
-    .action((options) => cmdApplyWithOptionalBuild(options.profile, options.build === true, { dryRun: options.dryRun === true }));
+    .action((options) =>
+      cmdApplyWithOptionalBuild(options.profile, options.build === true, {
+        dryRun: options.dryRun === true,
+        agents: options.agents
+      }));
 
   program
     .command("unlink")
     .description("Remove bindings created by apply using state file.")
+    .option("--agents <agents>", "optional comma-separated agent filter, e.g. codex,claude")
     .option("--dry-run", "show what unlink would remove without mutating filesystem")
-    .action((options) => cmdUnlink({ dryRun: options.dryRun === true }));
+    .action((options) => cmdUnlink({ dryRun: options.dryRun === true, agents: options.agents }));
 
   program
     .command("doctor")
@@ -603,12 +844,17 @@ function createProgram() {
     .command("skills")
     .description("List effective skills (local + imported) for the active/default profile.")
     .option("--profile <name>", "profile name (defaults to active/default profile)")
+    .option("--detail <detail>", "detail level: concise|full", "concise")
+    .option("--agents <agents>", "optional comma-separated agent filter, e.g. codex,claude")
     .option("--format <format>", "output format: text|json", "text")
     .action((options) => {
       const format = parseFormatOption(options.format);
+      const detail = parseDetailOption(options.detail);
       return cmdListLocalSkills({
         profile: options.profile,
-        format
+        format,
+        detail,
+        agents: options.agents
       });
     });
   listCommand
@@ -642,10 +888,12 @@ function createProgram() {
   listCommand
     .command("everything")
     .description("List all profiles with their effective skills and MCP servers.")
+    .option("--detail <detail>", "detail level: concise|full", "concise")
     .option("--format <format>", "output format: text|json", "text")
     .action((options) => {
       const format = parseFormatOption(options.format);
-      return cmdListEverything({ format });
+      const detail = parseDetailOption(options.detail);
+      return cmdListEverything({ format, detail });
     });
   listCommand
     .command("agents")
@@ -660,6 +908,9 @@ function createProgram() {
     .command("upstream-content")
     .description("List skills and discoverable MCP server manifests available in upstream repository refs.")
     .option("--upstream <id>", "upstream id (optional; defaults to all configured upstreams)")
+    .option("--source <locator>", "ad hoc source locator (GitHub shorthand/url, git url, or local path)")
+    .option("--provider <provider>", "provider: auto|git|local-path", "auto")
+    .option("--root <path>", "optional source root/subdirectory")
     .option("--ref <ref>", "ref/branch/tag")
     .option("--profile <name>", "profile name to infer upstream/ref defaults")
     .option("--verbose", "include skill titles (slower; reads SKILL.md contents)")
@@ -669,6 +920,9 @@ function createProgram() {
       const format = parseFormatOption(options.format);
       return cmdListUpstreamContent({
         upstream: options.upstream,
+        source: options.source,
+        provider: options.provider,
+        root: options.root,
         ref: options.ref,
         profile: options.profile,
         format,
@@ -695,16 +949,20 @@ function createProgram() {
     .action(() => cmdListProfiles());
 
   async function runUpstreamAddAction(id, options) {
+    const source = normalizeOptionalText(options.source) ?? normalizeOptionalText(options.repo);
     return cmdUpstreamAdd({
       id: normalizeOptionalText(id),
-      repo: await resolveRequiredTextOption({
-        value: options.repo,
-        label: "Git repository URL",
-        placeholder: "https://github.com/org/repo.git",
-        missingMessage: "--repo <url> is required."
+      repo: normalizeOptionalText(options.repo),
+      source: await resolveRequiredTextOption({
+        value: source,
+        label: "Source locator",
+        placeholder: "owner/repo or https://github.com/org/repo.git",
+        missingMessage: "--source <locator> or --repo <url> is required."
       }),
       defaultRef: options.defaultRef,
-      type: options.type
+      type: options.type,
+      provider: options.provider,
+      root: options.root
     });
   }
 
@@ -721,66 +979,170 @@ function createProgram() {
 
   const profileCommand = program.command("profile").description("Inspect and modify profile-level skill/MCP/upstream configuration.");
   profileCommand
+    .command("inspect [name]")
+    .description("Inspect imported skill provenance, freshness, and capability tolerance for a profile.")
+    .option("--format <format>", "output format: text|json", "text")
+    .action(async (name, options) =>
+      cmdProfileInspect({
+        profile: await resolveProfileForProfileMutation(name, "profile inspect [name]"),
+        format: parseFormatOption(options.format)
+      }));
+  profileCommand
+    .command("refresh [name]")
+    .description("Refresh imported skills for a profile and optionally rebuild/re-apply.")
+    .option("--upstream <id>", "limit refresh to a single upstream")
+    .option("--path <repoPath>", "imported skill selection path", collectOptionValues, [])
+    .option("--all", "refresh all imported skills")
+    .option("--build", "run build after refresh")
+    .option("--apply", "run build + apply after refresh")
+    .option("--dry-run", "show refresh results without writing lock state")
+    .option("--format <format>", "output format: text|json", "text")
+    .action(async (name, options) =>
+      cmdProfileRefresh({
+        profile: await resolveProfileForProfileMutation(name, "profile refresh [name]"),
+        upstream: normalizeOptionalText(options.upstream),
+        skillPaths: Array.isArray(options.path) ? options.path : [],
+        all: options.all === true,
+        build: options.build === true || options.apply === true,
+        apply: options.apply === true,
+        dryRun: options.dryRun === true,
+        format: parseFormatOption(options.format)
+      }));
+  profileCommand
     .command("show [name]")
     .description("Show skills and MCP servers for a profile (defaults to current profile).")
+    .option("--detail <detail>", "detail level: concise|full", "concise")
+    .option("--agents <agents>", "optional comma-separated agent filter, e.g. codex,claude")
     .option("--format <format>", "output format: text|json", "text")
     .action((name, options) => {
       const format = parseFormatOption(options.format);
+      const detail = parseDetailOption(options.detail);
       return cmdShowProfileInventory({
         profile: name,
-        format
+        format,
+        detail,
+        agents: options.agents
       });
     });
   profileCommand
     .command("add-skill [name]")
-    .description("Add an upstream skill import to a profile (defaults to current profile).")
+    .description("Attach imported skills from an upstream or source to a profile.")
     .option("--upstream <id>", "upstream id")
-    .option("--path <repoPath>", "upstream repository path, e.g. skills/my-skill")
+    .option("--upstream-id <id>", "preferred upstream id when auto-registering from --source")
+    .option("--source <locator>", "source locator (GitHub shorthand/url, git url, or local path)")
+    .option("--provider <provider>", "provider: auto|git|local-path", "auto")
+    .option("--root <path>", "optional source root/subdirectory")
+    .option("--path <repoPath>", "upstream repository path, e.g. skills/my-skill", collectOptionValues, [])
+    .option("--all", "attach all discoverable skills from the source")
+    .option("--interactive", "discover source skills and prompt for selection")
     .option("--ref <ref>", "ref/branch/tag (defaults to upstream defaultRef)")
+    .option("--pin", "track the import as pinned instead of floating")
     .option("--dest-prefix <prefix>", "destination prefix in bundled skills tree")
-    .action(async (name, options) =>
-      cmdProfileAddSkill({
-        profile: await resolveProfileForProfileMutation(name, "profile add-skill <name>"),
-        upstream: await resolveUpstreamIdOption({
-          value: options.upstream,
-          missingMessage: "--upstream <id> is required."
-        }),
-        skillPath: await resolveRequiredTextOption({
-          value: options.path,
-          label: "Skill path",
-          placeholder: "skills/my-skill",
-          missingMessage: "--path <repoPath> is required."
-        }),
+    .option("--build", "run build after attaching the skill")
+    .option("--apply", "run build + apply after attaching the skill")
+    .action(async (name, options) => {
+      const profile = await resolveProfileForProfileMutation(name, "profile add-skill [name]");
+      const upstream = normalizeOptionalText(options.upstream);
+      const source = normalizeOptionalText(options.source);
+      const resolvedUpstream = source
+        ? upstream
+        : await resolveUpstreamIdOption({
+            value: upstream,
+            missingMessage: "--upstream <id> or --source <locator> is required."
+          });
+      const skillPaths = await resolveSelectedSkillPaths({
+        upstream: resolvedUpstream,
+        source,
+        provider: options.provider,
+        root: options.root,
         ref: options.ref,
-        destPrefix: options.destPrefix
-      }));
+        providedPaths: Array.isArray(options.path) ? options.path : [],
+        all: options.all === true,
+        interactive: options.interactive === true
+      });
+
+      return cmdProfileAddSkill({
+        profile,
+        upstream: resolvedUpstream,
+        source,
+        provider: options.provider,
+        root: options.root,
+        upstreamId: options.upstreamId,
+        skillPaths,
+        all: options.all === true,
+        ref: options.ref,
+        pin: options.pin === true,
+        destPrefix: options.destPrefix,
+        build: options.build === true || options.apply === true,
+        apply: options.apply === true
+      });
+    });
   profileCommand
     .command("remove-skill [name]")
-    .description("Remove skill import path(s) from a profile.")
+    .description("Remove imported skill attachments from a profile.")
     .option("--upstream <id>", "upstream id")
-    .option("--path <repoPath>", "upstream repository path, e.g. skills/my-skill")
+    .option("--path <repoPath>", "upstream repository path, e.g. skills/my-skill", collectOptionValues, [])
+    .option("--all", "remove all imported skills for the selected upstream or profile")
+    .option("--interactive", "prompt for imported skills to remove")
     .option("--ref <ref>", "optional ref filter")
     .option("--dest-prefix <prefix>", "optional destination prefix filter")
-    .action(async (name, options) =>
-      cmdProfileRemoveSkill({
-        profile: await resolveRequiredTextOption({
-          value: name,
-          label: "Profile name",
-          placeholder: "personal",
-          missingMessage: "Profile name is required. Usage: profile remove-skill <name>."
-        }),
-        upstream: await resolveUpstreamIdOption({
-          value: options.upstream,
-          missingMessage: "--upstream <id> is required."
-        }),
-        skillPath: await resolveRequiredTextOption({
-          value: options.path,
-          label: "Skill path",
-          placeholder: "skills/my-skill",
-          missingMessage: "--path <repoPath> is required."
-        }),
-        ref: options.ref,
-        destPrefix: options.destPrefix
+    .option("--prune-upstream", "remove an upstream registration if nothing else references it")
+    .option("--build", "run build after removing the skill")
+    .option("--apply", "run build + apply after removing the skill")
+    .option("--yes", "skip the confirmation prompt")
+    .action(async (name, options) => {
+      const profile = await resolveProfileForProfileMutation(name, "profile remove-skill [name]");
+      const groups = await resolveImportedRemovalGroups({
+        profile,
+        upstream: options.upstream,
+        providedPaths: Array.isArray(options.path) ? options.path : [],
+        all: options.all === true,
+        interactive: options.interactive === true
+      });
+
+      await confirmProfileMutation({
+        message: `Remove ${groups.reduce((count, entry) => count + entry.skillPaths.length, 0)} imported skill entr${
+          groups.reduce((count, entry) => count + entry.skillPaths.length, 0) === 1 ? "y" : "ies"
+        } from profile '${profile}'?`,
+        yes: options.yes === true
+      });
+
+      for (const group of groups) {
+        await cmdProfileRemoveSkill({
+          profile,
+          upstream: group.upstream,
+          skillPaths: group.skillPaths,
+          ref: options.ref,
+          destPrefix: options.destPrefix,
+          pruneUpstream: options.pruneUpstream === true,
+          build: false,
+          apply: false
+        });
+      }
+
+      if (options.build === true || options.apply === true) {
+        await buildProfile(profile, { lockMode: "write" });
+      }
+      if (options.apply === true) {
+        await cmdApply(profile, { dryRun: false });
+      }
+    });
+  profileCommand
+    .command("new-skill <skillName>")
+    .description("Scaffold a new skill directory for a profile without re-initializing the workspace.")
+    .option("--profile <name>", "profile name (defaults to current profile)")
+    .option("--path <path>", "optional explicit target directory")
+    .option("--frontmatter", "include a frontmatter template in SKILL.md")
+    .option("--include-scripts", "create a scripts/ placeholder directory")
+    .option("--include-references", "create a references/ placeholder directory")
+    .action(async (skillName, options) =>
+      cmdProfileNewSkill({
+        profile: await resolveProfileForProfileMutation(options.profile, "profile new-skill <skillName>"),
+        name: skillName,
+        skillPath: options.path,
+        frontmatter: options.frontmatter === true,
+        includeScripts: options.includeScripts === true,
+        includeReferences: options.includeReferences === true
       }));
   profileCommand
     .command("add-mcp [name] [server]")
@@ -832,6 +1194,24 @@ function createProgram() {
       });
     });
   profileCommand
+    .command("diff <left> <right>")
+    .description("Compare the effective skills and MCP servers of two profiles.")
+    .option("--format <format>", "output format: text|json", "text")
+    .action((left, right, options) =>
+      cmdProfileDiff({
+        left,
+        right,
+        format: parseFormatOption(options.format)
+      }));
+  profileCommand
+    .command("clone <source> <target>")
+    .description("Clone a profile definition and its local pack into a new profile.")
+    .action((source, target) =>
+      cmdProfileClone({
+        source,
+        target
+      }));
+  profileCommand
     .command("export [name]")
     .description("Export a profile's config (pack manifest, sources, MCP, and local skills) to JSON.")
     .option("--output <path>", "optional output path (defaults to stdout)")
@@ -863,8 +1243,11 @@ function createProgram() {
       }));
   profileCommand
     .command("add-upstream [id]")
-    .description("Add an upstream repository (profile workflow alias).")
+    .description("Register an external source as an upstream (profile workflow alias).")
+    .option("--source <locator>", "source locator (GitHub shorthand/url, git url, or local path)")
     .option("--repo <url>", "git repository URL")
+    .option("--provider <provider>", "provider: auto|git|local-path", "auto")
+    .option("--root <path>", "optional source root/subdirectory")
     .option("--default-ref <ref>", "default ref/branch/tag (auto-detected when omitted)")
     .option("--type <type>", "upstream type (currently only git)", "git")
     .action(runUpstreamAddAction);
@@ -911,8 +1294,11 @@ function createProgram() {
   const upstreamCommand = program.command("upstream").description("Manage configured upstream repositories.");
   upstreamCommand
     .command("add [id]")
-    .description("Add an upstream repository (id auto-inferred from --repo when omitted).")
+    .description("Add an upstream source (id auto-inferred from --source/--repo when omitted).")
+    .option("--source <locator>", "source locator (GitHub shorthand/url, git url, or local path)")
     .option("--repo <url>", "git repository URL")
+    .option("--provider <provider>", "provider: auto|git|local-path", "auto")
+    .option("--root <path>", "optional source root/subdirectory")
     .option("--default-ref <ref>", "default ref/branch/tag (auto-detected when omitted)")
     .option("--type <type>", "upstream type (currently only git)", "git")
     .action(runUpstreamAddAction);
@@ -940,11 +1326,15 @@ function createProgram() {
   const searchCommand = program.command("search").description("Search available resources.");
   searchCommand
     .command("skills")
-    .description("Search upstream skills by keyword (path by default; path+title with --verbose).")
+    .description("Search installed skills, discoverable upstream skills, or both.")
     .option("--query <text>", "search term")
     .option("--upstream <id>", "upstream id (optional; defaults to all configured upstreams)")
+    .option("--source <locator>", "ad hoc source locator (GitHub shorthand/url, git url, or local path)")
+    .option("--provider <provider>", "provider: auto|git|local-path", "auto")
+    .option("--root <path>", "optional source root/subdirectory")
     .option("--ref <ref>", "ref/branch/tag")
     .option("--profile <name>", "profile name to infer upstream/ref defaults")
+    .option("--scope <scope>", "search scope: installed|discoverable|all", "discoverable")
     .option("--verbose", "include title metadata and title matching (slower)")
     .option("--versbose", "alias for --verbose")
     .option("--format <format>", "output format: text|json", "text")
@@ -952,13 +1342,57 @@ function createProgram() {
       const format = parseFormatOption(options.format);
       return cmdSearchSkills({
         upstream: options.upstream,
+        source: options.source,
+        provider: options.provider,
+        root: options.root,
         ref: options.ref,
         profile: options.profile,
         query: options.query,
+        scope: options.scope,
         format,
         verbose: options.verbose === true || options.versbose === true
       });
     });
+
+  const workspaceCommand = program.command("workspace").description("Manage full workspace manifests.");
+  workspaceCommand
+    .command("export")
+    .description("Export the current workspace state to a manifest file.")
+    .option("--output <path>", "output path (defaults to workspace/skills-sync.manifest.json)")
+    .action((options) =>
+      cmdWorkspaceExport({
+        output: options.output
+      }));
+  workspaceCommand
+    .command("import")
+    .description("Import workspace state from a manifest file.")
+    .option("--input <path>", "manifest path (defaults to workspace/skills-sync.manifest.json)")
+    .option("--replace", "replace existing local profiles when conflicts are found")
+    .action((options) =>
+      cmdWorkspaceImport({
+        input: options.input,
+        replace: options.replace === true
+      }));
+  workspaceCommand
+    .command("diff")
+    .description("Compare a manifest file to the current live workspace state.")
+    .option("--input <path>", "manifest path (defaults to workspace/skills-sync.manifest.json)")
+    .option("--format <format>", "output format: text|json", "text")
+    .action((options) =>
+      cmdWorkspaceDiff({
+        input: options.input,
+        format: parseFormatOption(options.format)
+      }));
+  workspaceCommand
+    .command("sync")
+    .description("Reconcile the live workspace to a manifest file.")
+    .option("--input <path>", "manifest path (defaults to workspace/skills-sync.manifest.json)")
+    .option("--dry-run", "show drift without importing the manifest")
+    .action((options) =>
+      cmdWorkspaceSync({
+        input: options.input,
+        dryRun: options.dryRun === true
+      }));
 
   program
     .command("shell")

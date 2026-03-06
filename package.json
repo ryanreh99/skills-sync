@@ -41,7 +41,7 @@
     "build": "node ./src/scripts/build.mjs",
     "lint": "eslint .",
     "format": "prettier --check .",
-    "test": "npm run build && node --test ./test/smoke.test.mjs && node ./test/integration/run.mjs",
+    "test": "npm run build && node --test ./test/smoke.test.mjs ./test/unit.test.mjs && node ./test/integration/run.mjs",
     "prepublishOnly": "npm run clean && npm run build && npm run lint && npm run test",
     "init": "node ./src/index.js init",
     "apply": "node ./src/index.js apply",

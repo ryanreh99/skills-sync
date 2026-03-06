@@ -64,17 +64,21 @@ export const SCHEMAS = {
   config: path.join(ASSETS_ROOT, "contracts", "inputs", "config.schema.json"),
   targets: path.join(ASSETS_ROOT, "contracts", "runtime", "targets.schema.json"),
   upstreamsLock: path.join(ASSETS_ROOT, "contracts", "state", "upstreams-lock.schema.json"),
-  bundle: path.join(ASSETS_ROOT, "contracts", "build", "bundle.schema.json")
+  bundle: path.join(ASSETS_ROOT, "contracts", "build", "bundle.schema.json"),
+  workspaceManifest: path.join(ASSETS_ROOT, "contracts", "inputs", "workspace-manifest.schema.json"),
+  agentRegistry: path.join(ASSETS_ROOT, "contracts", "runtime", "agents.schema.json")
 };
 
 export const CONFIG_PATH = path.join(LOCAL_OVERRIDES_ROOT, "config.json");
+export const WORKSPACE_MANIFEST_PATH = path.join(LOCAL_OVERRIDES_ROOT, "skills-sync.manifest.json");
 
 export const UPSTREAMS_CONFIG_PATHS = {
   local: path.join(LOCAL_OVERRIDES_ROOT, "upstreams.json"),
   seed: path.join(ASSETS_ROOT, "seed", "upstreams.json")
 };
 
-export const LOCKFILE_PATH = path.join(LOCAL_OVERRIDES_ROOT, "upstreams.lock.json");
+export const LEGACY_LOCKFILE_PATH = path.join(LOCAL_OVERRIDES_ROOT, "upstreams.lock.json");
+export const LOCKFILE_PATH = path.join(LOCAL_OVERRIDES_ROOT, "skills-sync.lock.json");
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 const validatorCache = new Map();

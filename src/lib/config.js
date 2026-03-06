@@ -26,6 +26,40 @@ function normalizeProfileName(profileName) {
   return normalized;
 }
 
+function migrateProfileDocument(profileName, document) {
+  const normalizedName = normalizeProfileName(profileName);
+  return {
+    schemaVersion: 2,
+    name: normalizedName,
+    packPath: document?.packPath || `workspace/packs/${normalizedName}`,
+    description: typeof document?.description === "string" ? document.description : "",
+    ...(typeof document?.extends === "string" && document.extends.trim().length > 0
+      ? { extends: document.extends.trim() }
+      : {}),
+    ...(document?.agentOverrides && typeof document.agentOverrides === "object" && !Array.isArray(document.agentOverrides)
+      ? { agentOverrides: document.agentOverrides }
+      : {})
+  };
+}
+
+function migrateSourcesDocument(document) {
+  return {
+    schemaVersion: 2,
+    imports: Array.isArray(document?.imports)
+      ? document.imports.map((entry) => ({
+          upstream: entry.upstream,
+          ...(typeof entry.ref === "string" && entry.ref.trim().length > 0 ? { ref: entry.ref.trim() } : {}),
+          tracking: entry?.tracking === "pinned" ? "pinned" : "floating",
+          paths: Array.isArray(entry.paths) ? [...entry.paths] : [],
+          ...(typeof entry.destPrefix === "string" && entry.destPrefix.trim().length > 0
+            ? { destPrefix: entry.destPrefix.trim() }
+            : {}),
+          ...(entry?.allowWholeSkillsTree === true ? { allowWholeSkillsTree: true } : {})
+        }))
+      : []
+  };
+}
+
 async function scaffoldProfileFiles(profileName) {
   const normalizedName = normalizeProfileName(profileName);
   const profilesDir = path.join(LOCAL_OVERRIDES_ROOT, "profiles");
@@ -38,13 +72,13 @@ async function scaffoldProfileFiles(profileName) {
   const toCreate = [
     {
       path: path.join(profilesDir, `${normalizedName}.json`),
-      value: { name: normalizedName, packPath: `workspace/packs/${normalizedName}` }
+      value: migrateProfileDocument(normalizedName, { packPath: `workspace/packs/${normalizedName}` })
     },
     {
       path: path.join(packRoot, "pack.json"),
       value: { name: normalizedName, version: "0.0.0", description: "", maintainer: "", tags: [] }
     },
-    { path: path.join(packRoot, "sources.json"), value: { imports: [] } },
+    { path: path.join(packRoot, "sources.json"), value: migrateSourcesDocument({ imports: [] }) },
     { path: path.join(mcpDir, "servers.json"), value: { servers: {} } }
   ];
 
@@ -72,8 +106,25 @@ export async function resolveProfile(profileName) {
     throw new Error(`Profile '${profileName}' not found. Run 'ls' to see available profiles.`);
   }
 
-  const profile = await assertJsonFileMatchesSchema(profilePath, SCHEMAS.profile);
+  const profile = migrateProfileDocument(
+    profileName,
+    await assertJsonFileMatchesSchema(profilePath, SCHEMAS.profile)
+  );
   return { profilePath, profile };
+}
+
+export async function resolveProfileChain(profileName, seen = new Set()) {
+  const normalizedName = normalizeProfileName(profileName);
+  if (seen.has(normalizedName)) {
+    throw new Error(`Profile inheritance cycle detected at '${normalizedName}'.`);
+  }
+  seen.add(normalizedName);
+
+  const resolved = await resolveProfile(normalizedName);
+  if (!resolved.profile.extends) {
+    return [resolved];
+  }
+  return [...(await resolveProfileChain(resolved.profile.extends, seen)), resolved];
 }
 
 export async function resolvePack(profile) {
@@ -106,18 +157,16 @@ export async function loadPackSources(packRoot) {
   if (!(await fs.pathExists(sourcesPath))) {
     return {
       path: null,
-      sources: {
-        imports: []
-      }
+      sources: migrateSourcesDocument({ imports: [] })
     };
   }
 
-  const sources = await assertJsonFileMatchesSchema(sourcesPath, SCHEMAS.packSources);
+  const sources = migrateSourcesDocument(
+    await assertJsonFileMatchesSchema(sourcesPath, SCHEMAS.packSources)
+  );
   return {
     path: sourcesPath,
-    sources: {
-      imports: Array.isArray(sources.imports) ? sources.imports : []
-    }
+    sources
   };
 }
 

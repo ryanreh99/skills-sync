@@ -8,6 +8,7 @@ import { runCli, pathExists } from "../helpers.mjs";
  */
 export async function run({ localOverridesPath }) {
   const profilesDir = path.join(localOverridesPath, "profiles");
+  const packsDir = path.join(localOverridesPath, "packs");
 
   // --- use: sets the default profile ---
   runCli(["use", "personal"]);
@@ -50,6 +51,33 @@ export async function run({ localOverridesPath }) {
   // new with no args defaults to personal profile
   runCli(["new"]);
 
+  // --- profile new-skill scaffolds a valid local skill without re-initializing workspace ---
+  runCli([
+    "profile",
+    "new-skill",
+    "unit-test-native-skill",
+    "--profile",
+    "personal",
+    "--frontmatter",
+    "--include-scripts",
+    "--include-references"
+  ]);
+  assert.equal(
+    await pathExists(path.join(packsDir, "personal", "skills", "unit-test-native-skill", "SKILL.md")),
+    true,
+    "profile new-skill should create SKILL.md inside the target profile pack."
+  );
+  assert.equal(
+    await pathExists(path.join(packsDir, "personal", "skills", "unit-test-native-skill", "scripts", ".keep")),
+    true,
+    "profile new-skill should scaffold scripts/ when requested."
+  );
+  assert.equal(
+    await pathExists(path.join(packsDir, "personal", "skills", "unit-test-native-skill", "references", ".keep")),
+    true,
+    "profile new-skill should scaffold references/ when requested."
+  );
+
   // --- ls: new profile should appear in list ---
   const lsAfterNew = runCli(["ls"]);
   assert.equal(lsAfterNew.stdout.includes(testProfileName), true, "ls should include the newly created profile.");
@@ -90,4 +118,22 @@ export async function run({ localOverridesPath }) {
   runCli(["use", "personal"]);
   const currentAfter = runCli(["current"]);
   assert.equal(currentAfter.stdout.trim().length > 0, true, "current should print something after use.");
+
+  // --- profile clone + diff ---
+  const cloneProfileName = "personal-clone";
+  runCli(["profile", "clone", "personal", cloneProfileName]);
+  assert.equal(
+    await pathExists(path.join(profilesDir, `${cloneProfileName}.json`)),
+    true,
+    "profile clone should create the cloned profile JSON."
+  );
+  assert.equal(
+    await pathExists(path.join(packsDir, cloneProfileName, "pack.json")),
+    true,
+    "profile clone should copy the profile pack."
+  );
+
+  const diffPayload = JSON.parse(runCli(["profile", "diff", "personal", cloneProfileName, "--format", "json"]).stdout.trim());
+  assert.equal(Array.isArray(diffPayload.skills.onlyLeft), true, "profile diff should report skill set differences.");
+  assert.equal(Array.isArray(diffPayload.mcps.onlyRight), true, "profile diff should report MCP set differences.");
 }

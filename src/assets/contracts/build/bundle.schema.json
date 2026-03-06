@@ -41,13 +41,15 @@
             "additionalProperties": false,
             "required": [
               "upstream",
-              "ref",
-              "commit",
               "path",
               "destPrefix"
             ],
             "properties": {
               "upstream": {
+                "type": "string",
+                "minLength": 1
+              },
+              "provider": {
                 "type": "string",
                 "minLength": 1
               },
@@ -59,6 +61,17 @@
                 "type": "string",
                 "minLength": 7
               },
+              "tracking": {
+                "type": "string",
+                "enum": [
+                  "floating",
+                  "pinned"
+                ]
+              },
+              "originalInput": {
+                "type": "string",
+                "minLength": 1
+              },
               "path": {
                 "type": "string",
                 "minLength": 1
@@ -66,6 +79,13 @@
               "destPrefix": {
                 "type": "string",
                 "minLength": 1
+              },
+              "capabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
               }
             }
           }

@@ -8,6 +8,13 @@
     "packPath"
   ],
   "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "enum": [
+        1,
+        2
+      ]
+    },
     "name": {
       "type": "string",
       "minLength": 1
@@ -15,7 +22,23 @@
     "packPath": {
       "type": "string",
       "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "extends": {
+      "type": "string",
+      "minLength": 1
+    },
+    "agentOverrides": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "type": "object"
+      }
     }
   }
 }
-

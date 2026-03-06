@@ -15,7 +15,9 @@ import {
   resolveLinkTarget,
   writeJsonFile
 } from "./core.js";
+import { parseAgentFilterOption } from "./agent-registry.js";
 import { loadEffectiveTargets } from "./config.js";
+import { loadImportLock, saveImportLock } from "./import-lock.js";
 import { applyManagedMcpConfig, removeManagedMcpConfig } from "./mcp-config.js";
 
 function redactPathDetails(message) {
@@ -32,7 +34,7 @@ export async function getStatePath() {
   return path.join(stateDir, "active-profile.json");
 }
 
-function getDirectoryBindingSpecs(effectiveTargets, runtimeInternalRoot) {
+function getDirectoryBindingSpecs(effectiveTargets, runtimeInternalRoot, selectedAgents = null) {
   const specs = [
     {
       tool: "codex",
@@ -60,10 +62,15 @@ function getDirectoryBindingSpecs(effectiveTargets, runtimeInternalRoot) {
       targetRawPath: effectiveTargets.gemini.skillsDir
     }
   ];
-  return specs.filter((spec) => typeof spec.targetRawPath === "string" && spec.targetRawPath.trim().length > 0);
+  return specs.filter(
+    (spec) =>
+      typeof spec.targetRawPath === "string" &&
+      spec.targetRawPath.trim().length > 0 &&
+      (!selectedAgents || selectedAgents.has(spec.tool))
+  );
 }
 
-function getConfigSpecs(effectiveTargets, runtimeInternalRoot) {
+function getConfigSpecs(effectiveTargets, runtimeInternalRoot, selectedAgents = null) {
   return [
     {
       tool: "codex",
@@ -90,7 +97,67 @@ function getConfigSpecs(effectiveTargets, runtimeInternalRoot) {
       sourcePath: path.join(runtimeInternalRoot, ".gemini", "settings.json"),
       targetRawPath: effectiveTargets.gemini.mcpConfig
     }
-  ];
+  ].filter((spec) => !selectedAgents || selectedAgents.has(spec.tool));
+}
+
+function filterBindingsByAgents(bindings, selectedAgents) {
+  if (!selectedAgents || selectedAgents.size === 0) {
+    return {
+      targeted: [...bindings],
+      untouched: []
+    };
+  }
+  const targeted = [];
+  const untouched = [];
+  for (const binding of bindings) {
+    if (selectedAgents.has(binding.tool)) {
+      targeted.push(binding);
+    } else {
+      untouched.push(binding);
+    }
+  }
+  return {
+    targeted,
+    untouched
+  };
+}
+
+async function updateImportMaterialization(profileName, selectedAgents, modeByAgent, remove = false) {
+  const lockState = await loadImportLock();
+  const targetAgents = selectedAgents ? [...selectedAgents] : [];
+  let changed = false;
+
+  for (const entry of lockState.lock.imports) {
+    if (entry.profile !== profileName) {
+      continue;
+    }
+    const existing = new Map(
+      (Array.isArray(entry.materializedAgents) ? entry.materializedAgents : []).map((item) => [item.id, item])
+    );
+    for (const agentId of targetAgents) {
+      if (remove) {
+        if (existing.delete(agentId)) {
+          changed = true;
+        }
+        continue;
+      }
+      const nextValue = {
+        id: agentId,
+        mode: modeByAgent.get(agentId) ?? "unknown",
+        appliedAt: new Date().toISOString()
+      };
+      const previous = existing.get(agentId);
+      if (!previous || previous.mode !== nextValue.mode) {
+        changed = true;
+      }
+      existing.set(agentId, nextValue);
+    }
+    entry.materializedAgents = Array.from(existing.values()).sort((left, right) => left.id.localeCompare(right.id));
+  }
+
+  if (changed) {
+    await saveImportLock(lockState);
+  }
 }
 
 function formatUnmanagedPathError(targetPath, profileName) {
@@ -197,7 +264,7 @@ async function adoptExistingDirectoryBinding({ tool, sourcePath, targetPath, osN
 }
 
 export async function unlinkInternal(options = {}) {
-  const { suppressNoStateMessage = false, dryRun = false } = options;
+  const { suppressNoStateMessage = false, dryRun = false, agents = null } = options;
   const statePath = await getStatePath();
   if (!(await fs.pathExists(statePath))) {
     if (!suppressNoStateMessage) {
@@ -208,11 +275,13 @@ export async function unlinkInternal(options = {}) {
 
   const state = await fs.readJson(statePath);
   const bindings = Array.isArray(state.bindings) ? state.bindings : [];
+  const selectedAgents = agents ? new Set(await parseAgentFilterOption(agents)) : null;
+  const filtered = filterBindingsByAgents(bindings, selectedAgents);
   let removed = 0;
   let skipped = 0;
-  const remainingBindings = [];
+  const remainingBindings = [...filtered.untouched];
 
-  for (const binding of bindings) {
+  for (const binding of filtered.targeted) {
     if (binding.kind === "config") {
       try {
         const result = await removeManagedMcpConfig(binding, { dryRun });
@@ -246,6 +315,13 @@ export async function unlinkInternal(options = {}) {
     return { removed, skipped, remainingBindings };
   }
 
+  if (selectedAgents && selectedAgents.size > 0) {
+    await updateImportMaterialization(state.profile, selectedAgents, new Map(), true);
+  } else if (state.profile) {
+    const allAgents = new Set(bindings.map((binding) => binding.tool));
+    await updateImportMaterialization(state.profile, allAgents, new Map(), true);
+  }
+
   if (remainingBindings.length > 0) {
     await writeJsonFile(statePath, {
       ...state,
@@ -259,7 +335,7 @@ export async function unlinkInternal(options = {}) {
 }
 
 export async function applyBindings(profileName, options = {}) {
-  const { dryRun = false, quiet = false } = options;
+  const { dryRun = false, quiet = false, agents = null } = options;
   const info = (message) => {
     if (!quiet) {
       logInfo(message);
@@ -299,25 +375,40 @@ export async function applyBindings(profileName, options = {}) {
     );
   }
   const canonicalMcp = await fs.readJson(bundleMcpPath);
+  const selectedAgents = agents ? new Set(await parseAgentFilterOption(agents)) : null;
 
   const effectiveTargets = await loadEffectiveTargets(osName);
   const statePath = await getStatePath();
   if (await fs.pathExists(statePath)) {
+    const existingState = await fs.readJson(statePath).catch(() => null);
+    if (existingState?.profile && existingState.profile !== effectiveProfile && selectedAgents && selectedAgents.size > 0) {
+      throw new Error(
+        `Cannot apply selected agents for profile '${effectiveProfile}' while active state belongs to '${existingState.profile}'. Run unlink first.`
+      );
+    }
     if (dryRun) {
       info("Dry-run: existing state file detected. Apply would unlink previous managed bindings first.");
     } else {
-      const unlinkResult = await unlinkInternal({ suppressNoStateMessage: true });
+      const unlinkResult = await unlinkInternal({
+        suppressNoStateMessage: true,
+        agents
+      });
       if (unlinkResult.remainingBindings.length > 0) {
-        throw new Error(
-          "Cannot continue apply because some previous bindings could not be safely unlinked.\n" +
-            "Run unlink/doctor, resolve reported paths manually, then retry apply."
+        const remainingOutsideSelection = unlinkResult.remainingBindings.every(
+          (binding) => selectedAgents && !selectedAgents.has(binding.tool)
         );
+        if (!remainingOutsideSelection) {
+          throw new Error(
+            "Cannot continue apply because some previous bindings could not be safely unlinked.\n" +
+              "Run unlink/doctor, resolve reported paths manually, then retry apply."
+          );
+        }
       }
     }
   }
 
-  const directorySpecs = getDirectoryBindingSpecs(effectiveTargets, runtimeInternalRoot);
-  const configSpecs = getConfigSpecs(effectiveTargets, runtimeInternalRoot);
+  const directorySpecs = getDirectoryBindingSpecs(effectiveTargets, runtimeInternalRoot, selectedAgents);
+  const configSpecs = getConfigSpecs(effectiveTargets, runtimeInternalRoot, selectedAgents);
   const bindings = [];
   const createdTargets = [];
   const plannedActions = [];
@@ -480,15 +571,37 @@ export async function applyBindings(profileName, options = {}) {
     appliedAt: new Date().toISOString(),
     bindings
   };
+  let existingState = null;
+  if (await fs.pathExists(statePath)) {
+    existingState = await fs.readJson(statePath).catch(() => null);
+  }
+  if (existingState && selectedAgents && selectedAgents.size > 0) {
+    const existingBindings = Array.isArray(existingState.bindings) ? existingState.bindings : [];
+    const untouched = existingBindings.filter((binding) => !selectedAgents.has(binding.tool));
+    stateDocument.bindings = [...untouched, ...bindings];
+  }
   await writeJsonFile(statePath, stateDocument);
+
+  const modeByAgent = new Map();
+  for (const binding of bindings) {
+    if (binding.kind === "dir") {
+      modeByAgent.set(binding.tool, binding.method);
+    }
+  }
+  await updateImportMaterialization(
+    effectiveProfile,
+    selectedAgents ?? new Set(bindings.map((binding) => binding.tool)),
+    modeByAgent,
+    false
+  );
 
   info(`Applied profile '${effectiveProfile}'.`);
   info(`Target OS: ${osName}`);
 }
 
 export async function unlinkBindings(options = {}) {
-  const { dryRun = false } = options;
-  const { removed, skipped, remainingBindings } = await unlinkInternal({ dryRun });
+  const { dryRun = false, agents = null } = options;
+  const { removed, skipped, remainingBindings } = await unlinkInternal({ dryRun, agents });
   if (dryRun) {
     logInfo(`Dry-run unlink complete. Would remove ${removed} binding(s), skip ${skipped} binding(s).`);
     return { dryRun: true, removed, skipped, remainingBindings };

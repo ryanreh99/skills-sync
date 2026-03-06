@@ -1,19 +1,28 @@
 import fs from "fs-extra";
 import path from "node:path";
 import {
-  LOCKFILE_PATH,
   SCHEMAS,
-  UPSTREAMS_CONFIG_PATHS,
   assertJsonFileMatchesSchema,
   assertObjectMatchesSchema,
   logInfo,
   logWarn,
   normalizeDestPrefix,
-  normalizeRepoPath,
   writeJsonFile
 } from "./core.js";
+import { buildProfile } from "./build.js";
+import { cmdApply } from "./bindings.js";
 import { listAvailableProfiles, loadPackSources, resolvePack, resolveProfile } from "./config.js";
-import { collectSourcePlanning, loadLockfile, loadUpstreamsConfig, runGit, sortPins } from "./upstreams.js";
+import { removeImportRecords } from "./import-lock.js";
+import { getProvider } from "./providers/index.js";
+import {
+  collectSourcePlanning,
+  createUpstreamFromSourceInput,
+  loadLockfile,
+  loadUpstreamsConfig,
+  saveLockfile,
+  writeUpstreamsConfig
+} from "./upstreams.js";
+import { normalizeSelectionPath } from "./source-normalization.js";
 
 function normalizeRequiredText(value, label) {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -30,124 +39,29 @@ function normalizeOptionalText(value) {
   return normalized.length > 0 ? normalized : null;
 }
 
-function sanitizeUpstreamIdFragment(value) {
-  const normalized = String(value ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "");
-  return normalized;
-}
-
-function parseRepoHostAndPath(repo) {
-  const scpMatch = repo.match(/^[^@]+@([^:]+):(.+)$/);
-  if (scpMatch) {
-    return {
-      host: scpMatch[1].trim().toLowerCase(),
-      repoPath: scpMatch[2].trim()
-    };
-  }
-
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(repo)) {
-    try {
-      const url = new URL(repo);
-      return {
-        host: (url.hostname || "").toLowerCase(),
-        repoPath: (url.pathname || "").replace(/^\/+/, "")
-      };
-    } catch {
-      // Fallback to local-like parsing.
-    }
-  }
-
-  return {
-    host: null,
-    repoPath: repo
-  };
-}
-
-function inferBaseUpstreamIdFromRepo(repo) {
-  const normalizedRepo = normalizeRequiredText(repo, "Upstream repo")
-    .replace(/[?#].*$/, "")
-    .replace(/[\\/]+$/, "");
-
-  const parsed = parseRepoHostAndPath(normalizedRepo);
-  const repoPath = parsed.repoPath.replace(/\\/g, "/");
-  const segments = repoPath.split("/").filter(Boolean);
-  const repoName = (segments[segments.length - 1] || "upstream").replace(/\.git$/i, "");
-
-  // For github.com repositories, use owner_repo format for clarity and stability.
-  if (parsed.host && /(^|\.)github\.com$/i.test(parsed.host) && segments.length >= 2) {
-    const owner = segments[segments.length - 2];
-    const ownerFragment = sanitizeUpstreamIdFragment(owner);
-    const repoFragment = sanitizeUpstreamIdFragment(repoName);
-    if (ownerFragment.length > 0 && repoFragment.length > 0) {
-      return `${ownerFragment}_${repoFragment}`;
-    }
-  }
-
-  const sanitized = sanitizeUpstreamIdFragment(repoName);
-  return sanitized.length > 0 ? sanitized : "upstream";
-}
-
-function ensureUniqueUpstreamId(baseId, existingById) {
-  if (!existingById.has(baseId)) {
-    return baseId;
-  }
-
-  let suffix = 2;
-  while (existingById.has(`${baseId}_${suffix}`)) {
-    suffix += 1;
-  }
-  return `${baseId}_${suffix}`;
-}
-
-async function detectDefaultRefFromRepo(repo) {
-  const output = await runGit(["ls-remote", "--symref", repo, "HEAD"], { allowFailure: true });
-  if (typeof output !== "string" || output.trim().length === 0) {
-    return null;
-  }
-
-  const lines = output.split(/\r?\n/);
-  for (const line of lines) {
-    const branchMatch = line.match(/^ref:\s+refs\/heads\/([^\s]+)\s+HEAD$/);
-    if (branchMatch?.[1]) {
-      return branchMatch[1].trim();
-    }
-
-    const genericRefMatch = line.match(/^ref:\s+refs\/([^\s]+)\s+HEAD$/);
-    if (genericRefMatch?.[1]) {
-      return genericRefMatch[1].trim();
-    }
-  }
-
-  return null;
+function uniqueSorted(values) {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
 function cloneSourcesDocument(sources) {
   return {
+    schemaVersion: 2,
     imports: Array.isArray(sources?.imports)
       ? sources.imports.map((entry) => ({
           ...entry,
+          tracking: entry?.tracking === "pinned" ? "pinned" : "floating",
           paths: Array.isArray(entry.paths) ? [...entry.paths] : []
         }))
       : []
   };
 }
 
-function normalizeImportRef(importEntry, upstreamDefaultRef) {
-  if (typeof importEntry.ref === "string" && importEntry.ref.trim().length > 0) {
-    return importEntry.ref.trim();
-  }
-  return upstreamDefaultRef;
-}
-
 function normalizedImportPaths(importEntry) {
-  const normalized = new Set();
-  for (const rawPath of Array.isArray(importEntry.paths) ? importEntry.paths : []) {
-    normalized.add(normalizeRepoPath(rawPath, "imports[].paths[]"));
-  }
-  return Array.from(normalized.values()).sort((left, right) => left.localeCompare(right));
+  return uniqueSorted(
+    (Array.isArray(importEntry.paths) ? importEntry.paths : []).map((rawPath) =>
+      normalizeSelectionPath(rawPath, "imports[].paths[]")
+    )
+  );
 }
 
 function sortImports(imports) {
@@ -156,36 +70,19 @@ function sortImports(imports) {
     const rightRef = typeof right.ref === "string" && right.ref.trim().length > 0 ? right.ref.trim() : "";
     const leftPrefix = typeof left.destPrefix === "string" ? left.destPrefix : "";
     const rightPrefix = typeof right.destPrefix === "string" ? right.destPrefix : "";
-    const leftKey = `${left.upstream}::${leftRef}::${leftPrefix}::${left.paths.join("|")}`;
-    const rightKey = `${right.upstream}::${rightRef}::${rightPrefix}::${right.paths.join("|")}`;
+    const leftTracking = left?.tracking === "pinned" ? "pinned" : "floating";
+    const rightTracking = right?.tracking === "pinned" ? "pinned" : "floating";
+    const leftKey = `${left.upstream}::${leftRef}::${leftTracking}::${leftPrefix}::${(left.paths ?? []).join("|")}`;
+    const rightKey = `${right.upstream}::${rightRef}::${rightTracking}::${rightPrefix}::${(right.paths ?? []).join("|")}`;
     return leftKey.localeCompare(rightKey);
   });
 }
 
 async function writeValidatedSources(sourcesPath, sourcesDoc, upstreamById) {
-  await assertObjectMatchesSchema(sourcesDoc, SCHEMAS.packSources, "pack sources");
-  collectSourcePlanning(sourcesDoc, upstreamById);
-  await writeJsonFile(sourcesPath, sourcesDoc);
-}
-
-async function loadEditableUpstreamsConfig() {
-  const loaded = await loadUpstreamsConfig();
-  return {
-    upstreams: loaded.config.upstreams.map((item) => ({
-      id: item.id,
-      type: item.type,
-      repo: item.repo,
-      defaultRef: item.defaultRef
-    })),
-    byId: loaded.byId
-  };
-}
-
-async function writeValidatedUpstreamsConfig(upstreams) {
-  const next = { upstreams: [...upstreams] };
-  next.upstreams.sort((left, right) => left.id.localeCompare(right.id));
-  await assertObjectMatchesSchema(next, SCHEMAS.upstreams, "upstreams config");
-  await writeJsonFile(UPSTREAMS_CONFIG_PATHS.local, next);
+  const normalized = cloneSourcesDocument(sourcesDoc);
+  await assertObjectMatchesSchema(normalized, SCHEMAS.packSources, "pack sources");
+  collectSourcePlanning(normalized, upstreamById);
+  await writeJsonFile(sourcesPath, normalized);
 }
 
 async function findProfilesUsingUpstream(upstreamId) {
@@ -203,69 +100,128 @@ async function findProfilesUsingUpstream(upstreamId) {
         consumers.push(profile.name);
       }
     } catch {
-      // Ignore invalid profiles here; doctor/build will report them.
+      // Invalid profiles are surfaced elsewhere.
     }
   }
   return consumers.sort((left, right) => left.localeCompare(right));
 }
 
-export async function cmdUpstreamAdd({ id, repo, defaultRef, type }) {
+function upstreamsMatch(left, right) {
+  return (
+    left.provider === right.provider &&
+    (left.repo ?? null) === (right.repo ?? null) &&
+    (left.path ?? null) === (right.path ?? null) &&
+    (left.root ?? null) === (right.root ?? null)
+  );
+}
+
+async function ensureUpstreamRegistration({ id, source, provider = "auto", root = null, defaultRef = null }) {
   const requestedId = normalizeOptionalText(id);
-  const upstreamRepo = normalizeRequiredText(repo, "Upstream repo");
-  const requestedRef = normalizeOptionalText(defaultRef);
-  const upstreamType = normalizeRequiredText(type || "git", "Upstream type");
-
-  if (upstreamType !== "git") {
-    throw new Error("Only upstream type 'git' is supported.");
-  }
-
-  const editable = await loadEditableUpstreamsConfig();
-  let upstreamId = requestedId;
-  if (upstreamId) {
-    if (editable.byId.has(upstreamId)) {
-      throw new Error(`Upstream '${upstreamId}' already exists.`);
-    }
-  } else {
-    const inferredBaseId = inferBaseUpstreamIdFromRepo(upstreamRepo);
-    upstreamId = ensureUniqueUpstreamId(inferredBaseId, editable.byId);
-  }
-
-  const resolvedRef = requestedRef ?? await detectDefaultRefFromRepo(upstreamRepo) ?? "main";
-  const upstreamRef = normalizeRequiredText(resolvedRef, "Upstream default ref");
-
-  editable.upstreams.push({
-    id: upstreamId,
-    type: upstreamType,
-    repo: upstreamRepo,
-    defaultRef: upstreamRef
+  const normalized = await createUpstreamFromSourceInput({
+    id: requestedId,
+    source,
+    provider,
+    root,
+    defaultRef
   });
 
-  await writeValidatedUpstreamsConfig(editable.upstreams);
+  const editable = await loadUpstreamsConfig();
+  const existing = editable.config.upstreams.find((item) => upstreamsMatch(item, normalized));
+  if (existing) {
+    return existing;
+  }
+  if (requestedId && editable.byId.has(requestedId)) {
+    throw new Error(`Upstream '${requestedId}' already exists.`);
+  }
+
+  let upstreamId = normalized.id;
+  if (editable.byId.has(upstreamId)) {
+    let suffix = 2;
+    while (editable.byId.has(`${upstreamId}_${suffix}`)) {
+      suffix += 1;
+    }
+    upstreamId = `${upstreamId}_${suffix}`;
+  }
+
+  const nextUpstream = {
+    ...normalized,
+    id: upstreamId
+  };
+  editable.config.upstreams.push(nextUpstream);
+  await writeUpstreamsConfig(editable.config);
   logInfo(`Added upstream '${upstreamId}'.`);
+  return nextUpstream;
+}
+
+async function maybeBuildAndApply(profileName, options = {}) {
+  if (options.build === true || options.apply === true) {
+    await buildProfile(profileName, { lockMode: "write" });
+  }
+  if (options.apply === true) {
+    await cmdApply(profileName);
+  }
+}
+
+async function discoverPathsIfRequested({ upstreamDoc, ref, all = false, skillPaths = [] }) {
+  const normalizedPaths = uniqueSorted(skillPaths.map((rawPath) => normalizeSelectionPath(rawPath, "Skill path")));
+  if (normalizedPaths.length > 0) {
+    return normalizedPaths;
+  }
+  if (all !== true) {
+    throw new Error("At least one --path is required unless --all is used.");
+  }
+
+  const provider = getProvider(upstreamDoc.provider);
+  const discovery = await provider.discover(upstreamDoc, {
+    ref: ref || upstreamDoc.defaultRef || undefined
+  });
+  return uniqueSorted(discovery.skills.map((item) => item.path));
+}
+
+export async function cmdUpstreamAdd({ id, repo, source, defaultRef, type, provider, root }) {
+  const requestedType = normalizeOptionalText(type);
+  if (requestedType && requestedType !== "git") {
+    throw new Error("Only upstream type 'git' is supported for legacy --type usage.");
+  }
+  const locator = normalizeOptionalText(source) ?? normalizeOptionalText(repo);
+  if (!locator) {
+    throw new Error("A source locator is required. Use --source or --repo.");
+  }
+  await ensureUpstreamRegistration({
+    id,
+    source: locator,
+    provider: provider || (requestedType === "git" ? "git" : "auto"),
+    root,
+    defaultRef
+  });
 }
 
 export async function cmdUpstreamRemove({ id }) {
   const upstreamId = normalizeRequiredText(id, "Upstream id");
-  const editable = await loadEditableUpstreamsConfig();
-  const before = editable.upstreams.length;
-  const nextUpstreams = editable.upstreams.filter((item) => item.id !== upstreamId);
-
-  if (before === nextUpstreams.length) {
+  const editable = await loadUpstreamsConfig();
+  const before = editable.config.upstreams.length;
+  editable.config.upstreams = editable.config.upstreams.filter((item) => item.id !== upstreamId);
+  if (before === editable.config.upstreams.length) {
     throw new Error(`Upstream '${upstreamId}' not found.`);
   }
 
-  await writeValidatedUpstreamsConfig(nextUpstreams);
+  await writeUpstreamsConfig(editable.config);
   logInfo(`Removed upstream '${upstreamId}'.`);
 
   const lockState = await loadLockfile();
-  if (lockState.exists) {
-    const initialPins = lockState.lock.pins.length;
-    lockState.lock.pins = lockState.lock.pins.filter((pin) => pin.upstream !== upstreamId);
-    const removedPins = initialPins - lockState.lock.pins.length;
+  const initialPins = Array.isArray(lockState.lock.pins) ? lockState.lock.pins.length : 0;
+  lockState.lock.pins = (lockState.lock.pins ?? []).filter((pin) => pin.upstream !== upstreamId);
+  const initialImports = Array.isArray(lockState.lock.imports) ? lockState.lock.imports.length : 0;
+  removeImportRecords(lockState.lock, (entry) => entry.upstream === upstreamId);
+  const removedPins = initialPins - lockState.lock.pins.length;
+  const removedImports = initialImports - lockState.lock.imports.length;
+  if (removedPins > 0 || removedImports > 0) {
+    await saveLockfile(lockState);
     if (removedPins > 0) {
-      sortPins(lockState.lock);
-      await writeJsonFile(LOCKFILE_PATH, lockState.lock);
       logInfo(`Removed ${removedPins} lock pin(s) for upstream '${upstreamId}'.`);
+    }
+    if (removedImports > 0) {
+      logInfo(`Removed ${removedImports} import lock record(s) for upstream '${upstreamId}'.`);
     }
   }
 
@@ -278,57 +234,102 @@ export async function cmdUpstreamRemove({ id }) {
   }
 }
 
-export async function cmdProfileAddSkill({ profile, upstream, skillPath, ref, destPrefix }) {
+export async function cmdProfileAddSkill({
+  profile,
+  upstream,
+  source,
+  provider = "auto",
+  root = null,
+  upstreamId = null,
+  skillPath,
+  skillPaths = [],
+  all = false,
+  ref,
+  pin = false,
+  destPrefix,
+  build = false,
+  apply = false
+}) {
   const profileName = normalizeRequiredText(profile, "Profile name");
-  const upstreamId = normalizeRequiredText(upstream, "Upstream id");
-  const repoPath = normalizeRepoPath(skillPath, "Skill path");
+  const requestedPaths = [
+    ...skillPaths,
+    ...(typeof skillPath === "string" && skillPath.trim().length > 0 ? [skillPath] : [])
+  ];
+
+  let upstreamDoc = null;
+  if (source) {
+    upstreamDoc = await ensureUpstreamRegistration({
+      id: upstreamId,
+      source,
+      provider,
+      root,
+      defaultRef: ref
+    });
+  } else {
+    const upstreams = await loadUpstreamsConfig();
+    upstreamDoc = upstreams.byId.get(normalizeRequiredText(upstream, "Upstream id"));
+    if (!upstreamDoc) {
+      throw new Error(`Unknown upstream '${upstream}'.`);
+    }
+  }
+
+  const paths = await discoverPathsIfRequested({
+    upstreamDoc,
+    ref,
+    all,
+    skillPaths: requestedPaths
+  });
 
   const { profile: profileDoc } = await resolveProfile(profileName);
   const packRoot = await resolvePack(profileDoc);
   const sourcesPath = path.join(packRoot, "sources.json");
-
-  const upstreams = await loadUpstreamsConfig();
-  const upstreamDoc = upstreams.byId.get(upstreamId);
-  if (!upstreamDoc) {
-    throw new Error(`Unknown upstream '${upstreamId}'.`);
-  }
-
-  const effectiveRef = ref ? normalizeRequiredText(ref, "Ref") : upstreamDoc.defaultRef;
-  const effectiveDestPrefix = normalizeDestPrefix(destPrefix, upstreamId, "Skill import");
   const { sources } = await loadPackSources(packRoot);
+  const upstreams = await loadUpstreamsConfig();
   const nextSources = cloneSourcesDocument(sources);
+  const effectiveRef = upstreamDoc.provider === "git" ? normalizeOptionalText(ref) || upstreamDoc.defaultRef || "main" : null;
+  const effectiveDestPrefix = normalizeDestPrefix(destPrefix, upstreamDoc.id, "Skill import");
+  const effectiveTracking = pin === true ? "pinned" : "floating";
 
-  let added = false;
-  for (const importEntry of nextSources.imports) {
-    if (importEntry.upstream !== upstreamId) {
+  let addedCount = 0;
+  for (const selectionPath of paths) {
+    let matchedEntry = null;
+    for (const importEntry of nextSources.imports) {
+      const entryRef = normalizeOptionalText(importEntry.ref) || upstreamDoc.defaultRef || null;
+      const entryDestPrefix = normalizeDestPrefix(importEntry.destPrefix, upstreamDoc.id, "imports[]");
+      const entryTracking = importEntry?.tracking === "pinned" ? "pinned" : "floating";
+      if (
+        importEntry.upstream === upstreamDoc.id &&
+        entryRef === effectiveRef &&
+        entryDestPrefix === effectiveDestPrefix &&
+        entryTracking === effectiveTracking
+      ) {
+        matchedEntry = importEntry;
+        break;
+      }
+    }
+
+    if (!matchedEntry) {
+      matchedEntry = {
+        upstream: upstreamDoc.id,
+        ...(effectiveRef ? { ref: effectiveRef } : {}),
+        tracking: effectiveTracking,
+        paths: [],
+        destPrefix: effectiveDestPrefix
+      };
+      nextSources.imports.push(matchedEntry);
+    }
+
+    const normalizedPaths = normalizedImportPaths(matchedEntry);
+    if (normalizedPaths.includes(selectionPath)) {
       continue;
     }
-    const entryRef = normalizeImportRef(importEntry, upstreamDoc.defaultRef);
-    const entryDestPrefix = normalizeDestPrefix(importEntry.destPrefix, upstreamId, "imports[]");
-    if (entryRef !== effectiveRef || entryDestPrefix !== effectiveDestPrefix) {
-      continue;
+    matchedEntry.paths = uniqueSorted([...normalizedPaths, selectionPath]);
+    if (effectiveRef) {
+      matchedEntry.ref = effectiveRef;
     }
-
-    const currentPaths = normalizedImportPaths(importEntry);
-    if (currentPaths.includes(repoPath)) {
-      logInfo(`Profile '${profileName}' already imports '${repoPath}' from ${upstreamId}@${effectiveRef}.`);
-      return;
-    }
-
-    importEntry.ref = effectiveRef;
-    importEntry.destPrefix = effectiveDestPrefix;
-    importEntry.paths = [...currentPaths, repoPath].sort((left, right) => left.localeCompare(right));
-    added = true;
-    break;
-  }
-
-  if (!added) {
-    nextSources.imports.push({
-      upstream: upstreamId,
-      ref: effectiveRef,
-      paths: [repoPath],
-      destPrefix: effectiveDestPrefix
-    });
+    matchedEntry.tracking = effectiveTracking;
+    matchedEntry.destPrefix = effectiveDestPrefix;
+    addedCount += 1;
   }
 
   for (const importEntry of nextSources.imports) {
@@ -338,27 +339,43 @@ export async function cmdProfileAddSkill({ profile, upstream, skillPath, ref, de
   await writeValidatedSources(sourcesPath, nextSources, upstreams.byId);
 
   logInfo(
-    `Added skill import '${repoPath}' to profile '${profileName}' from ${upstreamId}@${effectiveRef} ` +
-      `with destPrefix '${effectiveDestPrefix}'.`
+    `Added ${addedCount} skill import entr${addedCount === 1 ? "y" : "ies"} to profile '${profileName}' from '${upstreamDoc.id}'.`
   );
+  await maybeBuildAndApply(profileName, { build, apply });
 }
 
-export async function cmdProfileRemoveSkill({ profile, upstream, skillPath, ref, destPrefix }) {
+export async function cmdProfileRemoveSkill({
+  profile,
+  upstream,
+  skillPath,
+  skillPaths = [],
+  ref,
+  destPrefix,
+  pruneUpstream = false,
+  build = false,
+  apply = false
+}) {
   const profileName = normalizeRequiredText(profile, "Profile name");
   const upstreamId = normalizeRequiredText(upstream, "Upstream id");
-  const repoPath = normalizeRepoPath(skillPath, "Skill path");
+  const paths = uniqueSorted([
+    ...skillPaths,
+    ...(typeof skillPath === "string" && skillPath.trim().length > 0 ? [skillPath] : [])
+  ].map((rawPath) => normalizeSelectionPath(rawPath, "Skill path")));
+
+  if (paths.length === 0) {
+    throw new Error("At least one --path is required.");
+  }
 
   const { profile: profileDoc } = await resolveProfile(profileName);
   const packRoot = await resolvePack(profileDoc);
   const sourcesPath = path.join(packRoot, "sources.json");
-
   const upstreams = await loadUpstreamsConfig();
   const upstreamDoc = upstreams.byId.get(upstreamId);
   if (!upstreamDoc) {
     throw new Error(`Unknown upstream '${upstreamId}'.`);
   }
 
-  const desiredRef = ref ? normalizeRequiredText(ref, "Ref") : null;
+  const desiredRef = normalizeOptionalText(ref);
   const desiredDestPrefix = destPrefix ? normalizeDestPrefix(destPrefix, upstreamId, "destPrefix") : null;
   const { sources } = await loadPackSources(packRoot);
   const nextSources = cloneSourcesDocument(sources);
@@ -371,7 +388,7 @@ export async function cmdProfileRemoveSkill({ profile, upstream, skillPath, ref,
       continue;
     }
 
-    const entryRef = normalizeImportRef(importEntry, upstreamDoc.defaultRef);
+    const entryRef = normalizeOptionalText(importEntry.ref) || upstreamDoc.defaultRef || null;
     if (desiredRef && entryRef !== desiredRef) {
       filteredImports.push(importEntry);
       continue;
@@ -385,7 +402,7 @@ export async function cmdProfileRemoveSkill({ profile, upstream, skillPath, ref,
 
     const remainingPaths = [];
     for (const existingPath of normalizedImportPaths(importEntry)) {
-      if (existingPath === repoPath) {
+      if (paths.includes(existingPath)) {
         removedCount += 1;
       } else {
         remainingPaths.push(existingPath);
@@ -395,25 +412,32 @@ export async function cmdProfileRemoveSkill({ profile, upstream, skillPath, ref,
     if (remainingPaths.length === 0) {
       continue;
     }
+
     filteredImports.push({
       ...importEntry,
-      ref: entryRef,
+      ...(entryRef ? { ref: entryRef } : {}),
       destPrefix: entryDestPrefix,
       paths: remainingPaths
     });
   }
 
   if (removedCount === 0) {
-    throw new Error(
-      `Skill import '${repoPath}' not found for profile '${profileName}' and upstream '${upstreamId}'.`
-    );
+    throw new Error(`No matching imported skill path(s) found for profile '${profileName}' and upstream '${upstreamId}'.`);
   }
 
   nextSources.imports = filteredImports;
   sortImports(nextSources.imports);
   await writeValidatedSources(sourcesPath, nextSources, upstreams.byId);
-
   logInfo(`Removed ${removedCount} skill import entr${removedCount === 1 ? "y" : "ies"} from profile '${profileName}'.`);
+
+  if (pruneUpstream === true) {
+    const consumers = await findProfilesUsingUpstream(upstreamId);
+    if (consumers.length === 0) {
+      await cmdUpstreamRemove({ id: upstreamId });
+    }
+  }
+
+  await maybeBuildAndApply(profileName, { build, apply });
 }
 
 function normalizeMcpArgs(rawArgs) {
@@ -522,31 +546,18 @@ export async function cmdProfileAddMcp({ profile, name, command, url, args, env 
 
   const { mcpPath, document } = await loadMcpServersForProfile(profileName);
   const existed = Object.prototype.hasOwnProperty.call(document.servers, serverName);
-  let nextServer = null;
-  if (serverUrl) {
-    nextServer = {
-      url: serverUrl
-    };
-  } else {
-    nextServer = {
-      command: serverCommand,
-      args: serverArgs
-    };
-    if (Object.keys(serverEnv).length > 0) {
-      nextServer.env = serverEnv;
-    }
-  }
-  document.servers[serverName] = nextServer;
+  document.servers[serverName] = serverUrl
+    ? { url: serverUrl }
+    : {
+        command: serverCommand,
+        args: serverArgs,
+        ...(Object.keys(serverEnv).length > 0 ? { env: serverEnv } : {})
+      };
 
   const normalized = normalizeMcpServersDocument(document);
   await assertObjectMatchesSchema(normalized, SCHEMAS.mcpServers, mcpPath);
   await writeJsonFile(mcpPath, normalized);
-
-  if (existed) {
-    logInfo(`Updated MCP server '${serverName}' for profile '${profileName}'.`);
-  } else {
-    logInfo(`Added MCP server '${serverName}' for profile '${profileName}'.`);
-  }
+  logInfo(`${existed ? "Updated" : "Added"} MCP server '${serverName}' for profile '${profileName}'.`);
 }
 
 export async function cmdProfileRemoveMcp({ profile, name }) {

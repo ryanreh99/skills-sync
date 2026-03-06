@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "skills-sync Agent Registry",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "displayName",
+      "mcpSupported",
+      "supportsSymlink",
+      "supportsCopy",
+      "capabilities"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "displayName": {
+        "type": "string",
+        "minLength": 1
+      },
+      "projectSkillPath": {
+        "type": "string",
+        "minLength": 1
+      },
+      "globalSkillPath": {
+        "type": "string",
+        "minLength": 1
+      },
+      "mcpSupported": {
+        "type": "boolean"
+      },
+      "supportsSymlink": {
+        "type": "boolean"
+      },
+      "supportsCopy": {
+        "type": "boolean"
+      },
+      "notes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "capabilities": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string",
+          "enum": [
+            "native",
+            "preserved",
+            "ignored"
+          ]
+        }
+      }
+    }
+  }
+}

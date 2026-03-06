@@ -21,7 +21,8 @@ import {
 } from "./core.js";
 import { getStatePath } from "./bindings.js";
 import { collectImportedSkillEntries, collectLocalSkillEntries } from "./bundle.js";
-import { loadEffectiveTargets, loadPackSources, normalizeMcpManifest, resolvePack, resolveProfile } from "./config.js";
+import { loadEffectiveTargets, resolvePack, resolveProfile } from "./config.js";
+import { loadEffectiveProfileState } from "./profile-runtime.js";
 import { collectSourcePlanning, getCommitObjectType, getLockKey, loadLockfile, loadUpstreamsConfig, resolveReferences, validateAllLockPins } from "./upstreams.js";
 import { extractCodexMcpTables, renderCodexMcpTables } from "./adapters/codex.js";
 
@@ -143,7 +144,9 @@ async function validateBundleMcp(bundleMcpPath, errors) {
 async function validateRuntimeArtifacts({
   profile,
   packRoot,
+  packRoots,
   skillImports,
+  upstreamById,
   resolvedReferences,
   normalizedMcp,
   errors
@@ -186,8 +189,8 @@ async function validateRuntimeArtifacts({
     return;
   }
 
-  const localEntries = await collectLocalSkillEntries(packRoot);
-  const importedEntries = collectImportedSkillEntries(skillImports, resolvedReferences);
+  const localEntries = await collectLocalSkillEntries(packRoots);
+  const importedEntries = await collectImportedSkillEntries(skillImports, upstreamById, resolvedReferences);
   const allEntries = [...localEntries, ...importedEntries];
   for (const entry of allEntries) {
     const bundled = path.join(bundleSkillsPath, toFileSystemRelativePath(entry.destRelative));
@@ -426,12 +429,11 @@ export async function cmdDoctor(profileOverride) {
     try {
       const { profilePath, profile } = await resolveProfile(profileName);
       const packRoot = await resolvePack(profile);
+      const effectiveState = await loadEffectiveProfileState(profileName);
       await assertJsonFileMatchesSchema(profilePath, SCHEMAS.profile);
       await assertJsonFileMatchesSchema(path.join(packRoot, "pack.json"), SCHEMAS.packManifest);
-      const mcpManifest = await assertJsonFileMatchesSchema(path.join(packRoot, "mcp", "servers.json"), SCHEMAS.mcpServers);
-      const normalizedMcp = normalizeMcpManifest(mcpManifest);
-
-      const { sources } = await loadPackSources(packRoot);
+      const normalizedMcp = effectiveState.normalizedMcp;
+      const sources = effectiveState.effectiveSources;
       const { references, skillImports } = collectSourcePlanning(sources, upstreams.byId);
 
       await validateAllLockPins(lockState, upstreams.byId, errors);
@@ -449,16 +451,24 @@ export async function cmdDoctor(profileOverride) {
           : new Map();
 
       for (const importEntry of skillImports) {
+        const upstream = upstreams.byId.get(importEntry.upstreamId);
+        if (!upstream || upstream.provider !== "git") {
+          continue;
+        }
         const key = getLockKey(importEntry.upstreamId, importEntry.ref);
         const resolved = resolvedReferences.get(key);
         if (!resolved) {
           errors.push(`Missing resolved upstream reference for ${importEntry.upstreamId}@${importEntry.ref}.`);
           continue;
         }
-        const objectType = await getCommitObjectType(resolved.repoPath, resolved.commit, importEntry.repoPath);
+        const objectType = await getCommitObjectType(
+          resolved.repoPath,
+          resolved.commit,
+          importEntry.selectionPath
+        );
         if (objectType !== "tree") {
           errors.push(
-            `Imported path '${importEntry.repoPath}' from '${importEntry.upstreamId}@${importEntry.ref}' is missing at commit ${resolved.commit}.`
+            `Imported path '${importEntry.selectionPath}' from '${importEntry.upstreamId}@${importEntry.ref}' is missing at commit ${resolved.commit}.`
           );
         }
       }
@@ -466,7 +476,9 @@ export async function cmdDoctor(profileOverride) {
       await validateRuntimeArtifacts({
         profile,
         packRoot,
+        packRoots: effectiveState.packs.map((item) => item.packRoot),
         skillImports,
+        upstreamById: upstreams.byId,
         resolvedReferences,
         normalizedMcp,
         errors

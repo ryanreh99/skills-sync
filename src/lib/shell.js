@@ -19,6 +19,7 @@ const ROOT_COMMANDS = [
   "profile",
   "agents",
   "upstream",
+  "workspace",
   "detect",
   "help"
 ];
@@ -28,6 +29,11 @@ const ROOT_SUBCOMMANDS = {
   search: ["skills"],
   profile: [
     "show",
+    "inspect",
+    "refresh",
+    "diff",
+    "clone",
+    "new-skill",
     "add-skill",
     "remove-skill",
     "add-mcp",
@@ -38,41 +44,94 @@ const ROOT_SUBCOMMANDS = {
     "remove-upstream"
   ],
   agents: ["inventory", "drift"],
-  upstream: ["add", "remove"]
+  upstream: ["add", "remove"],
+  workspace: ["export", "import", "diff", "sync"]
 };
 
 const ROOT_OPTIONS = {
   init: ["--seed", "--dry-run", "--profile"],
   build: ["--profile", "--lock"],
-  apply: ["--profile", "--build", "--dry-run"],
+  apply: ["--profile", "--build", "--agents", "--dry-run"],
   doctor: ["--profile"],
   detect: ["--format", "--agents"],
-  unlink: ["--dry-run"],
+  unlink: ["--agents", "--dry-run"],
   shell: ["--profile"]
 };
 
 const SUBCOMMAND_OPTIONS = {
   list: {
-    skills: ["--profile", "--format"],
+    skills: ["--profile", "--detail", "--agents", "--format"],
     mcps: ["--profile", "--format"],
     upstreams: ["--format"],
     agents: ["--agents", "--format"],
     profiles: ["--format"],
-    everything: ["--format"],
-    "upstream-content": ["--upstream", "--ref", "--profile", "--verbose", "--versbose", "--format"]
+    everything: ["--detail", "--format"],
+    "upstream-content": [
+      "--upstream",
+      "--source",
+      "--provider",
+      "--root",
+      "--ref",
+      "--profile",
+      "--verbose",
+      "--versbose",
+      "--format"
+    ]
   },
   search: {
-    skills: ["--query", "--upstream", "--ref", "--profile", "--verbose", "--versbose", "--format"]
+    skills: [
+      "--query",
+      "--upstream",
+      "--source",
+      "--provider",
+      "--root",
+      "--ref",
+      "--profile",
+      "--scope",
+      "--verbose",
+      "--versbose",
+      "--format"
+    ]
   },
   profile: {
-    show: ["--format"],
-    "add-skill": ["--upstream", "--path", "--ref", "--dest-prefix"],
-    "remove-skill": ["--upstream", "--path", "--ref", "--dest-prefix"],
+    show: ["--detail", "--agents", "--format"],
+    inspect: ["--format"],
+    refresh: ["--upstream", "--path", "--all", "--build", "--apply", "--dry-run", "--format"],
+    diff: ["--format"],
+    clone: [],
+    "new-skill": ["--profile", "--path", "--frontmatter", "--include-scripts", "--include-references"],
+    "add-skill": [
+      "--upstream",
+      "--upstream-id",
+      "--source",
+      "--provider",
+      "--root",
+      "--path",
+      "--all",
+      "--interactive",
+      "--ref",
+      "--pin",
+      "--dest-prefix",
+      "--build",
+      "--apply"
+    ],
+    "remove-skill": [
+      "--upstream",
+      "--path",
+      "--all",
+      "--interactive",
+      "--ref",
+      "--dest-prefix",
+      "--prune-upstream",
+      "--build",
+      "--apply",
+      "--yes"
+    ],
     "add-mcp": ["--command", "--url", "--args", "--arg", "--env"],
     "remove-mcp": [],
     export: ["--output"],
     import: ["--input", "--replace"],
-    "add-upstream": ["--repo", "--default-ref", "--type"],
+    "add-upstream": ["--source", "--repo", "--provider", "--root", "--default-ref", "--type"],
     "remove-upstream": []
   },
   agents: {
@@ -80,13 +139,19 @@ const SUBCOMMAND_OPTIONS = {
     drift: ["--profile", "--agents", "--dry-run", "--format"]
   },
   upstream: {
-    add: ["--repo", "--default-ref", "--type"],
+    add: ["--source", "--repo", "--provider", "--root", "--default-ref", "--type"],
     remove: []
+  },
+  workspace: {
+    export: ["--output"],
+    import: ["--input", "--replace"],
+    diff: ["--input", "--format"],
+    sync: ["--input", "--dry-run"]
   }
 };
 
 const SHELL_ALIASES = [":help", ":profile", ":clear", ":exit", "help", "clear", "exit", "quit"];
-const SHELL_SHORTCUTS = ["list", "agents", "profile", "search"];
+const SHELL_SHORTCUTS = ["list", "agents", "profile", "search", "workspace"];
 
 const PROFILE_AWARE_COMMANDS = new Set(["build", "apply", "doctor"]);
 
@@ -287,14 +352,19 @@ function resolveShortcutCommands(shortcut) {
       message: "Profile options",
       commands: [
         { value: "profile show", label: "show", hint: "show active profile skills + MCP servers" },
+        { value: "profile inspect", label: "inspect", hint: "check imports, freshness, and capability warnings" },
+        { value: "profile refresh", label: "refresh", hint: "refresh imported skill sources" },
         { value: "profile add-skill", label: "add-skill", hint: "add a skill import to profile" },
         { value: "profile remove-skill", label: "remove-skill", hint: "remove a skill import from profile" },
+        { value: "profile new-skill demo-skill", label: "new-skill", hint: "scaffold a local skill directory" },
         { value: "profile add-upstream", label: "add-upstream", hint: "add an upstream repository" },
         { value: "profile remove-upstream", label: "remove-upstream", hint: "remove an upstream repository" },
         { value: "profile add-mcp", label: "add-mcp", hint: "add/update MCP server in profile" },
         { value: "profile remove-mcp", label: "remove-mcp", hint: "remove MCP server from profile" },
         { value: "profile export", label: "export", hint: "export profile config to JSON" },
-        { value: "profile import", label: "import", hint: "import profile config JSON" }
+        { value: "profile import", label: "import", hint: "import profile config JSON" },
+        { value: "profile diff personal work", label: "diff", hint: "compare two profiles" },
+        { value: "profile clone personal work", label: "clone", hint: "clone a profile pack" }
       ]
     };
   }
@@ -304,6 +374,17 @@ function resolveShortcutCommands(shortcut) {
       commands: [
         { value: "search skills", label: "skills", hint: "fuzzy search skills (prompts for query)" },
         { value: "search skills --verbose", label: "skills verbose", hint: "include title-based matching" }
+      ]
+    };
+  }
+  if (normalizedShortcut === "workspace") {
+    return {
+      message: "Workspace options",
+      commands: [
+        { value: "workspace export", label: "export", hint: "write a full workspace manifest" },
+        { value: "workspace diff", label: "diff", hint: "compare manifest vs live workspace" },
+        { value: "workspace sync --dry-run", label: "sync (dry-run)", hint: "preview manifest reconciliation" },
+        { value: "workspace sync", label: "sync", hint: "apply manifest reconciliation" }
       ]
     };
   }
@@ -352,7 +433,7 @@ function printShellHelp(activeProfile) {
   process.stdout.write(`  ${accent(":profile <name>")}     Set shell profile context\n`);
   process.stdout.write(`  ${accent(":profile default")}    Reset shell profile to current default profile\n`);
   process.stdout.write(`  ${accent(":profile none")}       Disable shell profile context\n`);
-  process.stdout.write(`  ${accent("list agents profile search")}  Open shortcut selection menus\n`);
+  process.stdout.write(`  ${accent("list agents profile search workspace")}  Open shortcut selection menus\n`);
   process.stdout.write(`  ${accent("init build apply doctor unlink")}  Core commands\n`);
   process.stdout.write("\n");
   process.stdout.write(
@@ -413,8 +494,9 @@ export async function cmdShell({ profile, executeCommand }) {
   process.stdout.write(`${muted("Explore and Manage:")}\n`);
   process.stdout.write(`${muted("  list      -> profiles, skills, MCP servers, upstreams, and detected agents")}\n`);
   process.stdout.write(`${muted("  agents    -> inventory/drift to identify drift and sync status")}\n`);
-  process.stdout.write(`${muted("  profile   -> add/remove skills + MCPs; use/upstream to switch profile and manage upstreams")}\n`);
+  process.stdout.write(`${muted("  profile   -> inspect, refresh, scaffold, and manage skills/MCPs/upstreams")}\n`);
   process.stdout.write(`${muted("  search    -> choose search mode, then enter query")}\n`);
+  process.stdout.write(`${muted("  workspace -> export, diff, and sync full environment manifests")}\n`);
   process.stdout.write("\n");
 
   try {

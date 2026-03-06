@@ -1,113 +1,119 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import Fuse from "fuse.js";
 import fs from "fs-extra";
 import path from "node:path";
 import {
-  CACHE_ROOT,
-  LOCKFILE_PATH,
   SCHEMAS,
   UPSTREAMS_CONFIG_PATHS,
   assertJsonFileMatchesSchema,
   assertObjectMatchesSchema,
-  extractSkillTitleFromMarkdown,
   normalizeDestPrefix,
-  normalizeRepoPath,
   writeJsonFile
 } from "./core.js";
-import { loadPackSources, resolvePack, resolveProfile } from "./config.js";
+import { readDefaultProfile, loadPackSources, resolvePack, resolveProfile } from "./config.js";
+import {
+  checkoutCommit,
+  detectDefaultRefFromRepo,
+  ensureCommitAvailable,
+  ensureUpstreamClone,
+  fetchRefAndResolveCommit,
+  getCommitObjectType,
+  getUpstreamRepoPath,
+  runGit,
+  ensureGitAvailable
+} from "./git-runtime.js";
+import {
+  loadImportLock,
+  saveImportLock
+} from "./import-lock.js";
+import { getProvider } from "./providers/index.js";
+import {
+  inferUpstreamIdFromSourceDescriptor,
+  normalizeOptionalRoot,
+  normalizeSelectionPath,
+  normalizeSourceInput
+} from "./source-normalization.js";
 import { muted } from "./terminal-ui.js";
 
-const execFileAsync = promisify(execFile);
-let checkedGitAvailability = false;
 const TEXT_SEARCH_RESULT_LIMIT = 20;
 
-export async function runGit(args, options = {}) {
-  const { cwd = process.cwd(), allowFailure = false } = options;
-  try {
-    const { stdout } = await execFileAsync("git", args, {
-      cwd,
-      encoding: "utf8",
-      maxBuffer: 1024 * 1024 * 16
-    });
-    return stdout.trim();
-  } catch (error) {
-    if (allowFailure) {
-      return null;
-    }
-    const details = [error.message, error.stdout, error.stderr].filter(Boolean).join("\n").trim();
-    throw new Error(`git ${args.join(" ")} failed: ${details}`);
+export {
+  runGit,
+  ensureGitAvailable,
+  getUpstreamRepoPath,
+  ensureUpstreamClone,
+  fetchRefAndResolveCommit,
+  ensureCommitAvailable,
+  getCommitObjectType,
+  checkoutCommit,
+  detectDefaultRefFromRepo
+};
+
+function normalizeRequiredText(value, label) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${label} must be a non-empty string.`);
   }
+  return value.trim();
 }
 
-export async function ensureGitAvailable() {
-  if (checkedGitAvailability) {
-    return;
-  }
-  await runGit(["--version"]);
-  checkedGitAvailability = true;
-}
-
-export function getUpstreamRepoPath(upstreamId) {
-  return path.join(CACHE_ROOT, upstreamId);
-}
-
-export async function ensureUpstreamClone(upstream) {
-  await ensureGitAvailable();
-  const repoPath = getUpstreamRepoPath(upstream.id);
-  const gitDir = path.join(repoPath, ".git");
-  if (!(await fs.pathExists(gitDir))) {
-    await fs.ensureDir(path.dirname(repoPath));
-    await runGit(["clone", "--filter=blob:none", "--no-checkout", upstream.repo, repoPath]);
-  }
-  return repoPath;
-}
-
-export async function fetchRefAndResolveCommit(repoPath, ref) {
-  try {
-    await runGit(["fetch", "--prune", "origin", ref], { cwd: repoPath });
-  } catch {
-    await runGit(["fetch", "--prune", "--force", "origin", ref], { cwd: repoPath });
-  }
-  return await runGit(["rev-parse", "--verify", "FETCH_HEAD^{commit}"], { cwd: repoPath });
-}
-
-export async function ensureCommitAvailable(repoPath, commit) {
-  let available = await runGit(["cat-file", "-e", `${commit}^{commit}`], {
-    cwd: repoPath,
-    allowFailure: true
-  });
-  if (available !== null) {
-    return;
-  }
-
-  await runGit(["fetch", "--prune", "origin", commit], { cwd: repoPath, allowFailure: true });
-  available = await runGit(["cat-file", "-e", `${commit}^{commit}`], {
-    cwd: repoPath,
-    allowFailure: true
-  });
-  if (available === null) {
-    throw new Error(`Commit '${commit}' is not available in upstream cache '${repoPath}'.`);
-  }
-}
-
-export async function getCommitObjectType(repoPath, commit, repoRelativePath) {
-  const gitPath = `${commit}:${repoRelativePath}`;
-  const exists = await runGit(["cat-file", "-e", gitPath], { cwd: repoPath, allowFailure: true });
-  if (exists === null) {
+function normalizeOptionalText(value) {
+  if (typeof value !== "string") {
     return null;
   }
-  const type = await runGit(["cat-file", "-t", gitPath], { cwd: repoPath });
-  return type;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
-export async function checkoutCommit(repoPath, commit, checkoutTracker) {
-  const existing = checkoutTracker.get(repoPath);
-  if (existing && existing === commit) {
-    return;
+function cloneUpstreamDocument(doc) {
+  return {
+    schemaVersion: 2,
+    upstreams: Array.isArray(doc?.upstreams)
+      ? doc.upstreams.map((entry) => ({ ...entry }))
+      : []
+  };
+}
+
+function migrateUpstreamEntry(entry) {
+  const provider = entry?.provider || (entry?.path ? "local-path" : "git");
+  return {
+    id: normalizeRequiredText(entry.id, "Upstream id"),
+    provider,
+    ...(provider === "git"
+      ? {
+          type: "git",
+          repo: normalizeRequiredText(entry.repo, "Upstream repo"),
+          defaultRef: normalizeOptionalText(entry.defaultRef) || "main"
+        }
+      : {
+          path: normalizeRequiredText(entry.path, "Upstream path")
+        }),
+    ...(normalizeOptionalText(entry.originalInput) ? { originalInput: entry.originalInput.trim() } : {}),
+    ...(normalizeOptionalText(entry.root) ? { root: normalizeOptionalRoot(entry.root) } : {}),
+    ...(normalizeOptionalText(entry.displayName) ? { displayName: entry.displayName.trim() } : {})
+  };
+}
+
+function migrateUpstreamsDocument(doc) {
+  const migrated = cloneUpstreamDocument(doc);
+  migrated.schemaVersion = 2;
+  migrated.upstreams = migrated.upstreams.map(migrateUpstreamEntry).sort((left, right) => left.id.localeCompare(right.id));
+  return migrated;
+}
+
+function inferImportedSkillName(upstream, selectionPath) {
+  if (selectionPath !== ".") {
+    return path.posix.basename(selectionPath);
   }
-  await runGit(["checkout", "--force", commit], { cwd: repoPath });
-  checkoutTracker.set(repoPath, commit);
+
+  if (typeof upstream.root === "string" && upstream.root.length > 0) {
+    return path.posix.basename(upstream.root);
+  }
+  if (upstream.provider === "local-path" && typeof upstream.path === "string" && upstream.path.length > 0) {
+    return path.basename(upstream.path);
+  }
+  if (typeof upstream.displayName === "string" && upstream.displayName.length > 0) {
+    return upstream.displayName;
+  }
+  return upstream.id;
 }
 
 export function getLockKey(upstreamId, ref) {
@@ -115,6 +121,7 @@ export function getLockKey(upstreamId, ref) {
 }
 
 export function sortPins(lockDocument) {
+  lockDocument.pins = Array.isArray(lockDocument.pins) ? lockDocument.pins : [];
   lockDocument.pins.sort((left, right) => {
     const leftKey = `${left.upstream}::${left.ref}`;
     const rightKey = `${right.upstream}::${right.ref}`;
@@ -123,10 +130,13 @@ export function sortPins(lockDocument) {
 }
 
 export function findPin(lockDocument, upstreamId, ref) {
-  return lockDocument.pins.find((pin) => pin.upstream === upstreamId && pin.ref === ref) ?? null;
+  return (Array.isArray(lockDocument.pins) ? lockDocument.pins : []).find(
+    (pin) => pin.upstream === upstreamId && pin.ref === ref
+  ) ?? null;
 }
 
 export function setPin(lockDocument, upstreamId, ref, commit) {
+  lockDocument.pins = Array.isArray(lockDocument.pins) ? lockDocument.pins : [];
   const existing = findPin(lockDocument, upstreamId, ref);
   if (existing) {
     if (existing.commit === commit) {
@@ -152,7 +162,7 @@ export async function loadUpstreamsConfig() {
     throw new Error("No upstream configuration found.");
   }
 
-  const config = await assertJsonFileMatchesSchema(selectedPath, SCHEMAS.upstreams);
+  const config = migrateUpstreamsDocument(await assertJsonFileMatchesSchema(selectedPath, SCHEMAS.upstreams));
   const byId = new Map();
   for (const upstream of config.upstreams) {
     if (byId.has(upstream.id)) {
@@ -168,31 +178,23 @@ export async function loadUpstreamsConfig() {
   };
 }
 
-export async function loadLockfile() {
-  if (!(await fs.pathExists(LOCKFILE_PATH))) {
-    return {
-      path: LOCKFILE_PATH,
-      exists: false,
-      changed: false,
-      lock: { pins: [] }
-    };
-  }
+export async function writeUpstreamsConfig(configDocument) {
+  const migrated = migrateUpstreamsDocument(configDocument);
+  await assertObjectMatchesSchema(migrated, SCHEMAS.upstreams, "upstreams config");
+  await writeJsonFile(UPSTREAMS_CONFIG_PATHS.local, migrated);
+}
 
-  const lock = await assertJsonFileMatchesSchema(LOCKFILE_PATH, SCHEMAS.upstreamsLock);
-  sortPins(lock);
-  return {
-    path: LOCKFILE_PATH,
-    exists: true,
-    changed: false,
-    lock
-  };
+export async function loadLockfile() {
+  const lockState = await loadImportLock();
+  lockState.lock.pins = Array.isArray(lockState.lock.pins) ? lockState.lock.pins : [];
+  lockState.lock.imports = Array.isArray(lockState.lock.imports) ? lockState.lock.imports : [];
+  sortPins(lockState.lock);
+  return lockState;
 }
 
 export async function saveLockfile(lockState) {
   sortPins(lockState.lock);
-  await writeJsonFile(lockState.path, lockState.lock);
-  lockState.exists = true;
-  lockState.changed = false;
+  await saveImportLock(lockState);
 }
 
 export function dedupeReferences(references) {
@@ -209,17 +211,11 @@ export function dedupeReferences(references) {
 
 function assertImportPathIsNarrow(rawPath, normalizedPath, importEntry, importIndex, pathIndex) {
   const label = `imports[${importIndex}].paths[${pathIndex}]`;
-  if (typeof rawPath !== "string" || rawPath.trim().length === 0 || rawPath.trim() === ".") {
-    throw new Error(`${label} must not be empty or '.'.`);
+  if (typeof rawPath !== "string" || rawPath.trim().length === 0) {
+    throw new Error(`${label} must not be empty.`);
   }
-  if (normalizedPath === "*") {
-    throw new Error(`${label} must not be '*' at repository root.`);
-  }
-  if (normalizedPath === "skills" && importEntry.allowWholeSkillsTree !== true) {
-    throw new Error(
-      `${label} is 'skills', which imports the entire skills tree. ` +
-        "Set allowWholeSkillsTree=true in this import to allow it explicitly."
-    );
+  if (normalizedPath === "." && importEntry.allowWholeSkillsTree !== true) {
+    return;
   }
 }
 
@@ -227,36 +223,48 @@ export function collectSourcePlanning(sources, upstreamById) {
   const references = [];
   const skillImports = [];
 
-  sources.imports.forEach((entry, importIndex) => {
+  for (let importIndex = 0; importIndex < sources.imports.length; importIndex += 1) {
+    const entry = sources.imports[importIndex];
     const upstream = upstreamById.get(entry.upstream);
     if (!upstream) {
       throw new Error(`Unknown upstream '${entry.upstream}' in imports[${importIndex}].`);
     }
 
-    const effectiveRef = entry.ref || upstream.defaultRef;
-    references.push({
-      upstreamId: upstream.id,
-      ref: effectiveRef
-    });
+    const tracking = entry?.tracking === "pinned" ? "pinned" : "floating";
+    const effectiveRef = upstream.provider === "git"
+      ? normalizeOptionalText(entry.ref) || upstream.defaultRef || "main"
+      : null;
+
+    if (upstream.provider === "git") {
+      references.push({
+        upstreamId: upstream.id,
+        ref: effectiveRef,
+        tracking
+      });
+    }
 
     if (!Array.isArray(entry.paths) || entry.paths.length === 0) {
       throw new Error(`imports[${importIndex}] must contain one or more paths.`);
     }
 
     const destPrefix = normalizeDestPrefix(entry.destPrefix, upstream.id, `imports[${importIndex}]`);
-    entry.paths.forEach((rawPath, pathIndex) => {
-      const repoPath = normalizeRepoPath(rawPath, `imports[${importIndex}].paths[${pathIndex}]`);
-      assertImportPathIsNarrow(rawPath, repoPath, entry, importIndex, pathIndex);
-      const skillName = path.posix.basename(repoPath);
+    for (let pathIndex = 0; pathIndex < entry.paths.length; pathIndex += 1) {
+      const rawPath = entry.paths[pathIndex];
+      const selectionPath = normalizeSelectionPath(rawPath, `imports[${importIndex}].paths[${pathIndex}]`);
+      assertImportPathIsNarrow(rawPath, selectionPath, entry, importIndex, pathIndex);
+      const skillName = inferImportedSkillName(upstream, selectionPath);
       skillImports.push({
+        provider: upstream.provider,
+        sourceType: upstream.provider === "git" ? "upstream" : "local-path",
         upstreamId: upstream.id,
         ref: effectiveRef,
-        repoPath,
+        tracking,
+        selectionPath,
         destRelative: path.posix.join(destPrefix, skillName),
-        label: `${upstream.id}:${repoPath}@${effectiveRef}`
+        label: `${upstream.id}:${selectionPath}${effectiveRef ? `@${effectiveRef}` : ""}`
       });
-    });
-  });
+    }
+  }
 
   return {
     references: dedupeReferences(references),
@@ -264,234 +272,301 @@ export function collectSourcePlanning(sources, upstreamById) {
   };
 }
 
-export async function resolveReferenceCandidatesForSkillLookup({ upstreamId, ref, profileName }) {
+async function createAdHocUpstream({ source, provider, root, ref, upstreamId }) {
+  const descriptor = await normalizeSourceInput(source, { provider, root, defaultRef: ref });
+  return {
+    id: upstreamId || inferUpstreamIdFromSourceDescriptor(descriptor),
+    ...descriptor,
+    ...(descriptor.provider === "git"
+      ? { defaultRef: descriptor.defaultRef || "main" }
+      : {})
+  };
+}
+
+async function resolveReferenceCandidatesForSkillLookup({
+  upstreamId,
+  ref,
+  profileName,
+  source,
+  provider,
+  root
+}) {
   const upstreams = await loadUpstreamsConfig();
   const lockState = await loadLockfile();
   let referenceCandidates = [];
+  let adHocUpstream = null;
 
-  if (profileName) {
+  if (source) {
+    adHocUpstream = await createAdHocUpstream({ source, provider, root, ref, upstreamId: upstreamId || "adhoc" });
+    upstreams.byId.set(adHocUpstream.id, adHocUpstream);
+    referenceCandidates = adHocUpstream.provider === "git"
+      ? [{
+          upstreamId: adHocUpstream.id,
+          ref: ref || adHocUpstream.defaultRef || "main",
+          tracking: "floating"
+        }]
+      : [];
+  } else if (profileName) {
     const { profile } = await resolveProfile(profileName);
     const packRoot = await resolvePack(profile);
-    const { sources } = await loadPackSources(packRoot);
-    const planning = collectSourcePlanning(sources, upstreams.byId);
+    const { sources: packSources } = await loadPackSources(packRoot);
+    const planning = collectSourcePlanning(packSources, upstreams.byId);
     referenceCandidates = [...planning.references];
   } else if (upstreamId) {
     const upstream = upstreams.byId.get(upstreamId);
     if (!upstream) {
       throw new Error(`Unknown upstream '${upstreamId}'.`);
     }
-    referenceCandidates = [
-      {
-        upstreamId: upstream.id,
-        ref: ref || upstream.defaultRef
-      }
-    ];
+    referenceCandidates = upstream.provider === "git"
+      ? [{
+          upstreamId: upstream.id,
+          ref: ref || upstream.defaultRef,
+          tracking: "floating"
+        }]
+      : [];
   } else {
-    referenceCandidates = upstreams.config.upstreams.map((upstream) => ({
-      upstreamId: upstream.id,
-      ref: upstream.defaultRef
-    }));
+    referenceCandidates = upstreams.config.upstreams
+      .filter((upstream) => upstream.provider === "git")
+      .map((upstream) => ({
+        upstreamId: upstream.id,
+        ref: upstream.defaultRef,
+        tracking: "floating"
+      }));
   }
 
-  if (upstreamId) {
+  if (upstreamId && !source) {
     referenceCandidates = referenceCandidates.filter((item) => item.upstreamId === upstreamId);
   }
-  if (ref) {
+  if (ref && !source) {
     referenceCandidates = referenceCandidates.filter((item) => item.ref === ref);
   }
 
-  if (referenceCandidates.length === 0) {
-    throw new Error("No matching upstream/ref found for the provided filters.");
-  }
   return {
     upstreams,
     lockState,
-    references: referenceCandidates
+    references: referenceCandidates,
+    adHocUpstream
   };
 }
 
-async function resolveReferenceSetForSkillLookup(filters) {
-  const { upstreams, lockState, references } = await resolveReferenceCandidatesForSkillLookup(filters);
-  const resolved = await resolveReferences({
-    references,
-    upstreamById: upstreams.byId,
-    lockState,
-    preferPinned: true,
-    requirePinned: false,
-    updatePins: false,
-    allowLockUpdate: false
-  });
+async function resolveInspectableUpstreams(filters) {
+  const { upstreams, lockState, references, adHocUpstream } = await resolveReferenceCandidatesForSkillLookup(filters);
+  const candidates = [];
 
-  return references.map((reference) => {
-    const resolvedItem = resolved.get(getLockKey(reference.upstreamId, reference.ref));
-    return {
-      upstreamId: reference.upstreamId,
-      ref: reference.ref,
-      commit: resolvedItem.commit,
-      repoPath: resolvedItem.repoPath
-    };
-  });
-}
-
-export async function discoverUpstreamSkills(repoPath, commit, { verbose = false } = {}) {
-  const listing = await runGit(["ls-tree", "-r", "--name-only", commit, "--", "skills"], {
-    cwd: repoPath
-  });
-  const skillMdFiles = listing
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && line.startsWith("skills/") && line.endsWith("/SKILL.md"));
-
-  const skillEntries = skillMdFiles.map((skillMdPath) => {
-    const skillPath = path.posix.dirname(skillMdPath);
-    return {
-      path: skillPath,
-      basename: path.posix.basename(skillPath),
-      skillMdPath
-    };
-  });
-  skillEntries.sort((left, right) => left.path.localeCompare(right.path));
-
-  if (!verbose) {
-    return skillEntries.map(({ path: entryPath, basename }) => ({
-      path: entryPath,
-      basename
-    }));
-  }
-
-  const skills = [];
-  for (const entry of skillEntries) {
-    const markdown = await runGit(["show", `${commit}:${entry.skillMdPath}`], {
-      cwd: repoPath
+  if (adHocUpstream && adHocUpstream.provider === "local-path") {
+    candidates.push({
+      upstream: adHocUpstream,
+      ref: null,
+      commit: null
     });
-    const title = extractSkillTitleFromMarkdown(markdown, entry.basename);
-    skills.push({
-      path: entry.path,
-      basename: entry.basename,
-      title
+  } else if (filters.source && adHocUpstream) {
+    const resolved = await resolveReferences({
+      references,
+      upstreamById: upstreams.byId,
+      lockState,
+      preferPinned: true,
+      requirePinned: false,
+      updatePins: false,
+      allowLockUpdate: false
     });
-  }
-  return skills;
-}
-
-export async function discoverUpstreamMcpServers(repoPath, commit) {
-  const listing = await runGit(["ls-tree", "-r", "--name-only", commit], {
-    cwd: repoPath
-  });
-  const manifestPaths = listing
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(
-      (line) =>
-        line.length > 0 && (line === "mcp/servers.json" || line.endsWith("/mcp/servers.json"))
-    )
-    .sort((left, right) => left.localeCompare(right));
-
-  const warnings = [];
-  const servers = [];
-
-  for (const manifestPath of manifestPaths) {
-    let manifest;
-    try {
-      const raw = await runGit(["show", `${commit}:${manifestPath}`], {
-        cwd: repoPath
-      });
-      manifest = JSON.parse(raw);
-      await assertObjectMatchesSchema(
-        manifest,
-        SCHEMAS.mcpServers,
-        "upstream MCP manifest"
-      );
-    } catch (error) {
-      warnings.push(error.message);
-      continue;
+    candidates.push({
+      upstream: adHocUpstream,
+      ref: references[0]?.ref || null,
+      commit: references[0] ? resolved.get(getLockKey(references[0].upstreamId, references[0].ref))?.commit ?? null : null
+    });
+  } else if (filters.upstreamId) {
+    const upstream = upstreams.byId.get(filters.upstreamId);
+    if (!upstream) {
+      throw new Error(`Unknown upstream '${filters.upstreamId}'.`);
     }
-
-    for (const [name, server] of Object.entries(manifest.servers ?? {})) {
-      const env = {};
-      if (server.env && typeof server.env === "object" && !Array.isArray(server.env)) {
-        for (const key of Object.keys(server.env).sort((left, right) => left.localeCompare(right))) {
-          if (key.length === 0) {
-            continue;
-          }
-          env[key] = String(server.env[key]);
-        }
+    if (upstream.provider === "local-path") {
+      candidates.push({
+        upstream,
+        ref: null,
+        commit: null
+      });
+    } else {
+      const resolved = await resolveReferences({
+        references,
+        upstreamById: upstreams.byId,
+        lockState,
+        preferPinned: true,
+        requirePinned: false,
+        updatePins: false,
+        allowLockUpdate: false
+      });
+      for (const reference of references) {
+        candidates.push({
+          upstream,
+          ref: reference.ref,
+          commit: resolved.get(getLockKey(reference.upstreamId, reference.ref))?.commit ?? null
+        });
       }
-      servers.push({
-        sourcePath: manifestPath,
-        name,
-        command: server.command,
-        args: Array.isArray(server.args) ? server.args : [],
-        env
+    }
+  } else {
+    const resolved = references.length > 0
+      ? await resolveReferences({
+          references,
+          upstreamById: upstreams.byId,
+          lockState,
+          preferPinned: true,
+          requirePinned: false,
+          updatePins: false,
+          allowLockUpdate: false
+        })
+      : new Map();
+    for (const upstream of upstreams.config.upstreams) {
+      if (upstream.provider === "local-path") {
+        candidates.push({
+          upstream,
+          ref: null,
+          commit: null
+        });
+        continue;
+      }
+      const reference = references.find((item) => item.upstreamId === upstream.id) ?? {
+        upstreamId: upstream.id,
+        ref: upstream.defaultRef
+      };
+      candidates.push({
+        upstream,
+        ref: reference.ref,
+        commit: resolved.get(getLockKey(reference.upstreamId, reference.ref))?.commit ?? null
       });
     }
   }
 
+  return candidates.sort((left, right) => left.upstream.id.localeCompare(right.upstream.id));
+}
+
+async function discoverSkillsForUpstream(upstream, { ref = null, commit = null } = {}) {
+  const provider = getProvider(upstream.provider);
+  const result = await provider.discover(upstream, {
+    ref,
+    revision: commit
+  });
+  return {
+    revision: result.revision ?? commit ?? null,
+    ref: result.ref ?? ref ?? null,
+    rootPath: result.rootPath,
+    skills: result.skills.map((skill) => ({
+      path: skill.path,
+      basename: skill.path === "." ? inferImportedSkillName(upstream, ".") : path.posix.basename(skill.path),
+      title: skill.title,
+      summary: skill.summary,
+      capabilities: Array.isArray(skill.capabilities) ? [...skill.capabilities] : [],
+      frontmatter: skill.frontmatter ?? {}
+    }))
+  };
+}
+
+async function discoverMcpServersFromRoot(rootPath) {
+  const manifestPaths = [];
+  const servers = [];
+  const warnings = [];
+
+  async function walk(currentPath) {
+    const entries = await fs.readdir(currentPath, { withFileTypes: true }).catch(() => []);
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const absolute = path.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        await walk(absolute);
+        continue;
+      }
+      if (!entry.isFile() || entry.name !== "servers.json") {
+        continue;
+      }
+      if (!absolute.split(path.sep).includes("mcp")) {
+        continue;
+      }
+      const relative = path.relative(rootPath, absolute).split(path.sep).join("/");
+      manifestPaths.push(relative);
+      try {
+        const manifest = JSON.parse(await fs.readFile(absolute, "utf8"));
+        await assertObjectMatchesSchema(manifest, SCHEMAS.mcpServers, "upstream MCP manifest");
+        for (const [name, server] of Object.entries(manifest.servers ?? {})) {
+          const env = {};
+          if (server.env && typeof server.env === "object" && !Array.isArray(server.env)) {
+            for (const key of Object.keys(server.env).sort((left, right) => left.localeCompare(right))) {
+              env[key] = String(server.env[key]);
+            }
+          }
+          servers.push({
+            sourcePath: relative,
+            name,
+            command: server.command,
+            url: server.url,
+            args: Array.isArray(server.args) ? server.args.map((item) => String(item)) : [],
+            env
+          });
+        }
+      } catch (error) {
+        warnings.push(error.message);
+      }
+    }
+  }
+
+  await walk(rootPath);
   servers.sort((left, right) => {
     const leftKey = `${left.name}::${left.sourcePath}`;
     const rightKey = `${right.name}::${right.sourcePath}`;
     return leftKey.localeCompare(rightKey);
   });
-
   return {
-    manifestPaths,
+    manifestPaths: manifestPaths.sort((left, right) => left.localeCompare(right)),
     servers,
     warnings
   };
 }
 
-export async function cmdListSkills({ upstream, ref, profile, format, verbose = false }) {
-  const resolvedSet = await resolveReferenceSetForSkillLookup({
-    upstreamId: upstream,
-    ref,
-    profileName: profile
-  });
-  const payloadItems = [];
-  for (const resolved of resolvedSet) {
-    const skills = await discoverUpstreamSkills(resolved.repoPath, resolved.commit, { verbose });
-    payloadItems.push({
-      upstream: resolved.upstreamId,
-      ref: resolved.ref,
-      commit: resolved.commit,
-      skills: skills.map((skill) => ({
-        path: skill.path,
-        basename: skill.basename,
-        ...(verbose ? { title: skill.title } : {})
-      }))
-    });
+export async function discoverUpstreamSkills(repoPath, commit, { verbose = false, upstream = null } = {}) {
+  if (!upstream) {
+    throw new Error("discoverUpstreamSkills now requires upstream metadata.");
   }
+  const skills = await discoverSkillsForUpstream(upstream, { commit });
+  if (!verbose) {
+    return skills.skills.map((skill) => ({
+      path: skill.path,
+      basename: skill.basename,
+      capabilities: skill.capabilities
+    }));
+  }
+  return skills.skills;
+}
 
+export async function discoverUpstreamMcpServers(repoPath, commit, { upstream = null } = {}) {
+  if (!upstream) {
+    throw new Error("discoverUpstreamMcpServers now requires upstream metadata.");
+  }
+  const provider = getProvider(upstream.provider);
+  const result = await provider.discover(upstream, { revision: commit });
+  return discoverMcpServersFromRoot(result.rootPath);
+}
+
+function formatUpstreamForOutput(upstream) {
+  return {
+    id: upstream.id,
+    provider: upstream.provider,
+    source: upstream.provider === "local-path" ? upstream.path : upstream.repo,
+    originalInput: upstream.originalInput ?? (upstream.provider === "local-path" ? upstream.path : upstream.repo),
+    ...(upstream.root ? { root: upstream.root } : {}),
+    ...(upstream.defaultRef ? { defaultRef: upstream.defaultRef } : {}),
+    ...(upstream.displayName ? { displayName: upstream.displayName } : {})
+  };
+}
+
+export async function cmdListUpstreams({ format }) {
+  const upstreams = await loadUpstreamsConfig();
+  const items = [...upstreams.config.upstreams].map(formatUpstreamForOutput);
   if (format === "json") {
-    const payload = payloadItems.length === 1 ? payloadItems[0] : { results: payloadItems };
-    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ upstreams: items }, null, 2)}\n`);
     return;
   }
-
-  if (payloadItems.length === 1) {
-    for (const skill of payloadItems[0].skills) {
-      if (verbose) {
-        process.stdout.write(`${skill.path}\t${skill.title}\n`);
-      } else {
-        process.stdout.write(`${skill.path}\n`);
-      }
-    }
-    return;
-  }
-
-  for (const item of payloadItems) {
-    process.stdout.write(`${item.upstream}@${item.ref} (${item.commit.slice(0, 12)})\n`);
-    if (item.skills.length === 0) {
-      process.stdout.write("  (no skills found)\n\n");
-      continue;
-    }
-    for (const skill of item.skills) {
-      if (verbose) {
-        process.stdout.write(`  ${skill.path}\t${skill.title}\n`);
-      } else {
-        process.stdout.write(`  ${skill.path}\n`);
-      }
-    }
-    process.stdout.write("\n");
+  for (const item of items) {
+    const ref = item.defaultRef ?? "-";
+    const root = item.root ?? "-";
+    process.stdout.write(`${item.id}\t${item.provider}\t${ref}\t${root}\t${item.source}\n`);
   }
 }
 
@@ -500,30 +575,49 @@ export async function cmdListUpstreamContent({
   ref,
   profile,
   format,
-  verbose = false
+  verbose = false,
+  source = null,
+  provider = "auto",
+  root = null
 }) {
-  const resolvedSet = await resolveReferenceSetForSkillLookup({
+  const inspectable = await resolveInspectableUpstreams({
     upstreamId: upstream,
     ref,
-    profileName: profile
+    profileName: profile,
+    source,
+    provider,
+    root
   });
 
   const payloadItems = [];
-  for (const resolved of resolvedSet) {
-    const skills = await discoverUpstreamSkills(resolved.repoPath, resolved.commit, { verbose });
-    const mcp = await discoverUpstreamMcpServers(resolved.repoPath, resolved.commit);
+  for (const item of inspectable) {
+    const discovered = await discoverSkillsForUpstream(item.upstream, { ref: item.ref, commit: item.commit });
+    const providerInstance = getProvider(item.upstream.provider);
+    const providerResult = await providerInstance.discover(item.upstream, {
+      ref: item.ref,
+      revision: item.commit
+    });
+    const mcp = await discoverMcpServersFromRoot(providerResult.rootPath);
     payloadItems.push({
-      upstream: resolved.upstreamId,
-      ref: resolved.ref,
-      commit: resolved.commit,
-      skills: skills.map((skill) => ({
+      ...formatUpstreamForOutput(item.upstream),
+      ref: discovered.ref,
+      revision: discovered.revision,
+      skills: discovered.skills.map((skill) => ({
         path: skill.path,
         basename: skill.basename,
-        ...(verbose ? { title: skill.title } : {})
+        ...(verbose
+          ? {
+              title: skill.title,
+              summary: skill.summary,
+              capabilities: skill.capabilities,
+              frontmatter: skill.frontmatter
+            }
+          : {})
       })),
       mcpServers: mcp.servers.map((server) => ({
         name: server.name,
         command: server.command,
+        url: server.url,
         args: server.args,
         env: server.env
       })),
@@ -539,77 +633,53 @@ export async function cmdListUpstreamContent({
 
   for (let index = 0; index < payloadItems.length; index += 1) {
     const item = payloadItems[index];
-    process.stdout.write(`${item.upstream}@${item.ref} (${item.commit.slice(0, 12)})\n`);
+    const revisionLabel = item.revision ? ` (${String(item.revision).slice(0, 12)})` : "";
+    process.stdout.write(`${item.id} [${item.provider}]${revisionLabel}\n`);
     process.stdout.write(`Skills (${item.skills.length})\n`);
     if (item.skills.length === 0) {
       process.stdout.write("  (none)\n");
     } else {
       for (const skill of item.skills) {
         if (verbose) {
-          process.stdout.write(`  ${skill.path}\t${skill.title}\n`);
+          process.stdout.write(`  ${skill.path}\t${skill.title}\t[${(skill.capabilities ?? []).join(",")}]\n`);
         } else {
           process.stdout.write(`  ${skill.path}\n`);
         }
       }
     }
-
     process.stdout.write(`MCP Servers (${item.mcpServers.length})\n`);
     if (item.mcpServers.length === 0) {
-      process.stdout.write("  (none found in upstream manifests)\n");
+      process.stdout.write("  (none found in source manifests)\n");
     } else {
       for (const server of item.mcpServers) {
-        const argsPart = server.args.length > 0 ? ` ${server.args.join(" ")}` : "";
-        const envKeys = Object.keys(server.env ?? {});
-        const envPart = envKeys.length > 0 ? ` [env:${envKeys.join(",")}]` : "";
-        process.stdout.write(`  ${server.name}\t${server.command}${argsPart}${envPart}\n`);
+        const transport = server.url ? server.url : `${server.command}${server.args.length > 0 ? ` ${server.args.join(" ")}` : ""}`;
+        process.stdout.write(`  ${server.name}\t${transport}\n`);
       }
     }
-
     if (item.warnings.length > 0) {
       process.stdout.write("Warnings\n");
       for (const warning of item.warnings) {
         process.stdout.write(`  ${warning}\n`);
       }
     }
-
     if (index < payloadItems.length - 1) {
       process.stdout.write("\n");
     }
   }
 }
 
-export async function cmdListUpstreams({ format }) {
-  const upstreams = await loadUpstreamsConfig();
-  const items = [...upstreams.config.upstreams]
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .map((item) => ({
-      id: item.id,
-      type: item.type,
-      repo: item.repo,
-      defaultRef: item.defaultRef
-    }));
-
-  if (format === "json") {
-    process.stdout.write(`${JSON.stringify({ upstreams: items }, null, 2)}\n`);
-    return;
-  }
-
-  for (const item of items) {
-    process.stdout.write(`${item.id}\t${item.defaultRef}\t${item.repo}\n`);
-  }
-}
-
 function createSearchStableKey(item) {
-  return `${item.upstream}::${item.path}::${item.title ?? ""}`;
+  return `${item.sourceScope}::${item.upstream ?? "local"}::${item.path}::${item.title ?? ""}`;
 }
 
 function buildSearchFuseOptions(verbose) {
   const keys = [
-    { name: "path", weight: 0.75 },
-    { name: "basename", weight: 0.25 }
+    { name: "path", weight: 0.6 },
+    { name: "basename", weight: 0.2 },
+    { name: "summary", weight: 0.2 }
   ];
   if (verbose) {
-    keys.push({ name: "title", weight: 0.2 });
+    keys.push({ name: "title", weight: 0.3 });
   }
   return {
     includeScore: true,
@@ -636,31 +706,87 @@ function writeSearchTruncationNotice(hiddenCount) {
   );
 }
 
-async function collectSearchResults({ upstream, ref, profile, query, verbose = false }) {
-  const normalizedQuery = query.trim();
-  const resolvedSet = await resolveReferenceSetForSkillLookup({
+async function collectInstalledSearchRows(profileName) {
+  const resolvedProfile = normalizeOptionalText(profileName) || await readDefaultProfile();
+  if (!resolvedProfile) {
+    return [];
+  }
+  const inventoryModule = await import("./inventory.js");
+  const inventory = await inventoryModule.buildProfileInventory(resolvedProfile, { detail: "full" });
+  return inventory.skills.items.map((item) => ({
+    sourceScope: "installed",
+    upstream: item.upstream ?? null,
+    provider: item.provider ?? item.sourceType,
+    path: item.name,
+    basename: item.basename,
+    title: item.title ?? item.basename,
+    summary: item.summary ?? "",
+    source: item.source,
+    revision: item.resolvedRevision ?? null
+  }));
+}
+
+async function collectDiscoverableSearchRows({ upstream, ref, profile, verbose, source, provider, root }) {
+  const inspectable = await resolveInspectableUpstreams({
     upstreamId: upstream,
     ref,
-    profileName: profile
+    profileName: profile,
+    source,
+    provider,
+    root
   });
 
-  const indexedRows = [];
-  for (const resolvedItem of resolvedSet) {
-    const skills = await discoverUpstreamSkills(resolvedItem.repoPath, resolvedItem.commit, { verbose });
-    for (const skill of skills) {
-      indexedRows.push({
-        upstream: resolvedItem.upstreamId,
-        ref: resolvedItem.ref,
-        commit: resolvedItem.commit,
+  const rows = [];
+  for (const item of inspectable) {
+    const discovered = await discoverSkillsForUpstream(item.upstream, { ref: item.ref, commit: item.commit });
+    for (const skill of discovered.skills) {
+      rows.push({
+        sourceScope: "discoverable",
+        upstream: item.upstream.id,
+        provider: item.upstream.provider,
         path: skill.path,
         basename: skill.basename,
-        ...(verbose ? { title: skill.title } : {})
+        title: verbose ? skill.title : undefined,
+        summary: verbose ? skill.summary : "",
+        source: item.upstream.provider === "local-path" ? item.upstream.path : item.upstream.repo,
+        revision: discovered.revision
       });
     }
   }
+  return rows;
+}
+
+export async function cmdSearchSkills({
+  upstream,
+  ref,
+  profile,
+  query,
+  format,
+  verbose = false,
+  scope = "discoverable",
+  source = null,
+  provider = "auto",
+  root = null
+}) {
+  if (!query || query.trim().length === 0) {
+    throw new Error("--query <text> is required.");
+  }
+
+  const normalizedScope = String(scope || "discoverable").trim().toLowerCase();
+  if (!["installed", "discoverable", "all"].includes(normalizedScope)) {
+    throw new Error("Invalid --scope value. Use installed, discoverable, or all.");
+  }
+
+  const indexedRows = [];
+  if (normalizedScope === "installed" || normalizedScope === "all") {
+    indexedRows.push(...(await collectInstalledSearchRows(profile)));
+  }
+  if (normalizedScope === "discoverable" || normalizedScope === "all") {
+    indexedRows.push(...(await collectDiscoverableSearchRows({ upstream, ref, profile, verbose, source, provider, root })));
+  }
 
   const fuse = new Fuse(indexedRows, buildSearchFuseOptions(verbose));
-  const ranked = fuse.search(normalizedQuery).sort((left, right) => {
+  const ranked = fuse.search(query.trim()).sort((left, right) => {
     const leftScore = typeof left.score === "number" ? left.score : Number.POSITIVE_INFINITY;
     const rightScore = typeof right.score === "number" ? right.score : Number.POSITIVE_INFINITY;
     if (leftScore !== rightScore) {
@@ -668,15 +794,7 @@ async function collectSearchResults({ upstream, ref, profile, query, verbose = f
     }
     return createSearchStableKey(left.item).localeCompare(createSearchStableKey(right.item));
   });
-
-  return ranked.map((row) => row.item);
-}
-
-export async function cmdSearchSkills({ upstream, ref, profile, query, format, verbose = false }) {
-  if (!query || query.trim().length === 0) {
-    throw new Error("--query <text> is required.");
-  }
-  const allResults = await collectSearchResults({ upstream, ref, profile, query, verbose });
+  const allResults = ranked.map((row) => row.item);
 
   if (format === "json") {
     process.stdout.write(`${JSON.stringify(allResults, null, 2)}\n`);
@@ -687,14 +805,11 @@ export async function cmdSearchSkills({ upstream, ref, profile, query, format, v
     process.stdout.write(`No skills matched "${query}".\n`);
     return;
   }
-
   const { visible, hiddenCount } = limitResultsForText(allResults);
   for (const result of visible) {
-    if (verbose) {
-      process.stdout.write(`${result.upstream}  ${result.path}\t${result.title}\n`);
-    } else {
-      process.stdout.write(`${result.upstream}  ${result.path}\n`);
-    }
+    const prefix = result.upstream ? `${result.sourceScope}:${result.upstream}` : result.sourceScope;
+    const title = result.title ? `\t${result.title}` : "";
+    process.stdout.write(`${prefix}  ${result.path}${title}\n`);
   }
   writeSearchTruncationNotice(hiddenCount);
 }
@@ -715,6 +830,9 @@ export async function resolveReferences({
     const upstream = upstreamById.get(reference.upstreamId);
     if (!upstream) {
       throw new Error(`Unknown upstream '${reference.upstreamId}'.`);
+    }
+    if (upstream.provider !== "git") {
+      continue;
     }
 
     const repoPath = await ensureUpstreamClone(upstream);
@@ -752,10 +870,13 @@ export async function resolveReferences({
 }
 
 export async function validateAllLockPins(lockState, upstreamById, errors) {
-  for (const pin of lockState.lock.pins) {
+  for (const pin of Array.isArray(lockState.lock.pins) ? lockState.lock.pins : []) {
     const upstream = upstreamById.get(pin.upstream);
     if (!upstream) {
       errors.push(`Lock pin references unknown upstream '${pin.upstream}'.`);
+      continue;
+    }
+    if (upstream.provider !== "git") {
       continue;
     }
     try {
@@ -765,4 +886,40 @@ export async function validateAllLockPins(lockState, upstreamById, errors) {
       errors.push(`Invalid lock pin ${pin.upstream}@${pin.ref} -> ${pin.commit}: ${error.message}`);
     }
   }
+}
+
+export async function resolveImportedMaterialization(upstream, skillImport, resolvedReferences) {
+  const provider = getProvider(upstream.provider);
+  if (upstream.provider === "git") {
+    const resolved = resolvedReferences.get(getLockKey(skillImport.upstreamId, skillImport.ref));
+    if (!resolved) {
+      throw new Error(`Internal error: unresolved upstream reference for ${skillImport.upstreamId}@${skillImport.ref}`);
+    }
+    return provider.materialize(upstream, skillImport.selectionPath, {
+      ref: skillImport.ref,
+      revision: resolved.commit
+    });
+  }
+  return provider.materialize(upstream, skillImport.selectionPath);
+}
+
+export async function createUpstreamFromSourceInput({ id, source, provider, root, defaultRef }) {
+  const descriptor = await normalizeSourceInput(source, { provider, root, defaultRef });
+  let resolvedDefaultRef = descriptor.defaultRef || null;
+  if (descriptor.provider === "git" && !resolvedDefaultRef && typeof descriptor.repo === "string") {
+    try {
+      if (await fs.pathExists(descriptor.repo)) {
+        resolvedDefaultRef = await detectDefaultRefFromRepo(descriptor.repo);
+      }
+    } catch {
+      resolvedDefaultRef = null;
+    }
+  }
+  return {
+    id: normalizeOptionalText(id) || inferUpstreamIdFromSourceDescriptor(descriptor),
+    ...descriptor,
+    ...(descriptor.provider === "git"
+      ? { defaultRef: resolvedDefaultRef || "main", type: "git" }
+      : {})
+  };
 }

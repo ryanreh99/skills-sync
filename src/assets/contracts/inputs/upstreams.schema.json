@@ -7,21 +7,45 @@
     "upstreams"
   ],
   "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "enum": [
+        1,
+        2
+      ]
+    },
     "upstreams": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "id",
-          "type",
-          "repo",
-          "defaultRef"
+          "id"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "repo"
+            ]
+          },
+          {
+            "required": [
+              "path"
+            ]
+          }
         ],
         "properties": {
           "id": {
             "type": "string",
             "minLength": 1
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "git",
+              "local-path",
+              "http-well-known"
+            ]
           },
           "type": {
             "type": "string",
@@ -29,11 +53,27 @@
               "git"
             ]
           },
+          "originalInput": {
+            "type": "string",
+            "minLength": 1
+          },
           "repo": {
             "type": "string",
             "minLength": 1
           },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "root": {
+            "type": "string",
+            "minLength": 1
+          },
           "defaultRef": {
+            "type": "string",
+            "minLength": 1
+          },
+          "displayName": {
             "type": "string",
             "minLength": 1
           }
@@ -42,4 +82,3 @@
     }
   }
 }
-

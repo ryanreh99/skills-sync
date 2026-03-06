@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import path from "node:path";
 import { CACHE_ROOT, RUNTIME_INTERNAL_ROOT, SCHEMAS, detectOsName, expandTargetPath, logInfo, logWarn } from "./core.js";
-import { loadEffectiveTargets, loadPackSources, normalizeMcpManifest, resolvePack, resolveProfile } from "./config.js";
+import { loadEffectiveTargets, resolvePack, resolveProfile } from "./config.js";
 import {
   collectSourcePlanning,
   loadLockfile,
@@ -9,8 +9,10 @@ import {
   resolveReferences,
   saveLockfile
 } from "./upstreams.js";
+import { removeImportRecords, upsertImportRecord } from "./import-lock.js";
 import { assertJsonFileMatchesSchema } from "./core.js";
 import { buildBundle } from "./bundle.js";
+import { loadEffectiveProfileState } from "./profile-runtime.js";
 import { projectCodexFromBundle } from "./adapters/codex.js";
 import { projectClaudeFromBundle } from "./adapters/claude.js";
 import { projectCursorFromBundle } from "./adapters/cursor.js";
@@ -56,11 +58,9 @@ export async function buildProfile(profileName, options = {}) {
   const packManifestPath = path.join(packRoot, "pack.json");
   await assertJsonFileMatchesSchema(packManifestPath, SCHEMAS.packManifest);
 
-  const mcpServersPath = path.join(packRoot, "mcp", "servers.json");
-  const mcpServersManifest = await assertJsonFileMatchesSchema(mcpServersPath, SCHEMAS.mcpServers);
-  const normalizedMcp = normalizeMcpManifest(mcpServersManifest);
-
-  const { sources } = await loadPackSources(packRoot);
+  const effectiveState = await loadEffectiveProfileState(profileName);
+  const normalizedMcp = effectiveState.normalizedMcp;
+  const sources = effectiveState.effectiveSources;
   const upstreams = await loadUpstreamsConfig();
   const lockState = await loadLockfile();
   const cacheExistsBeforeBuild = await fs.pathExists(CACHE_ROOT);
@@ -104,10 +104,6 @@ export async function buildProfile(profileName, options = {}) {
         })
       : new Map();
 
-  if (lockState.changed && lockConfig.allowLockUpdate) {
-    await saveLockfile(lockState);
-  }
-
   const runtimeInternalRoot = RUNTIME_INTERNAL_ROOT;
   await removeDirectoryRobust(runtimeInternalRoot);
   await fs.ensureDir(runtimeInternalRoot);
@@ -146,12 +142,39 @@ export async function buildProfile(profileName, options = {}) {
 
   const bundle = await buildBundle({
     profile,
+    packRoots: effectiveState.packs.map((item) => item.packRoot),
     packRoot,
     skillImports,
+    upstreamById: upstreams.byId,
     resolvedReferences,
     normalizedMcp,
     runtimeInternalRoot
   });
+
+  const buildTimestamp = new Date().toISOString();
+  removeImportRecords(lockState.lock, (entry) => entry.profile === profile.name);
+  for (const entry of bundle.importedSkillEntries) {
+    upsertImportRecord(lockState.lock, {
+      profile: profile.name,
+      upstream: entry.upstreamId,
+      provider: entry.provider,
+      originalInput: entry.originalInput,
+      selectionPath: entry.selectionPath,
+      destRelative: entry.destRelative,
+      ...(entry.ref ? { ref: entry.ref } : {}),
+      tracking: entry.tracking,
+      ...(entry.commit ? { resolvedRevision: entry.commit, latestRevision: entry.commit } : {}),
+      contentHash: entry.contentHash,
+      installedAt: buildTimestamp,
+      refreshedAt: buildTimestamp,
+      capabilities: entry.capabilities,
+      materializedAgents: []
+    });
+  }
+  lockState.changed = true;
+  if (lockState.changed && lockConfig.allowLockUpdate) {
+    await saveLockfile(lockState);
+  }
 
   const toolProjectors = [
     { tool: "codex", projector: projectCodexFromBundle },
@@ -189,6 +212,7 @@ export async function buildProfile(profileName, options = {}) {
     normalizedMcp,
     sources,
     skillEntries: bundle.skillEntries,
+    importedSkillEntries: bundle.importedSkillEntries,
     references,
     resolvedReferences
   };

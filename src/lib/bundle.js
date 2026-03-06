@@ -7,46 +7,64 @@ import {
   toFileSystemRelativePath,
   writeJsonFile
 } from "./core.js";
-import { checkoutCommit, ensureCommitAvailable, getLockKey } from "./upstreams.js";
+import { resolveImportedMaterialization } from "./upstreams.js";
 
-export async function collectLocalSkillEntries(packRoot) {
-  const skillsRoot = path.join(packRoot, "skills");
-  if (!(await fs.pathExists(skillsRoot))) {
-    return [];
+export async function collectLocalSkillEntries(packRoots) {
+  const roots = Array.isArray(packRoots) ? packRoots : [packRoots];
+  const collected = [];
+
+  for (const packRoot of roots) {
+    const skillsRoot = path.join(packRoot, "skills");
+    if (!(await fs.pathExists(skillsRoot))) {
+      continue;
+    }
+
+    const entries = await fs.readdir(skillsRoot, { withFileTypes: true });
+    const dirs = entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort((left, right) => left.localeCompare(right));
+
+    for (const skillName of dirs) {
+      collected.push({
+        sourceType: "local",
+        sourcePath: path.join(skillsRoot, skillName),
+        destRelative: skillName,
+        label: `local:${skillName}`
+      });
+    }
   }
 
-  const entries = await fs.readdir(skillsRoot, { withFileTypes: true });
-  const dirs = entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort((left, right) => left.localeCompare(right));
-
-  return dirs.map((skillName) => ({
-    sourceType: "local",
-    sourcePath: path.join(skillsRoot, skillName),
-    destRelative: skillName,
-    label: `local:${skillName}`
-  }));
+  return collected;
 }
 
-export function collectImportedSkillEntries(skillImports, resolvedReferences) {
-  return skillImports.map((item) => {
-    const key = getLockKey(item.upstreamId, item.ref);
-    const resolved = resolvedReferences.get(key);
-    if (!resolved) {
-      throw new Error(`Internal error: unresolved upstream reference for ${item.upstreamId}@${item.ref}`);
+export async function collectImportedSkillEntries(skillImports, upstreamById, resolvedReferences) {
+  const entries = [];
+  for (const item of skillImports) {
+    const upstream = upstreamById.get(item.upstreamId);
+    if (!upstream) {
+      throw new Error(`Unknown upstream '${item.upstreamId}'.`);
     }
-    return {
-      sourceType: "upstream",
+    const materialized = await resolveImportedMaterialization(upstream, item, resolvedReferences);
+    entries.push({
+      sourceType: item.sourceType,
+      provider: upstream.provider,
       upstreamId: item.upstreamId,
       ref: item.ref,
-      commit: resolved.commit,
-      repoPath: resolved.repoPath,
-      sourceRepoPath: item.repoPath,
+      tracking: item.tracking,
+      commit: materialized.resolvedRevision,
+      sourcePath: materialized.sourcePath,
+      selectionPath: item.selectionPath,
       destRelative: item.destRelative,
-      label: item.label
-    };
-  });
+      label: item.label,
+      originalInput: upstream.originalInput ?? (upstream.provider === "local-path" ? upstream.path : upstream.repo),
+      contentHash: materialized.contentHash,
+      capabilities: materialized.capabilities,
+      title: materialized.title,
+      summary: materialized.summary
+    });
+  }
+  return entries;
 }
 
 function assertNoSkillCollisions(entries) {
@@ -66,7 +84,6 @@ function assertNoSkillCollisions(entries) {
 
 async function materializeBundleSkills(entries, destinationRoot) {
   const sortedEntries = [...entries].sort((left, right) => left.destRelative.localeCompare(right.destRelative));
-  const checkoutTracker = new Map();
 
   await fs.ensureDir(destinationRoot);
   for (const entry of sortedEntries) {
@@ -81,33 +98,29 @@ async function materializeBundleSkills(entries, destinationRoot) {
       continue;
     }
 
-    await ensureCommitAvailable(entry.repoPath, entry.commit);
-    await checkoutCommit(entry.repoPath, entry.commit, checkoutTracker);
-    const sourcePath = path.join(entry.repoPath, toFileSystemRelativePath(entry.sourceRepoPath));
-    const stats = await fs.stat(sourcePath).catch(() => null);
+    const stats = await fs.stat(entry.sourcePath).catch(() => null);
     if (!stats || !stats.isDirectory()) {
       throw new Error(
-        `Imported source path '${entry.sourceRepoPath}' from upstream '${entry.upstreamId}' is not a directory at commit ${entry.commit}.`
+        `Imported source path '${entry.selectionPath}' from upstream '${entry.upstreamId}' is not a directory.`
       );
     }
-    await fs.copy(sourcePath, destination);
+    await fs.copy(entry.sourcePath, destination);
   }
 }
 
-function buildBundleImports(skillImports, resolvedReferences) {
+function buildBundleImports(importedSkillEntries) {
   const imports = [];
-  for (const item of skillImports) {
-    const key = getLockKey(item.upstreamId, item.ref);
-    const resolved = resolvedReferences.get(key);
-    if (!resolved) {
-      throw new Error(`Internal error: unresolved upstream reference for ${item.upstreamId}@${item.ref}.`);
-    }
+  for (const item of importedSkillEntries) {
     imports.push({
       upstream: item.upstreamId,
-      ref: item.ref,
-      commit: resolved.commit,
-      path: item.repoPath,
-      destPrefix: path.posix.dirname(item.destRelative)
+      provider: item.provider,
+      ...(item.ref ? { ref: item.ref } : {}),
+      ...(item.commit ? { commit: item.commit } : {}),
+      tracking: item.tracking,
+      originalInput: item.originalInput,
+      path: item.selectionPath,
+      destPrefix: path.posix.dirname(item.destRelative),
+      capabilities: Array.isArray(item.capabilities) ? [...item.capabilities] : []
     });
   }
 
@@ -121,14 +134,16 @@ function buildBundleImports(skillImports, resolvedReferences) {
 
 export async function buildBundle({
   profile,
+  packRoots,
   packRoot,
   skillImports,
+  upstreamById,
   resolvedReferences,
   normalizedMcp,
   runtimeInternalRoot
 }) {
-  const localSkillEntries = await collectLocalSkillEntries(packRoot);
-  const importedSkillEntries = collectImportedSkillEntries(skillImports, resolvedReferences);
+  const localSkillEntries = await collectLocalSkillEntries(packRoots);
+  const importedSkillEntries = await collectImportedSkillEntries(skillImports, upstreamById, resolvedReferences);
   const skillEntries = [...localSkillEntries, ...importedSkillEntries];
   assertNoSkillCollisions(skillEntries);
 
@@ -147,7 +162,7 @@ export async function buildBundle({
     generatedAt: new Date().toISOString(),
     sources: {
       packPath: packRoot,
-      imports: buildBundleImports(skillImports, resolvedReferences)
+      imports: buildBundleImports(importedSkillEntries)
     }
   };
   await assertObjectMatchesSchema(bundleDocument, SCHEMAS.bundle, "bundle metadata");

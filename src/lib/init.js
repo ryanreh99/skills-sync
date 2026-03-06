@@ -52,7 +52,9 @@ function getScaffoldFiles(localRoot, profileName) {
     {
       path: path.join(profilesDir, `${profileName}.json`),
       value: {
+        schemaVersion: 2,
         name: profileName,
+        description: "",
         packPath: `workspace/packs/${profileName}`
       },
       type: "json"
@@ -78,6 +80,7 @@ function getScaffoldFiles(localRoot, profileName) {
     {
       path: path.join(packRoot, "sources.json"),
       value: {
+        schemaVersion: 2,
         imports: []
       },
       type: "json"

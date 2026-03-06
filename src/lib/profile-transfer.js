@@ -116,6 +116,7 @@ export async function cmdProfileExport({ profile, output } = {}) {
     schemaVersion: 1,
     exportedAt: new Date().toISOString(),
     profile: {
+      document: profileDoc,
       name: resolvedProfile,
       pack: {
         manifest: packManifest,
@@ -204,6 +205,8 @@ export async function cmdProfileImport({ profile, input, replace = false } = {})
   await fs.ensureDir(path.dirname(profilePath));
   await fs.ensureDir(path.dirname(mcpPath));
   await writeJsonFile(profilePath, {
+    schemaVersion: 2,
+    ...(payload.profile?.document && typeof payload.profile.document === "object" ? payload.profile.document : {}),
     name: profileName,
     packPath: `workspace/packs/${profileName}`
   });

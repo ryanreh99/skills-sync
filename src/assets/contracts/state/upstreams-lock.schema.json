@@ -3,10 +3,25 @@
   "title": "Upstreams Lockfile",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "pins"
+  "anyOf": [
+    {
+      "required": [
+        "pins"
+      ]
+    },
+    {
+      "required": [
+        "imports"
+      ]
+    }
   ],
   "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
     "pins": {
       "type": "array",
       "items": {
@@ -32,7 +47,110 @@
           }
         }
       }
+    },
+    "imports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "profile",
+          "upstream",
+          "selectionPath",
+          "destRelative",
+          "contentHash",
+          "installedAt"
+        ],
+        "properties": {
+          "profile": {
+            "type": "string",
+            "minLength": 1
+          },
+          "upstream": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1
+          },
+          "originalInput": {
+            "type": "string",
+            "minLength": 1
+          },
+          "selectionPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "destRelative": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tracking": {
+            "type": "string",
+            "enum": [
+              "floating",
+              "pinned"
+            ]
+          },
+          "resolvedRevision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "latestRevision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contentHash": {
+            "type": "string",
+            "minLength": 1
+          },
+          "installedAt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "refreshedAt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "materializedAgents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "mode"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mode": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "appliedAt": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
-

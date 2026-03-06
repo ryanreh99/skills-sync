@@ -7,6 +7,13 @@
     "imports"
   ],
   "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "enum": [
+        1,
+        2
+      ]
+    },
     "imports": {
       "type": "array",
       "items": {
@@ -24,6 +31,13 @@
           "ref": {
             "type": "string",
             "minLength": 1
+          },
+          "tracking": {
+            "type": "string",
+            "enum": [
+              "floating",
+              "pinned"
+            ]
           },
           "paths": {
             "type": "array",
