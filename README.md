@@ -37,48 +37,67 @@ brew tap ryanreh99/skills-sync
 brew install ryanreh99/skills-sync/skills-sync
 ```
 
-## Quick Start
+## Quickstart
+
+Use slash-prefixed root commands for consistency across shell and direct CLI.
+
+### Initialize and Sync
 
 ```bash
-# Initialize local workspace from bundled starter content
-skills-sync init --seed
+# 1) scaffold local workspace
+skills-sync /init --seed
 
-# Build canonical artifacts from your active profile
-skills-sync build
+# 2) build runtime artifacts
+skills-sync /build
 
-# Apply generated skills and MCP config to detected agent targets
-skills-sync apply
+# 3) apply to agent targets
+skills-sync /apply
 ```
 
-These commands initialize your workspace, build canonical artifacts, apply them to detected agents, and verify health.
-
-## Interactive Shell
-
-Run `skills-sync` (no args) to launch interactive shell mode with command completion and colorized prompts.
+### List Current State
 
 ```bash
-skills-sync
+# effective skills in active profile
+skills-sync /list skills
+
+# effective MCP servers in active profile
+skills-sync /list mcps
+
+# configured upstream repositories
+skills-sync /list upstreams
 ```
 
-Inside shell mode:
-
-```text
-Run: init --seed then build then apply
-/list               # arrow-key menu for list commands
-/agents             # arrow-key menu for agents inventory/drift
-/profile            # arrow-key menu for profile management commands
-/search             # arrow-key menu for common search commands
-search skills --upstream anthropic --query mcp
-exit
-```
-
-`/list`, `/agents`, `/profile`, and `/search` also work as direct CLI root aliases in non-interactive mode:
+### Add Upstream, Skill, and MCP
 
 ```bash
-skills-sync /list profiles
-skills-sync /agents inventory
+# add an upstream (ID inferred: matlab_skills)
+skills-sync /profile add-upstream --repo https://github.com/matlab/skills
+
+# inspect discoverable upstream content
+skills-sync /list upstream-content --upstream matlab_skills
+
+# import one upstream skill
+skills-sync /profile add-skill --upstream matlab_skills --path skills/matlab-test-generator
+
+# add GitHub MCP endpoint
+skills-sync /profile add-mcp io.github.github/github-mcp-server --url https://api.githubcopilot.com/mcp/
+```
+
+### Drift and Profile Check
+
+```bash
+# compare expected profile state vs installed agent state
+skills-sync /agents drift
+
+# show profile summary
 skills-sync /profile show
-skills-sync /search skills --query mcp
+```
+
+### Search Skills
+
+```bash
+# fuzzy search skills by keyword
+skills-sync /search skills --query design
 ```
 
 ## Verify In Agent Chats
@@ -94,7 +113,6 @@ After `apply`, run these in your agent chat to confirm skills and MCP servers ar
 
 Full documentation lives in the docs directory:
 
-- [docs/quickstart.md](docs/quickstart.md)
 - [docs/user-guide.md](docs/user-guide.md)
 - [docs/commands.md](docs/commands.md)
 

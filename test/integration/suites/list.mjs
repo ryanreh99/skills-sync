@@ -20,6 +20,19 @@ export async function run() {
   const textResult = runCli(["list", "skills", "--profile", "personal"]);
   assert.equal(textResult.stdout.trim().length > 0, true, "list skills text output should be non-empty.");
 
+  // --- list mcps JSON format ---
+  const mcpsJsonResult = runCli(["list", "mcps", "--profile", "personal", "--format", "json"]);
+  const listedMcps = JSON.parse(mcpsJsonResult.stdout.trim());
+  assert.equal(Array.isArray(listedMcps.mcps), true, "list mcps --format json should return an mcps array.");
+  assert.equal(typeof listedMcps.profile, "string", "list mcps json should include resolved profile.");
+  for (const mcp of listedMcps.mcps) {
+    assert.equal(typeof mcp.name, "string", "Each MCP entry should include a string name.");
+  }
+
+  // --- list mcps text format (default) ---
+  const mcpsTextResult = runCli(["list", "mcps", "--profile", "personal"]);
+  assert.equal(mcpsTextResult.stdout.trim().length > 0, true, "list mcps text output should be non-empty.");
+
   // --- slash root alias should work ---
   const slashProfiles = runCli(["/list", "profiles"]);
   assert.equal(
@@ -47,9 +60,9 @@ export async function run() {
   // --- list agents ---
   const listAgentsJson = runCli(["list", "agents", "--format", "json"]);
   const agentsPayload = JSON.parse(listAgentsJson.stdout.trim());
-  assert.equal(Array.isArray(agentsPayload.agents), true, "list agents json should return agents array.");
-  for (const agent of agentsPayload.agents) {
-    assert.equal(typeof agent.tool, "string", "list agents should include tool name.");
+  assert.equal(Array.isArray(agentsPayload), true, "list agents json should return an array.");
+  for (const agent of agentsPayload) {
+    assert.equal(typeof agent, "string", "list agents should return agent names.");
   }
 
   // --- unknown subcommand of list fails ---

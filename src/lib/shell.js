@@ -1,7 +1,7 @@
 import readline from "node:readline/promises";
 import { readDefaultProfile } from "./config.js";
-import { canPrompt, isPromptCancelledError, promptForSelect } from "./prompt-adapter.js";
-import { accent, brand, danger, dim, formatPrompt, heading, muted, success, warning } from "./terminal-ui.js";
+import { canPrompt, isPromptCancelledError, promptForSelect, promptForText } from "./prompt-adapter.js";
+import { accent, brand, danger, formatPrompt, heading, muted, success, warning } from "./terminal-ui.js";
 
 const ROOT_COMMANDS = [
   "init",
@@ -24,9 +24,19 @@ const ROOT_COMMANDS = [
 ];
 
 const ROOT_SUBCOMMANDS = {
-  list: ["skills", "upstreams", "profiles", "everything", "upstream-content"],
+  list: ["skills", "mcps", "upstreams", "profiles", "everything", "upstream-content"],
   search: ["skills"],
-  profile: ["show", "add-skill", "remove-skill", "add-mcp", "remove-mcp", "export", "import"],
+  profile: [
+    "show",
+    "add-skill",
+    "remove-skill",
+    "add-mcp",
+    "remove-mcp",
+    "export",
+    "import",
+    "add-upstream",
+    "remove-upstream"
+  ],
   agents: ["inventory", "drift"],
   upstream: ["add", "remove"]
 };
@@ -44,6 +54,7 @@ const ROOT_OPTIONS = {
 const SUBCOMMAND_OPTIONS = {
   list: {
     skills: ["--profile", "--format"],
+    mcps: ["--profile", "--format"],
     upstreams: ["--format"],
     agents: ["--agents", "--format"],
     profiles: ["--format"],
@@ -60,7 +71,9 @@ const SUBCOMMAND_OPTIONS = {
     "add-mcp": ["--command", "--url", "--args", "--arg", "--env"],
     "remove-mcp": [],
     export: ["--output"],
-    import: ["--input", "--replace"]
+    import: ["--input", "--replace"],
+    "add-upstream": ["--repo", "--default-ref", "--type"],
+    "remove-upstream": []
   },
   agents: {
     inventory: ["--agents", "--format"],
@@ -76,6 +89,17 @@ const SHELL_ALIASES = [":help", ":profile", ":clear", ":exit", "help", "clear", 
 const SHELL_SHORTCUTS = ["/list", "/agents", "/profile", "/search"];
 
 const PROFILE_AWARE_COMMANDS = new Set(["build", "apply", "doctor"]);
+
+function normalizeRootToken(token) {
+  if (typeof token !== "string") {
+    return token;
+  }
+  const trimmed = token.trim();
+  if (trimmed.startsWith("/") && trimmed.length > 1) {
+    return trimmed.slice(1);
+  }
+  return trimmed;
+}
 
 function tokenizeCommandLine(input) {
   const tokens = [];
@@ -134,7 +158,8 @@ function getCompletionMatches(pool, current) {
 }
 
 function createCompleter() {
-  const rootCompletions = uniqueSorted([...ROOT_COMMANDS, ...SHELL_ALIASES, ...SHELL_SHORTCUTS]);
+  const slashRootCompletions = ROOT_COMMANDS.map((command) => `/${command}`);
+  const rootCompletions = uniqueSorted([...ROOT_COMMANDS, ...slashRootCompletions, ...SHELL_ALIASES, ...SHELL_SHORTCUTS]);
 
   return (line) => {
     const raw = String(line || "");
@@ -147,18 +172,21 @@ function createCompleter() {
 
     if (tokens.length === 1 && !endsWithWhitespace) {
       const token = tokens[0];
-      const children = ROOT_SUBCOMMANDS[token] ?? [];
+      const normalizedToken = normalizeRootToken(token);
+      const children = ROOT_SUBCOMMANDS[normalizedToken] ?? [];
       if (children.length > 0) {
-        const expanded = children.map((child) => `${token} ${child}`);
+        const prefix = token.startsWith("/") ? `/${normalizedToken}` : normalizedToken;
+        const expanded = children.map((child) => `${prefix} ${child}`);
         return [expanded, raw];
       }
       const matches = rootCompletions.filter((item) => item.startsWith(token));
       return [matches.length > 0 ? matches : rootCompletions, raw];
     }
 
-    const root = tokens[0];
-    const children = ROOT_SUBCOMMANDS[root] ?? [];
-    const rootOptions = ROOT_OPTIONS[root] ?? [];
+    const rootToken = tokens[0];
+    const normalizedRoot = normalizeRootToken(rootToken);
+    const children = ROOT_SUBCOMMANDS[normalizedRoot] ?? [];
+    const rootOptions = ROOT_OPTIONS[normalizedRoot] ?? [];
     const current = endsWithWhitespace ? "" : tokens[tokens.length - 1];
 
     if (children.length === 0) {
@@ -179,7 +207,7 @@ function createCompleter() {
       return [getCompletionMatches(pool, current), raw];
     }
 
-    const subcommandOptions = SUBCOMMAND_OPTIONS[root]?.[secondToken] ?? [];
+    const subcommandOptions = SUBCOMMAND_OPTIONS[normalizedRoot]?.[secondToken] ?? [];
     if (tokens.length === 2 && !endsWithWhitespace && !current.startsWith("-")) {
       return [getCompletionMatches(children, current), raw];
     }
@@ -188,23 +216,6 @@ function createCompleter() {
     }
     return [getCompletionMatches(subcommandOptions, current), raw];
   };
-}
-
-function formatCommandLabel(args) {
-  if (!Array.isArray(args) || args.length === 0) {
-    return "command";
-  }
-  const [root, maybeSubcommand] = args;
-  if (
-    typeof maybeSubcommand === "string" &&
-    maybeSubcommand.length > 0 &&
-    !maybeSubcommand.startsWith("-") &&
-    Array.isArray(ROOT_SUBCOMMANDS[root]) &&
-    ROOT_SUBCOMMANDS[root].includes(maybeSubcommand)
-  ) {
-    return `${root} ${maybeSubcommand}`;
-  }
-  return root;
 }
 
 function isReadlineClosedError(error) {
@@ -247,7 +258,8 @@ function resolveShortcutCommands(shortcut) {
       message: "List options",
       commands: [
         { value: "list profiles", label: "profiles", hint: "show available profiles" },
-        { value: "list skills", label: "skills", hint: "show local profile skills" },
+        { value: "list skills", label: "skills", hint: "show effective profile skills" },
+        { value: "list mcps", label: "mcps", hint: "show effective profile MCP servers" },
         { value: "list upstreams", label: "upstreams", hint: "show configured upstream repos" },
         { value: "list agents", label: "agents", hint: "show locally detected agents" },
         { value: "list everything", label: "everything", hint: "full profile inventory" },
@@ -272,6 +284,8 @@ function resolveShortcutCommands(shortcut) {
         { value: "profile show", label: "show", hint: "show active profile skills + MCP servers" },
         { value: "profile add-skill", label: "add-skill", hint: "add a skill import to profile" },
         { value: "profile remove-skill", label: "remove-skill", hint: "remove a skill import from profile" },
+        { value: "profile add-upstream", label: "add-upstream", hint: "add an upstream repository" },
+        { value: "profile remove-upstream", label: "remove-upstream", hint: "remove an upstream repository" },
         { value: "profile add-mcp", label: "add-mcp", hint: "add/update MCP server in profile" },
         { value: "profile remove-mcp", label: "remove-mcp", hint: "remove MCP server from profile" },
         { value: "profile export", label: "export", hint: "export profile config to JSON" },
@@ -283,9 +297,8 @@ function resolveShortcutCommands(shortcut) {
     return {
       message: "Search options",
       commands: [
-        { value: "search skills --query mcp", label: "skills (mcp)", hint: "fuzzy search skills for mcp" },
-        { value: "search skills --query git", label: "skills (git)", hint: "fuzzy search skills for git" },
-        { value: "search skills --query mcp --verbose", label: "skills verbose", hint: "include title-based matching" }
+        { value: "search skills", label: "skills", hint: "fuzzy search skills (prompts for query)" },
+        { value: "search skills --verbose", label: "skills verbose", hint: "include title-based matching" }
       ]
     };
   }
@@ -304,10 +317,22 @@ async function resolveShortcutSelection(shortcut, rl) {
 
   rl.pause();
   try {
-    return await promptForSelect({
+    const selectedCommand = await promptForSelect({
       message: shortcutConfig.message,
       options: shortcutConfig.commands
     });
+    if (shortcut !== "/search") {
+      return selectedCommand;
+    }
+
+    const query = await promptForText({
+      message: "Search query",
+      placeholder: "mcp",
+      validate: (inputValue) =>
+        String(inputValue ?? "").trim().length > 0 ? undefined : "Search query is required."
+    });
+    const args = tokenizeCommandLine(selectedCommand);
+    return [...args, "--query", query];
   } finally {
     rl.resume();
   }
@@ -322,6 +347,7 @@ function printShellHelp(activeProfile) {
   process.stdout.write(`  ${accent(":profile default")}    Reset shell profile to current default profile\n`);
   process.stdout.write(`  ${accent(":profile none")}       Disable shell profile context\n`);
   process.stdout.write(`  ${accent("/list /agents /profile /search")}  Open shortcut selection menus\n`);
+  process.stdout.write(`  ${accent("/init /build /apply /doctor /unlink")}  Direct command aliases\n`);
   process.stdout.write("\n");
   process.stdout.write(
     `${muted("Tip: press TAB for command completion. Quoted arguments are supported.")}\n`
@@ -335,10 +361,20 @@ function injectProfileIfNeeded(tokens, activeProfile) {
   if (!activeProfile || tokens.includes("--profile")) {
     return tokens;
   }
-  if (!PROFILE_AWARE_COMMANDS.has(tokens[0])) {
+  const normalizedRoot = normalizeRootToken(tokens[0]);
+  if (!PROFILE_AWARE_COMMANDS.has(normalizedRoot)) {
     return tokens;
   }
   return [...tokens, "--profile", activeProfile];
+}
+
+async function executeWithReadlinePaused({ rl, executeCommand, commandArgs }) {
+  rl.pause();
+  try {
+    return await executeCommand(commandArgs);
+  } finally {
+    rl.resume();
+  }
 }
 
 export async function cmdShell({ profile, executeCommand }) {
@@ -366,15 +402,13 @@ export async function cmdShell({ profile, executeCommand }) {
     process.stdout.write(`${muted("Profile context disabled. Use :profile <name> to set one.")}\n`);
   }
   process.stdout.write(`${muted("Modes:")}\n`);
-  process.stdout.write(`${muted("  setup   -> init | init --seed")}\n`);
-  process.stdout.write(`${muted("  sync    -> build -> apply")}\n`);
+  process.stdout.write(`${muted("  setup   -> /init | /init --seed")}\n`);
+  process.stdout.write(`${muted("  sync    -> /build -> /apply")}\n`);
   process.stdout.write(`${muted("Explore and Manage:")}\n`);
-  process.stdout.write(`${muted("  /list      -> profiles, local skills, upstreams, and detected agents")}\n`);
+  process.stdout.write(`${muted("  /list      -> profiles, skills, MCP servers, upstreams, and detected agents")}\n`);
   process.stdout.write(`${muted("  /agents    -> inventory/drift to identify drift and sync status")}\n`);
   process.stdout.write(`${muted("  /profile   -> add/remove skills + MCPs; use/upstream to switch profile and manage upstreams")}\n`);
-  process.stdout.write(`${muted("  /search    -> run common skill search commands")}\n`);
-  process.stdout.write(`${muted("Shortcuts: /list, /agents, /profile, /search (arrow keys + Enter to select)")}\n`);
-  process.stdout.write(`${muted("Tip: press TAB to autocomplete commands/options. Press TAB twice to list matches.")}\n`);
+  process.stdout.write(`${muted("  /search    -> choose search mode, then enter query")}\n`);
   process.stdout.write("\n");
 
   try {
@@ -408,16 +442,15 @@ export async function cmdShell({ profile, executeCommand }) {
         if (!shortcutCommand) {
           continue;
         }
-        const args = tokenizeCommandLine(shortcutCommand);
+        const args = Array.isArray(shortcutCommand) ? shortcutCommand : tokenizeCommandLine(shortcutCommand);
         const commandArgs = injectProfileIfNeeded(args, activeProfile);
-        const startedAt = Date.now();
-        const exitCode = await executeCommand(commandArgs);
-        const elapsedMs = Date.now() - startedAt;
+        const exitCode = await executeWithReadlinePaused({
+          rl,
+          executeCommand,
+          commandArgs
+        });
         if (exitCode !== 0) {
-          process.stderr.write(`${danger(`Command exited with code ${exitCode}.`)} ${dim(`(${elapsedMs}ms)`)}\n`);
-        } else {
-          const label = formatCommandLabel(commandArgs);
-          process.stdout.write(`${dim(`${label} completed in ${elapsedMs}ms.`)}\n`);
+          process.stderr.write(`${danger(`Command exited with code ${exitCode}.`)}\n`);
         }
         continue;
       }
@@ -466,14 +499,13 @@ export async function cmdShell({ profile, executeCommand }) {
       }
 
       const commandArgs = injectProfileIfNeeded(args, activeProfile);
-      const startedAt = Date.now();
-      const exitCode = await executeCommand(commandArgs);
-      const elapsedMs = Date.now() - startedAt;
+      const exitCode = await executeWithReadlinePaused({
+        rl,
+        executeCommand,
+        commandArgs
+      });
       if (exitCode !== 0) {
-        process.stderr.write(`${danger(`Command exited with code ${exitCode}.`)} ${dim(`(${elapsedMs}ms)`)}\n`);
-      } else {
-        const label = formatCommandLabel(commandArgs);
-        process.stdout.write(`${dim(`${label} completed in ${elapsedMs}ms.`)}\n`);
+        process.stderr.write(`${danger(`Command exited with code ${exitCode}.`)}\n`);
       }
     }
   } finally {

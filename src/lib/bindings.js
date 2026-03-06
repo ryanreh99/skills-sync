@@ -271,7 +271,7 @@ export async function applyBindings(profileName, options = {}) {
   const bundleMcpPath = path.join(runtimeInternalRoot, "common", "mcp.json");
   const requestedProfile = typeof profileName === "string" && profileName.trim().length > 0 ? profileName.trim() : null;
   const profileHint = requestedProfile ?? "<name>";
-  const buildGuidance = `Set active profile: use ${profileHint}\nRun build first: build`;
+  const buildGuidance = `Set active profile: use ${profileHint}\nRun build first: /build`;
 
   if (!(await fs.pathExists(bundlePath))) {
     throw new Error(`Missing runtime bundle metadata.\n${buildGuidance}`);
@@ -295,7 +295,7 @@ export async function applyBindings(profileName, options = {}) {
     throw new Error(
       `Runtime artifacts are stale for requested profile '${requestedProfile}'. Found bundle profile '${bundleProfile}'.\n` +
         `Set active profile: use ${requestedProfile}\n` +
-        "Run build first: build"
+        "Run build first: /build"
     );
   }
   const canonicalMcp = await fs.readJson(bundleMcpPath);
@@ -310,7 +310,7 @@ export async function applyBindings(profileName, options = {}) {
       if (unlinkResult.remainingBindings.length > 0) {
         throw new Error(
           "Cannot continue apply because some previous bindings could not be safely unlinked.\n" +
-            "Run unlink/doctor, resolve reported paths manually, then retry apply."
+            "Run /unlink/doctor, resolve reported paths manually, then retry apply."
         );
       }
     }
@@ -329,7 +329,7 @@ export async function applyBindings(profileName, options = {}) {
         throw new Error(
           "Source directory missing for apply.\n" +
             `Set active profile: use ${effectiveProfile}\n` +
-            "Run build first: build"
+            "Run build first: /build"
         );
       }
 
@@ -412,7 +412,7 @@ export async function applyBindings(profileName, options = {}) {
         throw new Error(
           "Source config missing for apply.\n" +
             `Set active profile: use ${effectiveProfile}\n` +
-            "Run build first: build"
+            "Run build first: /build"
         );
       }
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { runCli } from "../helpers.mjs";
@@ -10,6 +11,25 @@ import { runCli } from "../helpers.mjs";
  * - list profiles/everything/upstream-content
  */
 export async function run({ localOverridesPath }) {
+  const runGit = (args, cwd) => {
+    const result = spawnSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "skills-sync-tests",
+        GIT_AUTHOR_EMAIL: "skills-sync-tests@example.com",
+        GIT_COMMITTER_NAME: "skills-sync-tests",
+        GIT_COMMITTER_EMAIL: "skills-sync-tests@example.com"
+      }
+    });
+    assert.equal(
+      result.status,
+      0,
+      `git ${args.join(" ")} should succeed in tests.\nSTDOUT:\n${result.stdout ?? ""}\nSTDERR:\n${result.stderr ?? ""}`
+    );
+  };
+
   const personalSourcesPath = path.join(localOverridesPath, "packs", "personal", "sources.json");
   const personalMcpPath = path.join(localOverridesPath, "packs", "personal", "mcp", "servers.json");
   const localUpstreamsPath = path.join(localOverridesPath, "upstreams.json");
@@ -55,6 +75,28 @@ export async function run({ localOverridesPath }) {
   );
   assert.equal(hasAddedSkill, true, "profile add-skill should write sources.json.");
 
+  // --- profile add-skill without explicit profile uses current/default profile ---
+  runCli([
+    "profile",
+    "add-skill",
+    "--upstream",
+    "anthropic",
+    "--path",
+    "skills/test-skill-default-profile"
+  ]);
+  const sourcesAfterDefaultProfileAdd = JSON.parse(await fs.readFile(personalSourcesPath, "utf8"));
+  const hasDefaultProfileAddedSkill = sourcesAfterDefaultProfileAdd.imports.some(
+    (entry) =>
+      entry.upstream === "anthropic" &&
+      Array.isArray(entry.paths) &&
+      entry.paths.includes("skills/test-skill-default-profile")
+  );
+  assert.equal(
+    hasDefaultProfileAddedSkill,
+    true,
+    "profile add-skill without profile name should target current/default profile."
+  );
+
   // --- profile remove-skill ---
   runCli([
     "profile",
@@ -74,6 +116,16 @@ export async function run({ localOverridesPath }) {
     (entry) => Array.isArray(entry.paths) && entry.paths.includes("skills/test-skill-new")
   );
   assert.equal(stillHasSkill, false, "profile remove-skill should remove imported path.");
+
+  runCli([
+    "profile",
+    "remove-skill",
+    "personal",
+    "--upstream",
+    "anthropic",
+    "--path",
+    "skills/test-skill-default-profile"
+  ]);
 
   // --- profile add-mcp ---
   runCli([
@@ -240,6 +292,48 @@ export async function run({ localOverridesPath }) {
     "upstream add should create/update local upstreams.json with new upstream."
   );
 
+  // --- profile add-upstream alias ---
+  runCli([
+    "profile",
+    "add-upstream",
+    "unit-test-upstream-alias",
+    "--repo",
+    "https://github.com/example/alias.git",
+    "--default-ref",
+    "main"
+  ]);
+  const localUpstreamsAfterAliasAdd = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
+  assert.equal(
+    localUpstreamsAfterAliasAdd.upstreams.some((item) => item.id === "unit-test-upstream-alias"),
+    true,
+    "profile add-upstream should create/update local upstreams.json with new upstream."
+  );
+
+  // --- upstream add auto-detects default ref when omitted ---
+  const detectedRefRepoPath = path.join(localOverridesPath, "unit-test-detect-ref-repo");
+  await fs.rm(detectedRefRepoPath, { recursive: true, force: true });
+  await fs.mkdir(detectedRefRepoPath, { recursive: true });
+  runGit(["init"], detectedRefRepoPath);
+  runGit(["checkout", "-b", "trunk"], detectedRefRepoPath);
+  await fs.writeFile(path.join(detectedRefRepoPath, "README.md"), "# test\n", "utf8");
+  runGit(["add", "README.md"], detectedRefRepoPath);
+  runGit(["commit", "-m", "init"], detectedRefRepoPath);
+
+  runCli([
+    "upstream",
+    "add",
+    "unit-test-detect-ref",
+    "--repo",
+    detectedRefRepoPath
+  ]);
+  const localUpstreamsAfterDetectedRef = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
+  const detectedRefEntry = localUpstreamsAfterDetectedRef.upstreams.find((item) => item.id === "unit-test-detect-ref");
+  assert.equal(
+    detectedRefEntry?.defaultRef,
+    "trunk",
+    "upstream add should auto-detect default ref from repository HEAD when omitted."
+  );
+
   // --- list upstreams reflects add ---
   const upstreamsJsonAfterAdd = runCli(["list", "upstreams", "--format", "json"]);
   const upstreamsPayloadAfterAdd = JSON.parse(upstreamsJsonAfterAdd.stdout.trim());
@@ -249,13 +343,51 @@ export async function run({ localOverridesPath }) {
     "list upstreams should include newly added upstream."
   );
 
+  // --- upstream add (auto-id inference + conflict suffix) ---
+  runCli([
+    "upstream",
+    "add",
+    "--repo",
+    "https://github.com/example/example.git",
+    "--default-ref",
+    "main"
+  ]);
+  runCli([
+    "upstream",
+    "add",
+    "--repo",
+    "git@github.com:example/example.git",
+    "--default-ref",
+    "main"
+  ]);
+  const localUpstreamsAfterAutoAdd = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
+  assert.equal(
+    localUpstreamsAfterAutoAdd.upstreams.some((item) => item.id === "example_example"),
+    true,
+    "upstream add without id should infer upstream id from github owner/repo."
+  );
+  assert.equal(
+    localUpstreamsAfterAutoAdd.upstreams.some((item) => item.id === "example_example_2"),
+    true,
+    "upstream add should append numeric suffix when inferred upstream id conflicts."
+  );
+
   // --- upstream remove ---
   runCli(["upstream", "remove", "unit-test-upstream"]);
+  runCli(["profile", "remove-upstream", "unit-test-upstream-alias"]);
+  runCli(["upstream", "remove", "unit-test-detect-ref"]);
+  runCli(["upstream", "remove", "example_example"]);
+  runCli(["upstream", "remove", "example_example_2"]);
   const localUpstreamsAfterRemove = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
   assert.equal(
     localUpstreamsAfterRemove.upstreams.some((item) => item.id === "unit-test-upstream"),
     false,
     "upstream remove should delete the upstream from local config."
+  );
+  assert.equal(
+    localUpstreamsAfterRemove.upstreams.some((item) => item.id === "unit-test-upstream-alias"),
+    false,
+    "profile remove-upstream should delete the upstream from local config."
   );
 
   // --- list everything ---

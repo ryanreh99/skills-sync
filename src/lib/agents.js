@@ -486,45 +486,39 @@ function computeDifference(expected, actual) {
   };
 }
 
-function formatDriftSection(label, drift) {
-  const lines = [`  ${label} missing (${drift.missing.length})`];
-  if (drift.missing.length === 0) {
-    lines.push("    (none)");
-  } else {
-    for (const item of drift.missing) {
-      lines.push(`    ${item}`);
-    }
-  }
-
-  lines.push(`  ${label} extra (${drift.extra.length})`);
-  if (drift.extra.length === 0) {
-    lines.push("    (none)");
-  } else {
-    for (const item of drift.extra) {
-      lines.push(`    ${item}`);
-    }
-  }
-
-  return lines;
-}
-
 function driftToText(driftReport) {
   const lines = [];
   lines.push(`Profile: ${driftReport.profile}`);
-  lines.push(`Expected skills: ${driftReport.expected.skills.length}`);
-  lines.push(`Expected MCP servers: ${driftReport.expected.mcpServers.length}`);
+  lines.push(`Expected: skills=${driftReport.expected.skills.length} mcp=${driftReport.expected.mcpServers.length}`);
   lines.push("");
 
   for (const agent of driftReport.agents) {
-    lines.push(agent.tool);
-    lines.push(`  status : ${agent.installed ? "detected" : "not detected"}`);
-    lines.push(...formatDriftSection("skills", agent.drift.skills));
-    lines.push(...formatDriftSection("mcp", agent.drift.mcpServers));
-    lines.push(...formatParseErrors(agent.parseErrors));
-    lines.push(
-      `  summary      : missing=${agent.summary.missingTotal} extra=${agent.summary.extraTotal} parseErrors=${agent.summary.parseErrors}`
-    );
-    lines.push("");
+    if (agent.summary.missingTotal === 0 && agent.summary.extraTotal === 0 && agent.summary.parseErrors === 0) {
+      lines.push(`${agent.tool}: in sync`);
+      continue;
+    }
+
+    const parts = [`status=${agent.installed ? "detected" : "not detected"}`];
+    if (agent.drift.skills.missing.length > 0) {
+      parts.push(`skills missing=${agent.drift.skills.missing.length}`);
+    }
+    if (agent.drift.skills.extra.length > 0) {
+      parts.push(`skills extra=${agent.drift.skills.extra.length}`);
+    }
+    if (agent.drift.mcpServers.missing.length > 0) {
+      parts.push(`mcp missing=${agent.drift.mcpServers.missing.length}`);
+    }
+    if (agent.drift.mcpServers.extra.length > 0) {
+      parts.push(`mcp extra=${agent.drift.mcpServers.extra.length}`);
+    }
+    if (agent.summary.parseErrors > 0) {
+      parts.push(`parseErrors=${agent.summary.parseErrors}`);
+    }
+
+    lines.push(`${agent.tool}: ${parts.join(" | ")}`);
+    if (agent.summary.parseErrors > 0 && agent.parseErrors.length > 0) {
+      lines.push(`  parse: ${redactPathDetails(agent.parseErrors[0].message)}`);
+    }
   }
 
   return lines.join("\n").trimEnd();
@@ -855,22 +849,10 @@ export async function cmdListAgents({ format = "text", agents } = {}) {
   const inventory = await collectAgentInventories({ agents });
   const detectedAgents = inventory.agents
     .filter((agent) => agent.installed)
-    .map((agent) => ({
-      tool: agent.tool,
-      support: agent.support
-    }));
+    .map((agent) => agent.tool);
 
   if (format === "json") {
-    process.stdout.write(
-      `${JSON.stringify(
-        {
-          os: inventory.os,
-          agents: detectedAgents
-        },
-        null,
-        2
-      )}\n`
-    );
+    process.stdout.write(`${JSON.stringify(detectedAgents, null, 2)}\n`);
     return;
   }
 
@@ -879,7 +861,7 @@ export async function cmdListAgents({ format = "text", agents } = {}) {
     return;
   }
   for (const agent of detectedAgents) {
-    process.stdout.write(`${agent.tool}\t${agent.support}\n`);
+    process.stdout.write(`${agent}\n`);
   }
 }
 

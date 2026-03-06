@@ -9,7 +9,7 @@ Running `skills-sync` with no command opens interactive shell mode.
 
 ## Root Aliases
 - `agent` is accepted as alias for `agents`
-- `/list`, `/agents`, `/profile`, `/search` are accepted as root aliases (interactive and non-interactive)
+- Any root command can be prefixed with `/` (for example `/build`, `/apply`, `/unlink`, `/list`, `/profile`)
 
 ## Command Surface
 1. `init [--seed] [--dry-run] [--profile <name>]`
@@ -19,30 +19,33 @@ Running `skills-sync` with no command opens interactive shell mode.
 5. `detect [--format text|json] [--agents <comma-list>]`
 6. `unlink [--dry-run]`
 7. `list skills [--profile <name>] [--format text|json]`
-8. `list upstreams [--format text|json]`
-9. `list profiles [--format text|json]`
-10. `list everything [--format text|json]`
-11. `list agents [--agents <comma-list>] [--format text|json]`
-12. `list upstream-content [--upstream <id>] [--ref <ref>] [--profile <name>] [--verbose] [--format text|json]`
-13. `search skills --query <text> [--upstream <id>] [--ref <ref>] [--profile <name>] [--verbose] [--format text|json]`
-14. `use [name]`
-15. `current`
-16. `ls`
-17. `new [name]`
-18. `remove [name]`
-19. `profile show [name] [--format text|json]`
-20. `profile add-skill [name] [--upstream <id>] [--path <repoPath>] [--ref <ref>] [--dest-prefix <prefix>]`
-21. `profile remove-skill [name] [--upstream <id>] [--path <repoPath>] [--ref <ref>] [--dest-prefix <prefix>]`
-22. `profile add-mcp [name] [server] [--command <command> [--args <arg...> | --arg <arg>...] [--env <KEY=VALUE...>] | --url <url>]`
-23. `profile remove-mcp [name] [server]`
-24. `profile export [name] [--output <path>]`
-25. `profile import [name] [--input <path>] [--replace]`
-26. `agents inventory [--agents <comma-list>] [--format text|json]`
-27. `agents drift [--profile <name>] [--agents <comma-list>] [--dry-run] [--format text|json]`
-28. `upstream add [id] [--repo <url>] [--default-ref <ref>] [--type git]`
-29. `upstream remove [id]`
-30. `shell [--profile <name>]`
-31. `help`
+8. `list mcps [--profile <name>] [--format text|json]`
+9. `list upstreams [--format text|json]`
+10. `list profiles [--format text|json]`
+11. `list everything [--format text|json]`
+12. `list agents [--agents <comma-list>] [--format text|json]`
+13. `list upstream-content [--upstream <id>] [--ref <ref>] [--profile <name>] [--verbose] [--format text|json]`
+14. `search skills --query <text> [--upstream <id>] [--ref <ref>] [--profile <name>] [--verbose] [--format text|json]`
+15. `use [name]`
+16. `current`
+17. `ls`
+18. `new [name]`
+19. `remove [name]`
+20. `profile show [name] [--format text|json]`
+21. `profile add-skill [name] [--upstream <id>] [--path <repoPath>] [--ref <ref>] [--dest-prefix <prefix>]`
+22. `profile remove-skill [name] [--upstream <id>] [--path <repoPath>] [--ref <ref>] [--dest-prefix <prefix>]`
+23. `profile add-mcp [name] [server] [--command <command> [--args <arg...> | --arg <arg>...] [--env <KEY=VALUE...>] | --url <url>]`
+24. `profile remove-mcp [name] [server]`
+25. `profile export [name] [--output <path>]`
+26. `profile import [name] [--input <path>] [--replace]`
+27. `profile add-upstream [id] [--repo <url>] [--default-ref <ref>] [--type git]`
+28. `profile remove-upstream [id]`
+29. `agents inventory [--agents <comma-list>] [--format text|json]`
+30. `agents drift [--profile <name>] [--agents <comma-list>] [--dry-run] [--format text|json]`
+31. `upstream add [id] [--repo <url>] [--default-ref <ref>] [--type git]`
+32. `upstream remove [id]`
+33. `shell [--profile <name>]`
+34. `help`
 
 Unknown commands fail with:
 `Unknown command. See: help`
@@ -51,7 +54,12 @@ Unknown commands fail with:
 - Prompts appear only on interactive TTY terminals and only when required mutating inputs are missing.
 - Non-interactive mode stays strict and returns explicit argument errors.
 - `use [name]` and `new [name]` default to `personal` when omitted.
-- `build`, `apply`, and `doctor` can omit `--profile` when a default profile is set with `use`.
+- `profile add-skill [name]` falls back to current/default profile when omitted.
+- When `--upstream` is omitted for `profile add-skill`/`profile remove-skill`, interactive mode shows configured upstream IDs as a select list.
+- `profile add-upstream` and `profile remove-upstream` are aliases of `upstream add/remove`.
+- Auto-inferred upstream IDs use `owner_repo` for GitHub URLs/SSH (for example `ryanreh99_skills`), with `_2`, `_3`, ... on conflicts.
+- `upstream add`/`profile add-upstream` auto-detect `defaultRef` from repo HEAD when `--default-ref` is omitted (fallback: `main`).
+- `/build`, `/apply`, and `/doctor` can omit `--profile` when a default profile is set with `use`.
 - `search skills` uses fuzzy ranking. Text output shows top 20 results; JSON returns full results.
 - First `build` can take longer while upstream cache is initialized.
 
@@ -59,7 +67,7 @@ Unknown commands fail with:
 - `/list`: menu for `list` subcommands
 - `/agents`: menu for `agents inventory` and `agents drift`
 - `/profile`: menu for `profile` subcommands
-- `/search`: menu for common `search skills` commands
+- `/search`: choose search mode, then enter query text for `search skills`
 - `:profile <name>`: set shell profile context
 - `:profile default`: reset shell profile context to default profile
 - `:profile none`: clear shell profile context

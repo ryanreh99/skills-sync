@@ -24,7 +24,7 @@ import {
   promptForSelect,
   promptForText
 } from "./lib/prompt-adapter.js";
-import { cmdListEverything, cmdListLocalSkills, cmdShowProfileInventory } from "./lib/inventory.js";
+import { cmdListEverything, cmdListLocalSkills, cmdListMcps, cmdShowProfileInventory } from "./lib/inventory.js";
 import { cmdProfileExport, cmdProfileImport } from "./lib/profile-transfer.js";
 import {
   cmdProfileAddMcp,
@@ -34,7 +34,7 @@ import {
   cmdUpstreamAdd,
   cmdUpstreamRemove
 } from "./lib/manage.js";
-import { cmdListUpstreamContent, cmdListUpstreams, cmdSearchSkills } from "./lib/upstreams.js";
+import { cmdListUpstreamContent, cmdListUpstreams, cmdSearchSkills, loadUpstreamsConfig } from "./lib/upstreams.js";
 import { cmdShell } from "./lib/shell.js";
 import { danger, styleHelpOutput } from "./lib/terminal-ui.js";
 
@@ -151,9 +151,19 @@ function preflightUnknownCommandCheck(argv) {
   }
 
   const [root, child] = argv;
-  const listChildren = new Set(["skills", "upstreams", "profiles", "everything", "upstream-content", "agents"]);
+  const listChildren = new Set(["skills", "mcps", "upstreams", "profiles", "everything", "upstream-content", "agents"]);
   const searchChildren = new Set(["skills"]);
-  const profileChildren = new Set(["show", "add-skill", "remove-skill", "add-mcp", "remove-mcp", "export", "import"]);
+  const profileChildren = new Set([
+    "show",
+    "add-skill",
+    "remove-skill",
+    "add-mcp",
+    "remove-mcp",
+    "export",
+    "import",
+    "add-upstream",
+    "remove-upstream"
+  ]);
   const agentChildren = new Set(["inventory", "drift"]);
   const upstreamChildren = new Set(["add", "remove"]);
 
@@ -247,6 +257,46 @@ async function resolveRequiredTextOption({
   throw new Error(missingMessage || `${label} is required.`);
 }
 
+async function resolveUpstreamIdOption({ value, missingMessage }) {
+  const normalized = normalizeOptionalText(value);
+  if (normalized) {
+    return normalized;
+  }
+
+  if (!canPrompt()) {
+    throw new Error(missingMessage || "--upstream <id> is required.");
+  }
+
+  let upstreams = [];
+  try {
+    const loaded = await loadUpstreamsConfig();
+    upstreams = loaded.config.upstreams
+      .map((item) => ({
+        id: item.id,
+        repo: item.repo
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id));
+  } catch {
+    upstreams = [];
+  }
+
+  if (upstreams.length === 0) {
+    throw new Error(
+      "No upstreams configured. Add one with 'profile add-upstream --repo <url>' or 'upstream add --repo <url>'."
+    );
+  }
+
+  const selectedId = await promptForSelect({
+    message: "Upstream id",
+    options: upstreams.map((item) => ({
+      value: item.id,
+      label: item.id,
+      hint: item.repo
+    }))
+  });
+  return normalizeRequiredText(selectedId, "Upstream id");
+}
+
 async function resolveProfileForBuild(profileName) {
   const normalizedProfile = normalizeOptionalText(profileName);
   if (normalizedProfile) {
@@ -291,6 +341,29 @@ async function resolveProfileForAgentDrift(profileName) {
   }
 
   return null;
+}
+
+async function resolveProfileForProfileMutation(profileName, usageHint) {
+  const normalizedProfile = normalizeOptionalText(profileName);
+  if (normalizedProfile) {
+    return normalizedProfile;
+  }
+
+  const defaultProfile = await readDefaultProfile();
+  if (defaultProfile) {
+    return defaultProfile;
+  }
+
+  if (canPrompt()) {
+    return resolveRequiredTextOption({
+      value: null,
+      label: "Profile name",
+      placeholder: "personal",
+      missingMessage: `Profile name is required. Usage: ${usageHint}.`
+    });
+  }
+
+  throw new Error(`Profile name is required. Set one with 'use <name>' or pass it explicitly. Usage: ${usageHint}.`);
 }
 
 async function promptForMissingMcpTransportSettings({
@@ -471,12 +544,24 @@ function createProgram() {
   const listCommand = program.command("list").description("List available resources.");
   listCommand
     .command("skills")
-    .description("List local skills from the active/default profile pack.")
+    .description("List effective skills (local + imported) for the active/default profile.")
     .option("--profile <name>", "profile name (defaults to active/default profile)")
     .option("--format <format>", "output format: text|json", "text")
     .action((options) => {
       const format = parseFormatOption(options.format);
       return cmdListLocalSkills({
+        profile: options.profile,
+        format
+      });
+    });
+  listCommand
+    .command("mcps")
+    .description("List MCP servers for the active/default profile.")
+    .option("--profile <name>", "profile name (defaults to active/default profile)")
+    .option("--format <format>", "output format: text|json", "text")
+    .action((options) => {
+      const format = parseFormatOption(options.format);
+      return cmdListMcps({
         profile: options.profile,
         format
       });
@@ -552,7 +637,32 @@ function createProgram() {
     .description("List all available profiles, marking the current default with ->.")
     .action(() => cmdListProfiles());
 
-  const profileCommand = program.command("profile").description("Inspect and modify profile-level skill/MCP configuration.");
+  async function runUpstreamAddAction(id, options) {
+    return cmdUpstreamAdd({
+      id: normalizeOptionalText(id),
+      repo: await resolveRequiredTextOption({
+        value: options.repo,
+        label: "Git repository URL",
+        placeholder: "https://github.com/org/repo.git",
+        missingMessage: "--repo <url> is required."
+      }),
+      defaultRef: options.defaultRef,
+      type: options.type
+    });
+  }
+
+  async function runUpstreamRemoveAction(id) {
+    return cmdUpstreamRemove({
+      id: await resolveRequiredTextOption({
+        value: id,
+        label: "Upstream id",
+        placeholder: "my-upstream",
+        missingMessage: "Upstream id is required. Usage: upstream remove <id>."
+      })
+    });
+  }
+
+  const profileCommand = program.command("profile").description("Inspect and modify profile-level skill/MCP/upstream configuration.");
   profileCommand
     .command("show [name]")
     .description("Show skills and MCP servers for a profile (defaults to current profile).")
@@ -566,23 +676,16 @@ function createProgram() {
     });
   profileCommand
     .command("add-skill [name]")
-    .description("Add an upstream skill import to a profile.")
+    .description("Add an upstream skill import to a profile (defaults to current profile).")
     .option("--upstream <id>", "upstream id")
     .option("--path <repoPath>", "upstream repository path, e.g. skills/my-skill")
     .option("--ref <ref>", "ref/branch/tag (defaults to upstream defaultRef)")
     .option("--dest-prefix <prefix>", "destination prefix in bundled skills tree")
     .action(async (name, options) =>
       cmdProfileAddSkill({
-        profile: await resolveRequiredTextOption({
-          value: name,
-          label: "Profile name",
-          placeholder: "personal",
-          missingMessage: "Profile name is required. Usage: profile add-skill <name>."
-        }),
-        upstream: await resolveRequiredTextOption({
+        profile: await resolveProfileForProfileMutation(name, "profile add-skill <name>"),
+        upstream: await resolveUpstreamIdOption({
           value: options.upstream,
-          label: "Upstream id",
-          placeholder: "anthropic",
           missingMessage: "--upstream <id> is required."
         }),
         skillPath: await resolveRequiredTextOption({
@@ -609,10 +712,8 @@ function createProgram() {
           placeholder: "personal",
           missingMessage: "Profile name is required. Usage: profile remove-skill <name>."
         }),
-        upstream: await resolveRequiredTextOption({
+        upstream: await resolveUpstreamIdOption({
           value: options.upstream,
-          label: "Upstream id",
-          placeholder: "anthropic",
           missingMessage: "--upstream <id> is required."
         }),
         skillPath: await resolveRequiredTextOption({
@@ -714,6 +815,17 @@ function createProgram() {
         }),
         replace: options.replace === true
       }));
+  profileCommand
+    .command("add-upstream [id]")
+    .description("Add an upstream repository (profile workflow alias).")
+    .option("--repo <url>", "git repository URL")
+    .option("--default-ref <ref>", "default ref/branch/tag (auto-detected when omitted)")
+    .option("--type <type>", "upstream type (currently only git)", "git")
+    .action(runUpstreamAddAction);
+  profileCommand
+    .command("remove-upstream [id]")
+    .description("Remove an upstream repository (profile workflow alias).")
+    .action(runUpstreamRemoveAction);
 
   function registerAgentsSubcommands(agentCommand) {
     agentCommand
@@ -753,39 +865,15 @@ function createProgram() {
   const upstreamCommand = program.command("upstream").description("Manage configured upstream repositories.");
   upstreamCommand
     .command("add [id]")
-    .description("Add an upstream repository.")
+    .description("Add an upstream repository (id auto-inferred from --repo when omitted).")
     .option("--repo <url>", "git repository URL")
-    .option("--default-ref <ref>", "default ref/branch/tag", "main")
+    .option("--default-ref <ref>", "default ref/branch/tag (auto-detected when omitted)")
     .option("--type <type>", "upstream type (currently only git)", "git")
-    .action(async (id, options) =>
-      cmdUpstreamAdd({
-        id: await resolveRequiredTextOption({
-          value: id,
-          label: "Upstream id",
-          placeholder: "my-upstream",
-          missingMessage: "Upstream id is required. Usage: upstream add <id>."
-        }),
-        repo: await resolveRequiredTextOption({
-          value: options.repo,
-          label: "Git repository URL",
-          placeholder: "https://github.com/org/repo.git",
-          missingMessage: "--repo <url> is required."
-        }),
-        defaultRef: options.defaultRef,
-        type: options.type
-      }));
+    .action(runUpstreamAddAction);
   upstreamCommand
     .command("remove [id]")
     .description("Remove an upstream repository.")
-    .action(async (id) =>
-      cmdUpstreamRemove({
-        id: await resolveRequiredTextOption({
-          value: id,
-          label: "Upstream id",
-          placeholder: "my-upstream",
-          missingMessage: "Upstream id is required. Usage: upstream remove <id>."
-        })
-      }));
+    .action(runUpstreamRemoveAction);
 
   program
     .command("new [name]")

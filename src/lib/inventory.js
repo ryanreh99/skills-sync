@@ -40,25 +40,23 @@ function inferProfileSource(profilePath) {
 
 function formatSkillsBlock(inventory) {
   const lines = [];
-  lines.push(`Skills (${inventory.skills.total} total)`);
-  lines.push(`  Local (${inventory.skills.local.length})`);
-  if (inventory.skills.local.length === 0) {
-    lines.push("    (none)");
-  } else {
-    for (const item of inventory.skills.local) {
-      lines.push(`    ${item.name}`);
-    }
+  const mergedSkills = new Set();
+  for (const item of inventory.skills.local) {
+    mergedSkills.add(item.name);
+  }
+  for (const item of inventory.skills.imports) {
+    mergedSkills.add(item.destRelative);
   }
 
-  lines.push(`  Imported (${inventory.skills.imports.length})`);
-  if (inventory.skills.imports.length === 0) {
-    lines.push("    (none)");
-  } else {
-    for (const item of inventory.skills.imports) {
-      lines.push(
-        `    ${item.upstream}@${item.ref}  ${item.repoPath} -> ${item.destRelative}`
-      );
-    }
+  const sortedSkills = sortStrings(Array.from(mergedSkills));
+  lines.push(`Skills (${sortedSkills.length})`);
+  if (sortedSkills.length === 0) {
+    lines.push("  (none)");
+    return lines;
+  }
+
+  for (const skill of sortedSkills) {
+    lines.push(`  ${skill}`);
   }
   return lines;
 }
@@ -85,8 +83,16 @@ function formatMcpBlock(inventory) {
   return lines;
 }
 
+function formatMcpEntry(server) {
+  if (typeof server.url === "string" && server.url.length > 0) {
+    return `${server.name}\t${server.url}`;
+  }
+  const args = Array.isArray(server.args) && server.args.length > 0 ? ` ${server.args.join(" ")}` : "";
+  return `${server.name}\t${server.command}${args}`;
+}
+
 function profileText(inventory) {
-  const lines = [`Profile: ${inventory.profile.name} (${inventory.profile.source})`];
+  const lines = [`Profile: ${inventory.profile.name}`];
   lines.push(...formatSkillsBlock(inventory));
   lines.push(...formatMcpBlock(inventory));
   return lines.join("\n");
@@ -193,11 +199,15 @@ export async function cmdListLocalSkills({ profile, format }) {
     );
   }
 
-  const { profile: profileDoc } = await resolveProfile(resolvedProfile);
-  const packRoot = await resolvePack(profileDoc);
-  const skills = (await collectLocalSkillEntries(packRoot))
-    .map((entry) => ({ name: entry.destRelative }))
-    .sort((left, right) => left.name.localeCompare(right.name));
+  const inventory = await buildProfileInventory(resolvedProfile);
+  const mergedSkills = new Set();
+  for (const item of inventory.skills.local) {
+    mergedSkills.add(item.name);
+  }
+  for (const item of inventory.skills.imports) {
+    mergedSkills.add(item.destRelative);
+  }
+  const skills = sortStrings(Array.from(mergedSkills)).map((name) => ({ name }));
 
   if (format === "json") {
     process.stdout.write(
@@ -214,11 +224,46 @@ export async function cmdListLocalSkills({ profile, format }) {
   }
 
   if (skills.length === 0) {
-    process.stdout.write("(no local skills)\n");
+    process.stdout.write("(no skills)\n");
     return;
   }
   for (const skill of skills) {
     process.stdout.write(`${skill.name}\n`);
+  }
+}
+
+export async function cmdListMcps({ profile, format }) {
+  const explicitProfile = normalizeOptionalText(profile);
+  const resolvedProfile = explicitProfile ?? await readDefaultProfile();
+  if (!resolvedProfile) {
+    throw new Error(
+      "Profile is required. Set a default first with 'use <name>'."
+    );
+  }
+
+  const inventory = await buildProfileInventory(resolvedProfile);
+  const mcps = inventory.mcp.servers.map((server) => ({ ...server }));
+
+  if (format === "json") {
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          profile: resolvedProfile,
+          mcps
+        },
+        null,
+        2
+      )}\n`
+    );
+    return;
+  }
+
+  if (mcps.length === 0) {
+    process.stdout.write("(no mcps)\n");
+    return;
+  }
+  for (const server of mcps) {
+    process.stdout.write(`${formatMcpEntry(server)}\n`);
   }
 }
 
@@ -259,7 +304,7 @@ export async function cmdListEverything({ format }) {
   for (let index = 0; index < results.length; index += 1) {
     const item = results[index];
     if (item.error) {
-      process.stdout.write(`Profile: ${item.profile} (${item.source})\n`);
+      process.stdout.write(`Profile: ${item.profile}\n`);
       process.stdout.write(`Error: ${item.error}\n`);
     } else {
       process.stdout.write(profileText(item.inventory));

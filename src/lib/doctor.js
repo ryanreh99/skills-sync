@@ -492,11 +492,11 @@ export async function cmdDoctor(profileOverride) {
     }
     process.stdout.write("\n");
     process.stdout.write("Remediation steps:\n");
-    process.stdout.write("  1) Run init\n");
+    process.stdout.write("  1) Run /init\n");
     process.stdout.write("  2) Run use <name>\n");
-    process.stdout.write("  3) Run build\n");
-    process.stdout.write("  4) Run apply\n");
-    process.stdout.write("  5) Re-run doctor\n");
+    process.stdout.write("  3) Run /build\n");
+    process.stdout.write("  4) Run /apply\n");
+    process.stdout.write("  5) Re-run /doctor\n");
     process.exitCode = 1;
     return;
   }

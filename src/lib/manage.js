@@ -13,7 +13,7 @@ import {
   writeJsonFile
 } from "./core.js";
 import { listAvailableProfiles, loadPackSources, resolvePack, resolveProfile } from "./config.js";
-import { collectSourcePlanning, loadLockfile, loadUpstreamsConfig, sortPins } from "./upstreams.js";
+import { collectSourcePlanning, loadLockfile, loadUpstreamsConfig, runGit, sortPins } from "./upstreams.js";
 
 function normalizeRequiredText(value, label) {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -28,6 +28,100 @@ function normalizeOptionalText(value) {
   }
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function sanitizeUpstreamIdFragment(value) {
+  const normalized = String(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+  return normalized;
+}
+
+function parseRepoHostAndPath(repo) {
+  const scpMatch = repo.match(/^[^@]+@([^:]+):(.+)$/);
+  if (scpMatch) {
+    return {
+      host: scpMatch[1].trim().toLowerCase(),
+      repoPath: scpMatch[2].trim()
+    };
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(repo)) {
+    try {
+      const url = new URL(repo);
+      return {
+        host: (url.hostname || "").toLowerCase(),
+        repoPath: (url.pathname || "").replace(/^\/+/, "")
+      };
+    } catch {
+      // Fallback to local-like parsing.
+    }
+  }
+
+  return {
+    host: null,
+    repoPath: repo
+  };
+}
+
+function inferBaseUpstreamIdFromRepo(repo) {
+  const normalizedRepo = normalizeRequiredText(repo, "Upstream repo")
+    .replace(/[?#].*$/, "")
+    .replace(/[\\/]+$/, "");
+
+  const parsed = parseRepoHostAndPath(normalizedRepo);
+  const repoPath = parsed.repoPath.replace(/\\/g, "/");
+  const segments = repoPath.split("/").filter(Boolean);
+  const repoName = (segments[segments.length - 1] || "upstream").replace(/\.git$/i, "");
+
+  // For github.com repositories, use owner_repo format for clarity and stability.
+  if (parsed.host && /(^|\.)github\.com$/i.test(parsed.host) && segments.length >= 2) {
+    const owner = segments[segments.length - 2];
+    const ownerFragment = sanitizeUpstreamIdFragment(owner);
+    const repoFragment = sanitizeUpstreamIdFragment(repoName);
+    if (ownerFragment.length > 0 && repoFragment.length > 0) {
+      return `${ownerFragment}_${repoFragment}`;
+    }
+  }
+
+  const sanitized = sanitizeUpstreamIdFragment(repoName);
+  return sanitized.length > 0 ? sanitized : "upstream";
+}
+
+function ensureUniqueUpstreamId(baseId, existingById) {
+  if (!existingById.has(baseId)) {
+    return baseId;
+  }
+
+  let suffix = 2;
+  while (existingById.has(`${baseId}_${suffix}`)) {
+    suffix += 1;
+  }
+  return `${baseId}_${suffix}`;
+}
+
+async function detectDefaultRefFromRepo(repo) {
+  const output = await runGit(["ls-remote", "--symref", repo, "HEAD"], { allowFailure: true });
+  if (typeof output !== "string" || output.trim().length === 0) {
+    return null;
+  }
+
+  const lines = output.split(/\r?\n/);
+  for (const line of lines) {
+    const branchMatch = line.match(/^ref:\s+refs\/heads\/([^\s]+)\s+HEAD$/);
+    if (branchMatch?.[1]) {
+      return branchMatch[1].trim();
+    }
+
+    const genericRefMatch = line.match(/^ref:\s+refs\/([^\s]+)\s+HEAD$/);
+    if (genericRefMatch?.[1]) {
+      return genericRefMatch[1].trim();
+    }
+  }
+
+  return null;
 }
 
 function cloneSourcesDocument(sources) {
@@ -116,9 +210,9 @@ async function findProfilesUsingUpstream(upstreamId) {
 }
 
 export async function cmdUpstreamAdd({ id, repo, defaultRef, type }) {
-  const upstreamId = normalizeRequiredText(id, "Upstream id");
+  const requestedId = normalizeOptionalText(id);
   const upstreamRepo = normalizeRequiredText(repo, "Upstream repo");
-  const upstreamRef = normalizeRequiredText(defaultRef || "main", "Upstream default ref");
+  const requestedRef = normalizeOptionalText(defaultRef);
   const upstreamType = normalizeRequiredText(type || "git", "Upstream type");
 
   if (upstreamType !== "git") {
@@ -126,9 +220,18 @@ export async function cmdUpstreamAdd({ id, repo, defaultRef, type }) {
   }
 
   const editable = await loadEditableUpstreamsConfig();
-  if (editable.byId.has(upstreamId)) {
-    throw new Error(`Upstream '${upstreamId}' already exists.`);
+  let upstreamId = requestedId;
+  if (upstreamId) {
+    if (editable.byId.has(upstreamId)) {
+      throw new Error(`Upstream '${upstreamId}' already exists.`);
+    }
+  } else {
+    const inferredBaseId = inferBaseUpstreamIdFromRepo(upstreamRepo);
+    upstreamId = ensureUniqueUpstreamId(inferredBaseId, editable.byId);
   }
+
+  const resolvedRef = requestedRef ?? await detectDefaultRefFromRepo(upstreamRepo) ?? "main";
+  const upstreamRef = normalizeRequiredText(resolvedRef, "Upstream default ref");
 
   editable.upstreams.push({
     id: upstreamId,
