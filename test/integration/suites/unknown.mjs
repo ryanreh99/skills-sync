@@ -19,7 +19,7 @@ export async function run() {
     const result = runCli(args, 2);
     assert.equal(
       (result.stderr || "").trim(),
-      "Unknown command. See: skills-sync help",
+      "Unknown command. See: help",
       `Expected rejection message for: ${args.join(" ")}`
     );
   }

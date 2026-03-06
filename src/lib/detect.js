@@ -1,5 +1,6 @@
 import { logInfo } from "./core.js";
 import { collectAgentInventories } from "./agents.js";
+import { accent, danger, muted, success, warning } from "./terminal-ui.js";
 
 function redactPathDetails(message) {
   return String(message ?? "")
@@ -38,17 +39,17 @@ export async function cmdDetect({ format = "text", agents } = {}) {
   logInfo(`Detected host OS: ${inventory.os}`);
   process.stdout.write("\n");
   for (const row of detailedRows) {
-    process.stdout.write(`${row.tool}\n`);
-    process.stdout.write(`  status      : ${row.installed ? "detected" : "not detected"}\n`);
+    process.stdout.write(`${accent(row.tool, process.stdout)}\n`);
+    process.stdout.write(`  status      : ${row.installed ? success("detected", process.stdout) : warning("not detected", process.stdout)}\n`);
     process.stdout.write(`  support     : ${row.support}\n`);
-    process.stdout.write(`  skills found: ${row.hasSkills ? "yes" : "no"}\n`);
-    process.stdout.write(`  mcp found   : ${row.hasMcp ? "yes" : "no"}\n`);
+    process.stdout.write(`  skills found: ${row.hasSkills ? success("yes", process.stdout) : muted("no", process.stdout)}\n`);
+    process.stdout.write(`  mcp found   : ${row.hasMcp ? success("yes", process.stdout) : muted("no", process.stdout)}\n`);
     if (row.parseErrors.length === 0) {
-      process.stdout.write("  parse errors: none\n");
+      process.stdout.write(`  parse errors: ${success("none", process.stdout)}\n`);
     } else {
-      process.stdout.write(`  parse errors: ${row.parseErrors.length}\n`);
+      process.stdout.write(`  parse errors: ${warning(String(row.parseErrors.length), process.stdout)}\n`);
       for (const issue of row.parseErrors) {
-        process.stdout.write(`    [${issue.kind}] ${issue.message}\n`);
+        process.stdout.write(`    [${danger(issue.kind, process.stdout)}] ${issue.message}\n`);
       }
     }
     process.stdout.write(`  canOverride : ${row.canOverride}\n\n`);

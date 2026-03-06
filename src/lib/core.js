@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import fs from "fs-extra";
 import os from "node:os";
 import path from "node:path";
+import { formatSkillsSyncTag, warning } from "./terminal-ui.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,11 +80,11 @@ const ajv = new Ajv({ allErrors: true, strict: false });
 const validatorCache = new Map();
 
 export function logInfo(message) {
-  process.stdout.write(`[skills-sync] ${message}\n`);
+  process.stdout.write(`${formatSkillsSyncTag(process.stdout)} ${message}\n`);
 }
 
 export function logWarn(message) {
-  process.stderr.write(`[skills-sync] WARN: ${message}\n`);
+  process.stderr.write(`${formatSkillsSyncTag(process.stderr)} ${warning("WARN:", process.stderr)} ${message}\n`);
 }
 
 export function normalizePathForCompare(inputPath) {

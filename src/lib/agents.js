@@ -792,7 +792,7 @@ export async function buildAgentDrift({ profile, agents } = {}) {
   const resolvedProfile = explicitProfile ?? (await readDefaultProfile());
   if (!resolvedProfile) {
     throw new Error(
-      "Profile is required. Provide --profile <name> or set a default with 'skills-sync use <name>'."
+      "Profile is required. Set a default first with 'use <name>'."
     );
   }
 
@@ -849,6 +849,38 @@ export async function cmdAgentInventory({ format = "text", agents } = {}) {
     return;
   }
   process.stdout.write(`${inventoryToText(inventory)}\n`);
+}
+
+export async function cmdListAgents({ format = "text", agents } = {}) {
+  const inventory = await collectAgentInventories({ agents });
+  const detectedAgents = inventory.agents
+    .filter((agent) => agent.installed)
+    .map((agent) => ({
+      tool: agent.tool,
+      support: agent.support
+    }));
+
+  if (format === "json") {
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          os: inventory.os,
+          agents: detectedAgents
+        },
+        null,
+        2
+      )}\n`
+    );
+    return;
+  }
+
+  if (detectedAgents.length === 0) {
+    process.stdout.write("No agents detected.\n");
+    return;
+  }
+  for (const agent of detectedAgents) {
+    process.stdout.write(`${agent.tool}\t${agent.support}\n`);
+  }
 }
 
 export async function cmdAgentDrift({ profile, dryRun = false, format = "text", agents } = {}) {

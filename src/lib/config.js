@@ -69,7 +69,7 @@ export async function resolveProfile(profileName) {
     profilePath = seedPath;
   }
   if (!profilePath) {
-    throw new Error(`Profile '${profileName}' not found. Run 'skills-sync ls' to see available profiles.`);
+    throw new Error(`Profile '${profileName}' not found. Run 'ls' to see available profiles.`);
   }
 
   const profile = await assertJsonFileMatchesSchema(profilePath, SCHEMAS.profile);
@@ -230,7 +230,7 @@ export async function writeDefaultProfile(profileName) {
 export async function cmdCurrentProfile() {
   const current = await readDefaultProfile();
   if (!current) {
-    process.stdout.write("No default profile set. Run: skills-sync use <name>\n");
+    process.stdout.write("No default profile set. Run: use <name>\n");
     return;
   }
   process.stdout.write(`${current}\n`);
@@ -280,7 +280,7 @@ export async function cmdNewProfile(name) {
     return;
   }
   logInfo(`Created profile '${normalizedName}'.`);
-  process.stdout.write(`\nNext: skills-sync use ${normalizedName}\n`);
+  process.stdout.write(`\nNext: use ${normalizedName}\n`);
 }
 
 export async function cmdRemoveProfile(name) {

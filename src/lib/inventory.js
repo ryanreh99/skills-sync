@@ -172,7 +172,7 @@ export async function cmdShowProfileInventory({ profile, format }) {
   const resolvedProfile = explicitProfile ?? await readDefaultProfile();
   if (!resolvedProfile) {
     throw new Error(
-      "Profile is required. Provide --profile <name> or set a default with 'skills-sync use <name>'."
+      "Profile is required. Set a default first with 'use <name>'."
     );
   }
 
@@ -182,6 +182,44 @@ export async function cmdShowProfileInventory({ profile, format }) {
     return;
   }
   process.stdout.write(`${profileText(inventory)}\n`);
+}
+
+export async function cmdListLocalSkills({ profile, format }) {
+  const explicitProfile = normalizeOptionalText(profile);
+  const resolvedProfile = explicitProfile ?? await readDefaultProfile();
+  if (!resolvedProfile) {
+    throw new Error(
+      "Profile is required. Set a default first with 'use <name>'."
+    );
+  }
+
+  const { profile: profileDoc } = await resolveProfile(resolvedProfile);
+  const packRoot = await resolvePack(profileDoc);
+  const skills = (await collectLocalSkillEntries(packRoot))
+    .map((entry) => ({ name: entry.destRelative }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  if (format === "json") {
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          profile: resolvedProfile,
+          skills
+        },
+        null,
+        2
+      )}\n`
+    );
+    return;
+  }
+
+  if (skills.length === 0) {
+    process.stdout.write("(no local skills)\n");
+    return;
+  }
+  for (const skill of skills) {
+    process.stdout.write(`${skill.name}\n`);
+  }
 }
 
 export async function cmdListEverything({ format }) {

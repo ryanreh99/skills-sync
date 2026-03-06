@@ -28,7 +28,6 @@ npm:
 
 ```bash
 npm i -g @ryanreh99/skills-sync
-npx @ryanreh99/skills-sync
 ```
 
 Homebrew:
@@ -41,19 +40,46 @@ brew install ryanreh99/skills-sync/skills-sync
 ## Quick Start
 
 ```bash
-# Initialize local workspace from bundled seed content
+# Initialize local workspace from bundled starter content
 skills-sync init --seed
 
-# Build canonical artifacts from your profile inputs
+# Build canonical artifacts from your active profile
 skills-sync build
 
 # Apply generated skills and MCP config to detected agent targets
 skills-sync apply
 ```
 
-These commands initialize your local workspace, build canonical artifacts, and apply them to supported agent targets.
+These commands initialize your workspace, build canonical artifacts, apply them to detected agents, and verify health.
 
-Paste your existing agent's `mcp.json` settings and ask an AI agent to generate the corresponding `skills-sync` commands.
+## Interactive Shell
+
+Run `skills-sync` (no args) to launch interactive shell mode with command completion and colorized prompts.
+
+```bash
+skills-sync
+```
+
+Inside shell mode:
+
+```text
+Run: init --seed then build then apply
+/list               # arrow-key menu for list commands
+/agents             # arrow-key menu for agents inventory/drift
+/profile            # arrow-key menu for profile management commands
+/search             # arrow-key menu for common search commands
+search skills --upstream anthropic --query mcp
+exit
+```
+
+`/list`, `/agents`, `/profile`, and `/search` also work as direct CLI root aliases in non-interactive mode:
+
+```bash
+skills-sync /list profiles
+skills-sync /agents inventory
+skills-sync /profile show
+skills-sync /search skills --query mcp
+```
 
 ## Verify In Agent Chats
 

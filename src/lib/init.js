@@ -42,8 +42,9 @@ function getScaffoldFiles(localRoot, profileName) {
         "- optional `profiles/<name>.json`",
         "",
         "Workflow:",
-        "1. Run `skills-sync build --profile <name>`",
-        "2. Run `skills-sync apply --profile <name>`",
+        "1. Run `use <name>`",
+        "2. Run `build`",
+        "3. Run `apply`",
         ""
       ].join("\n"),
       type: "text"
@@ -240,10 +241,8 @@ export async function cmdInit({ seed = false, dryRun = false, profile = null } =
     }
     process.stdout.write("\n");
     process.stdout.write("Next steps:\n");
-    process.stdout.write(`  1) Current profile: '${selectedProfile}'\n`);
-    process.stdout.write("  2) Run: skills-sync build\n");
-    process.stdout.write("  3) Run: skills-sync apply\n");
-    process.stdout.write("  4) Run: skills-sync doctor\n");
+    process.stdout.write("  1) Run: build\n");
+    process.stdout.write("  2) Run: apply\n");
     return;
   }
 
@@ -286,7 +285,8 @@ export async function cmdInit({ seed = false, dryRun = false, profile = null } =
   }
   process.stdout.write("\n");
   process.stdout.write("Next steps:\n");
-  process.stdout.write(`  1) Run: skills-sync build --profile ${selectedProfile}\n`);
-  process.stdout.write(`  2) Run: skills-sync apply --profile ${selectedProfile}\n`);
-  process.stdout.write("  3) Run: skills-sync doctor\n");
+  process.stdout.write(`  1) Run: use ${selectedProfile}\n`);
+  process.stdout.write("  2) Run: build\n");
+  process.stdout.write("  3) Run: apply\n");
+  process.stdout.write("  4) Run: doctor\n");
 }

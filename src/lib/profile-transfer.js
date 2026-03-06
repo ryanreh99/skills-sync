@@ -85,7 +85,7 @@ export async function cmdProfileExport({ profile, output } = {}) {
   const resolvedProfile = explicitProfile ?? (await readDefaultProfile());
   if (!resolvedProfile) {
     throw new Error(
-      "Profile is required. Provide profile name or set a default with 'skills-sync use <name>'."
+      "Profile is required. Provide profile name or set a default with 'use <name>'."
     );
   }
 

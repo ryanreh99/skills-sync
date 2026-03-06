@@ -44,6 +44,42 @@ export function runCli(args, expectedStatus = 0) {
 }
 
 /**
+ * Run the CLI with stdin input and additional env overrides.
+ */
+export function runCliWithInput(args, {
+  expectedStatus = 0,
+  input = "",
+  env = {}
+} = {}) {
+  const result = spawnSync(process.execPath, [cliPath, ...args], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    input,
+    env: {
+      ...process.env,
+      SKILLS_SYNC_HOME: testHomePath,
+      ...env
+    }
+  });
+
+  if (result.status !== expectedStatus) {
+    throw new Error(
+      [
+        `Command failed: node ${path.relative(repoRoot, cliPath)} ${args.join(" ")}`,
+        `Expected exit ${expectedStatus}, got ${result.status}`,
+        "",
+        "STDOUT:",
+        result.stdout ?? "",
+        "",
+        "STDERR:",
+        result.stderr ?? ""
+      ].join("\n")
+    );
+  }
+  return result;
+}
+
+/**
  * Returns true if the path exists (any kind: file, dir, symlink).
  */
 export async function pathExists(targetPath) {

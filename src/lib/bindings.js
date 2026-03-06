@@ -271,12 +271,13 @@ export async function applyBindings(profileName, options = {}) {
   const bundleMcpPath = path.join(runtimeInternalRoot, "common", "mcp.json");
   const requestedProfile = typeof profileName === "string" && profileName.trim().length > 0 ? profileName.trim() : null;
   const profileHint = requestedProfile ?? "<name>";
+  const buildGuidance = `Set active profile: use ${profileHint}\nRun build first: build`;
 
   if (!(await fs.pathExists(bundlePath))) {
-    throw new Error(`Missing runtime bundle metadata.\nRun build first: skills-sync build --profile ${profileHint}`);
+    throw new Error(`Missing runtime bundle metadata.\n${buildGuidance}`);
   }
   if (!(await fs.pathExists(bundleMcpPath))) {
-    throw new Error(`Missing runtime bundle MCP manifest.\nRun build first: skills-sync build --profile ${profileHint}`);
+    throw new Error(`Missing runtime bundle MCP manifest.\n${buildGuidance}`);
   }
 
   let bundle;
@@ -288,17 +289,13 @@ export async function applyBindings(profileName, options = {}) {
   const bundleProfile = typeof bundle.profile === "string" && bundle.profile.trim().length > 0 ? bundle.profile.trim() : null;
   const effectiveProfile = requestedProfile ?? bundleProfile;
   if (!effectiveProfile) {
-    throw new Error("Could not determine profile for apply. Pass --profile <name> or rebuild runtime artifacts with profile metadata.");
-  }
-  if (!requestedProfile) {
-    info(`No --profile supplied. Using runtime bundle profile '${effectiveProfile}'.`);
-  } else {
-    info(`Using provided profile '${effectiveProfile}' for apply.`);
+    throw new Error("Could not determine profile for apply. Set one first with 'use <name>', then run build.");
   }
   if (requestedProfile && bundleProfile && bundleProfile !== requestedProfile) {
     throw new Error(
       `Runtime artifacts are stale for requested profile '${requestedProfile}'. Found bundle profile '${bundleProfile}'.\n` +
-        `Run build first: skills-sync build --profile ${requestedProfile}`
+        `Set active profile: use ${requestedProfile}\n` +
+        "Run build first: build"
     );
   }
   const canonicalMcp = await fs.readJson(bundleMcpPath);
@@ -331,7 +328,8 @@ export async function applyBindings(profileName, options = {}) {
       if (!(await fs.pathExists(sourcePath))) {
         throw new Error(
           "Source directory missing for apply.\n" +
-            `Run build first: skills-sync build --profile ${effectiveProfile}`
+            `Set active profile: use ${effectiveProfile}\n` +
+            "Run build first: build"
         );
       }
 
@@ -413,7 +411,8 @@ export async function applyBindings(profileName, options = {}) {
       if (!(await fs.pathExists(sourcePath))) {
         throw new Error(
           "Source config missing for apply.\n" +
-            `Run build first: skills-sync build --profile ${effectiveProfile}`
+            `Set active profile: use ${effectiveProfile}\n` +
+            "Run build first: build"
         );
       }
 
@@ -483,7 +482,7 @@ export async function applyBindings(profileName, options = {}) {
   };
   await writeJsonFile(statePath, stateDocument);
 
-  info(`Apply complete for profile '${effectiveProfile}'.`);
+  info(`Applied profile '${effectiveProfile}'.`);
   info(`Target OS: ${osName}`);
 }
 

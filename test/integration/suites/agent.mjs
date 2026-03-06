@@ -5,23 +5,23 @@ import { runCli } from "../helpers.mjs";
 
 /**
  * Tests for:
- * - agent inventory
- * - agent drift
+ * - agents inventory
+ * - agents drift
  * - --agents filtering
  * - parse failure reporting in agent config files
  */
 export async function run({ runtimePath }) {
-  const inventoryJson = runCli(["agent", "inventory", "--format", "json"]);
+  const inventoryJson = runCli(["agents", "inventory", "--format", "json"]);
   const inventoryPayload = JSON.parse(inventoryJson.stdout.trim());
-  assert.equal(Array.isArray(inventoryPayload.agents), true, "agent inventory json should include agents[].");
+  assert.equal(Array.isArray(inventoryPayload.agents), true, "agents inventory json should include agents[].");
   assert.equal(
     inventoryPayload.agents.some((agent) => agent.tool === "codex"),
     true,
-    "agent inventory should include codex."
+    "agents inventory should include codex."
   );
 
   const filteredInventoryJson = runCli([
-    "agent",
+    "agents",
     "inventory",
     "--format",
     "json",
@@ -32,25 +32,25 @@ export async function run({ runtimePath }) {
   assert.deepEqual(
     filteredInventory.agents.map((agent) => agent.tool),
     ["codex", "claude"],
-    "agent inventory --agents should filter output."
+    "agents inventory --agents should filter output."
   );
 
-  const driftJson = runCli(["agent", "drift", "--profile", "personal", "--dry-run", "--format", "json"]);
+  const driftJson = runCli(["agents", "drift", "--profile", "personal", "--dry-run", "--format", "json"]);
   const driftPayload = JSON.parse(driftJson.stdout.trim());
-  assert.equal(driftPayload.profile, "personal", "agent drift should report selected profile.");
-  assert.equal(Array.isArray(driftPayload.expected.skills), true, "agent drift should include expected skills.");
-  assert.equal(Array.isArray(driftPayload.expected.mcpServers), true, "agent drift should include expected mcpServers.");
-  assert.equal(Array.isArray(driftPayload.agents), true, "agent drift should include per-agent rows.");
+  assert.equal(driftPayload.profile, "personal", "agents drift should report selected profile.");
+  assert.equal(Array.isArray(driftPayload.expected.skills), true, "agents drift should include expected skills.");
+  assert.equal(Array.isArray(driftPayload.expected.mcpServers), true, "agents drift should include expected mcpServers.");
+  assert.equal(Array.isArray(driftPayload.agents), true, "agents drift should include per-agent rows.");
   for (const agent of driftPayload.agents) {
     assert.deepEqual(
       agent.drift?.mcpServers?.missing ?? [],
       [],
-      `agent drift should treat managed MCP names as expected for ${agent.tool}.`
+      `agents drift should treat managed MCP names as expected for ${agent.tool}.`
     );
   }
 
   const filteredDriftJson = runCli([
-    "agent",
+    "agents",
     "drift",
     "--profile",
     "personal",
@@ -64,17 +64,17 @@ export async function run({ runtimePath }) {
   assert.deepEqual(
     filteredDrift.agents.map((agent) => agent.tool),
     ["codex"],
-    "agent drift --agents should filter output."
+    "agents drift --agents should filter output."
   );
 
-  const reconcileDriftJson = runCli(["agent", "drift", "--profile", "personal", "--format", "json"]);
+  const reconcileDriftJson = runCli(["agents", "drift", "--profile", "personal", "--format", "json"]);
   const reconcileDriftPayload = JSON.parse(reconcileDriftJson.stdout.trim());
-  assert.equal(reconcileDriftPayload.profile, "personal", "agent drift reconcile should report selected profile.");
-  assert.equal(Array.isArray(reconcileDriftPayload.agents), true, "agent drift reconcile should include per-agent rows.");
+  assert.equal(reconcileDriftPayload.profile, "personal", "agents drift reconcile should report selected profile.");
+  assert.equal(Array.isArray(reconcileDriftPayload.agents), true, "agents drift reconcile should include per-agent rows.");
   assert.equal(
     reconcileDriftPayload.expected?.mcpServers?.includes("keep_me"),
     true,
-    "agent drift reconcile should promote detected extra MCP servers into profile expectations."
+    "agents drift reconcile should promote detected extra MCP servers into profile expectations."
   );
 
   const claudePath = path.join(runtimePath, ".claude.json");
@@ -82,7 +82,7 @@ export async function run({ runtimePath }) {
   try {
     await fs.writeFile(claudePath, "{ not valid json", "utf8");
     const parseIssueJson = runCli([
-      "agent",
+      "agents",
       "inventory",
       "--format",
       "json",
@@ -94,7 +94,7 @@ export async function run({ runtimePath }) {
     assert.equal(
       parseIssuePayload.agents[0].parseErrors.length > 0,
       true,
-      "agent inventory should report parse errors for invalid config."
+      "agents inventory should report parse errors for invalid config."
     );
   } finally {
     await fs.writeFile(claudePath, originalClaude, "utf8");

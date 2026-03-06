@@ -47,6 +47,9 @@ export async function run({ localOverridesPath }) {
   // new is idempotent: running again must not fail
   runCli(["new", testProfileName]);
 
+  // new with no args defaults to personal profile
+  runCli(["new"]);
+
   // --- ls: new profile should appear in list ---
   const lsAfterNew = runCli(["ls"]);
   assert.equal(lsAfterNew.stdout.includes(testProfileName), true, "ls should include the newly created profile.");

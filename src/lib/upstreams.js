@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import Fuse from "fuse.js";
 import fs from "fs-extra";
 import path from "node:path";
-import readline from "node:readline/promises";
 import {
   CACHE_ROOT,
   LOCKFILE_PATH,
@@ -16,9 +16,11 @@ import {
   writeJsonFile
 } from "./core.js";
 import { loadPackSources, resolvePack, resolveProfile } from "./config.js";
+import { muted } from "./terminal-ui.js";
 
 const execFileAsync = promisify(execFile);
 let checkedGitAvailability = false;
+const TEXT_SEARCH_RESULT_LIMIT = 20;
 
 export async function runGit(args, options = {}) {
   const { cwd = process.cwd(), allowFailure = false } = options;
@@ -597,24 +599,56 @@ export async function cmdListUpstreams({ format }) {
   }
 }
 
+function createSearchStableKey(item) {
+  return `${item.upstream}::${item.path}::${item.title ?? ""}`;
+}
+
+function buildSearchFuseOptions(verbose) {
+  const keys = [
+    { name: "path", weight: 0.75 },
+    { name: "basename", weight: 0.25 }
+  ];
+  if (verbose) {
+    keys.push({ name: "title", weight: 0.2 });
+  }
+  return {
+    includeScore: true,
+    shouldSort: true,
+    ignoreLocation: true,
+    threshold: 0.45,
+    keys
+  };
+}
+
+function limitResultsForText(results) {
+  return {
+    visible: results.slice(0, TEXT_SEARCH_RESULT_LIMIT),
+    hiddenCount: Math.max(0, results.length - TEXT_SEARCH_RESULT_LIMIT)
+  };
+}
+
+function writeSearchTruncationNotice(hiddenCount) {
+  if (hiddenCount <= 0) {
+    return;
+  }
+  process.stdout.write(
+    `${muted(`Showing top ${TEXT_SEARCH_RESULT_LIMIT} matches. ${hiddenCount} additional match(es) hidden.`)}\n`
+  );
+}
+
 async function collectSearchResults({ upstream, ref, profile, query, verbose = false }) {
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = query.trim();
   const resolvedSet = await resolveReferenceSetForSkillLookup({
     upstreamId: upstream,
     ref,
     profileName: profile
   });
 
-  const allResults = [];
+  const indexedRows = [];
   for (const resolvedItem of resolvedSet) {
     const skills = await discoverUpstreamSkills(resolvedItem.repoPath, resolvedItem.commit, { verbose });
-    const matching = skills.filter(
-      (skill) =>
-        skill.path.toLowerCase().includes(normalizedQuery) ||
-        (verbose && typeof skill.title === "string" && skill.title.toLowerCase().includes(normalizedQuery))
-    );
-    for (const skill of matching) {
-      allResults.push({
+    for (const skill of skills) {
+      indexedRows.push({
         upstream: resolvedItem.upstreamId,
         ref: resolvedItem.ref,
         commit: resolvedItem.commit,
@@ -625,72 +659,22 @@ async function collectSearchResults({ upstream, ref, profile, query, verbose = f
     }
   }
 
-  allResults.sort((left, right) => {
-    const leftKey = `${left.upstream}::${left.path}::${left.title ?? ""}`;
-    const rightKey = `${right.upstream}::${right.path}::${right.title ?? ""}`;
-    return leftKey.localeCompare(rightKey);
-  });
-  return allResults;
-}
-
-async function cmdSearchSkillsInteractive({ upstream, ref, profile, verbose = false }) {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-
-  process.stdout.write("Interactive skill search. Enter a query (blank to exit).\n");
-  try {
-    while (true) {
-      let rawQuery;
-      try {
-        rawQuery = await rl.question("search> ");
-      } catch (error) {
-        if (String(error?.message || "").toLowerCase().includes("readline was closed")) {
-          break;
-        }
-        throw error;
-      }
-      const query = rawQuery.trim();
-      if (!query) {
-        break;
-      }
-
-      const results = await collectSearchResults({
-        upstream,
-        ref,
-        profile,
-        query,
-        verbose
-      });
-      if (results.length === 0) {
-        process.stdout.write(`No skills matched "${query}".\n\n`);
-        continue;
-      }
-
-      process.stdout.write(`Found ${results.length} match(es):\n`);
-      for (const result of results) {
-        if (verbose) {
-          process.stdout.write(`${result.upstream}  ${result.path}\t${result.title}\n`);
-        } else {
-          process.stdout.write(`${result.upstream}  ${result.path}\n`);
-        }
-      }
-      process.stdout.write("\n");
+  const fuse = new Fuse(indexedRows, buildSearchFuseOptions(verbose));
+  const ranked = fuse.search(normalizedQuery).sort((left, right) => {
+    const leftScore = typeof left.score === "number" ? left.score : Number.POSITIVE_INFINITY;
+    const rightScore = typeof right.score === "number" ? right.score : Number.POSITIVE_INFINITY;
+    if (leftScore !== rightScore) {
+      return leftScore - rightScore;
     }
-  } finally {
-    rl.close();
-  }
+    return createSearchStableKey(left.item).localeCompare(createSearchStableKey(right.item));
+  });
+
+  return ranked.map((row) => row.item);
 }
 
-export async function cmdSearchSkills({ upstream, ref, profile, query, format, interactive, verbose = false }) {
-  if (interactive) {
-    await cmdSearchSkillsInteractive({ upstream, ref, profile, verbose });
-    return;
-  }
-
+export async function cmdSearchSkills({ upstream, ref, profile, query, format, verbose = false }) {
   if (!query || query.trim().length === 0) {
-    throw new Error("--query is required in non-interactive mode. Use --interactive for prompt mode.");
+    throw new Error("--query <text> is required.");
   }
   const allResults = await collectSearchResults({ upstream, ref, profile, query, verbose });
 
@@ -704,13 +688,15 @@ export async function cmdSearchSkills({ upstream, ref, profile, query, format, i
     return;
   }
 
-  for (const result of allResults) {
+  const { visible, hiddenCount } = limitResultsForText(allResults);
+  for (const result of visible) {
     if (verbose) {
       process.stdout.write(`${result.upstream}  ${result.path}\t${result.title}\n`);
     } else {
       process.stdout.write(`${result.upstream}  ${result.path}\n`);
     }
   }
+  writeSearchTruncationNotice(hiddenCount);
 }
 
 export async function resolveReferences({

@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import path from "node:path";
-import { RUNTIME_INTERNAL_ROOT, SCHEMAS, detectOsName, expandTargetPath, logInfo, logWarn } from "./core.js";
+import { CACHE_ROOT, RUNTIME_INTERNAL_ROOT, SCHEMAS, detectOsName, expandTargetPath, logInfo, logWarn } from "./core.js";
 import { loadEffectiveTargets, loadPackSources, normalizeMcpManifest, resolvePack, resolveProfile } from "./config.js";
 import {
   collectSourcePlanning,
@@ -48,7 +48,7 @@ async function removeDirectoryRobust(targetPath) {
 }
 
 export async function buildProfile(profileName, options = {}) {
-  const { quiet = false, lockMode = "write" } = options;
+  const { quiet = false, lockMode = "write", suggestNextStep = true } = options;
 
   const { profile } = await resolveProfile(profileName);
   const packRoot = await resolvePack(profile);
@@ -63,8 +63,12 @@ export async function buildProfile(profileName, options = {}) {
   const { sources } = await loadPackSources(packRoot);
   const upstreams = await loadUpstreamsConfig();
   const lockState = await loadLockfile();
+  const cacheExistsBeforeBuild = await fs.pathExists(CACHE_ROOT);
 
   const { references, skillImports } = collectSourcePlanning(sources, upstreams.byId);
+  if (!quiet && !cacheExistsBeforeBuild && references.length > 0) {
+    logInfo("First build may take longer while upstream cache is initialized.");
+  }
   const lockConfigByMode = {
     read: {
       preferPinned: true,
@@ -168,10 +172,11 @@ export async function buildProfile(profileName, options = {}) {
   }
 
   if (!quiet) {
-    logInfo(`Build complete for profile '${profileName}'.`);
-    logInfo("Runtime artifacts refreshed.");
-    logInfo(`Resolved upstream refs: ${references.length}`);
-    logInfo(`Lock mode: ${lockMode}`);
+    logInfo(`Built profile '${profileName}'.`);
+    logInfo(`Lock mode: ${lockMode} | Resolved upstream refs: ${references.length}`);
+    if (suggestNextStep) {
+      logInfo("Next step: run apply.");
+    }
     if (lockMode === "read" && references.length > 0) {
       logWarn("Build ran with --lock=read. No upstream pins were written.");
     }

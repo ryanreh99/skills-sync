@@ -5,50 +5,35 @@ import { runCli } from "../helpers.mjs";
  * Tests for: list skills
  */
 export async function run() {
-  // --- list skills JSON format (single upstream, fast path mode) ---
-  const jsonResult = runCli(["list", "skills", "--upstream", "anthropic", "--format", "json"]);
+  // --- list local skills JSON format ---
+  const jsonResult = runCli(["list", "skills", "--profile", "personal", "--format", "json"]);
   const listed = JSON.parse(jsonResult.stdout.trim());
   assert.equal(Array.isArray(listed.skills), true, "list skills --format json should return a skills array.");
-  assert.equal(listed.skills.length > 0, true, "Expected at least one skill from the anthropic upstream.");
+  assert.equal(typeof listed.profile, "string", "list skills json should include resolved profile.");
 
-  // Each skill entry should have a path.
+  // Each skill entry should have a local name.
   for (const skill of listed.skills) {
-    assert.equal(typeof skill.path, "string", "Each skill should have a string path.");
-    assert.equal(
-      Object.prototype.hasOwnProperty.call(skill, "title"),
-      false,
-      "list skills should omit title unless --verbose is passed."
-    );
-  }
-
-  // --- verbose mode includes titles ---
-  const verboseJsonResult = runCli([
-    "list",
-    "skills",
-    "--upstream",
-    "anthropic",
-    "--format",
-    "json",
-    "--verbose"
-  ]);
-  const listedVerbose = JSON.parse(verboseJsonResult.stdout.trim());
-  assert.equal(Array.isArray(listedVerbose.skills), true, "list skills --verbose should return a skills array.");
-  assert.equal(listedVerbose.skills.length > 0, true, "Expected skills in verbose mode.");
-  for (const skill of listedVerbose.skills) {
-    assert.equal(typeof skill.title, "string", "Verbose listing should include skill titles.");
+    assert.equal(typeof skill.name, "string", "Each local skill should have a string name.");
   }
 
   // --- list skills text format (default) ---
-  const textResult = runCli(["list", "skills", "--upstream", "anthropic"]);
+  const textResult = runCli(["list", "skills", "--profile", "personal"]);
   assert.equal(textResult.stdout.trim().length > 0, true, "list skills text output should be non-empty.");
 
-  // --- list skills with no upstream (profile-derived refs) ---
-  const profileJsonResult = runCli(["list", "skills", "--profile", "personal", "--format", "json"]);
-  const profileListed = JSON.parse(profileJsonResult.stdout.trim());
+  // --- slash root alias should work ---
+  const slashProfiles = runCli(["/list", "profiles"]);
   assert.equal(
-    Array.isArray(profileListed.results) || Array.isArray(profileListed.skills),
+    slashProfiles.stdout.includes("personal"),
     true,
-    "list skills without --upstream should still return JSON output."
+    "slash-style root command should resolve to list."
+  );
+
+  // --- windows-path-like root (from MSYS path conversion) should work ---
+  const msysConvertedProfiles = runCli(["C:\\list", "profiles"]);
+  assert.equal(
+    msysConvertedProfiles.stdout.includes("personal"),
+    true,
+    "MSYS-converted slash root should resolve via basename."
   );
 
   // --- list upstreams ---
@@ -58,6 +43,14 @@ export async function run() {
   const upstreamsPayload = JSON.parse(listUpstreamsJson.stdout.trim());
   assert.equal(Array.isArray(upstreamsPayload.upstreams), true, "list upstreams json should return upstreams array.");
   assert.equal(upstreamsPayload.upstreams.length > 0, true, "Expected at least one configured upstream.");
+
+  // --- list agents ---
+  const listAgentsJson = runCli(["list", "agents", "--format", "json"]);
+  const agentsPayload = JSON.parse(listAgentsJson.stdout.trim());
+  assert.equal(Array.isArray(agentsPayload.agents), true, "list agents json should return agents array.");
+  for (const agent of agentsPayload.agents) {
+    assert.equal(typeof agent.tool, "string", "list agents should include tool name.");
+  }
 
   // --- unknown subcommand of list fails ---
   runCli(["list", "unknown-resource"], 2);

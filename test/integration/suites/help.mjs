@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { runCli } from "../helpers.mjs";
+import { runCli, runCliWithInput } from "../helpers.mjs";
 
 /**
  * Tests for: help
@@ -17,4 +17,12 @@ export async function run() {
   // --help exits 0 and should include command help text.
   const flagResult = runCli(["--help"]);
   assert.equal(flagResult.stdout.includes("build"), true, "--help stdout should mention the build command.");
+
+  // Running without arguments opens shell mode.
+  const shellResult = runCliWithInput([], { input: "exit\n" });
+  assert.equal(
+    shellResult.stdout.includes("interactive shell"),
+    true,
+    "no-arg invocation should open interactive shell mode."
+  );
 }

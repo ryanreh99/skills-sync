@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { buildProfile } from "./lib/build.js";
 import { cmdApply, cmdUnlink } from "./lib/bindings.js";
-import { cmdAgentDrift, cmdAgentInventory } from "./lib/agents.js";
+import { cmdAgentDrift, cmdAgentInventory, cmdListAgents } from "./lib/agents.js";
 import { cmdDetect } from "./lib/detect.js";
 import { cmdDoctor } from "./lib/doctor.js";
 import { cmdInit } from "./lib/init.js";
@@ -16,7 +16,15 @@ import {
   readDefaultProfile,
   writeDefaultProfile
 } from "./lib/config.js";
-import { cmdListEverything, cmdShowProfileInventory } from "./lib/inventory.js";
+import {
+  canPrompt,
+  isPromptCancelledError,
+  parseCommaOrWhitespaceList,
+  parseEnvEntries,
+  promptForSelect,
+  promptForText
+} from "./lib/prompt-adapter.js";
+import { cmdListEverything, cmdListLocalSkills, cmdShowProfileInventory } from "./lib/inventory.js";
 import { cmdProfileExport, cmdProfileImport } from "./lib/profile-transfer.js";
 import {
   cmdProfileAddMcp,
@@ -26,7 +34,9 @@ import {
   cmdUpstreamAdd,
   cmdUpstreamRemove
 } from "./lib/manage.js";
-import { cmdListSkills, cmdListUpstreamContent, cmdListUpstreams, cmdSearchSkills } from "./lib/upstreams.js";
+import { cmdListUpstreamContent, cmdListUpstreams, cmdSearchSkills } from "./lib/upstreams.js";
+import { cmdShell } from "./lib/shell.js";
+import { danger, styleHelpOutput } from "./lib/terminal-ui.js";
 
 const VALID_BUILD_LOCK_MODES = new Set(["read", "write", "refresh"]);
 const KNOWN_ROOT_COMMANDS = new Set([
@@ -43,9 +53,10 @@ const KNOWN_ROOT_COMMANDS = new Set([
   "new",
   "remove",
   "profile",
-  "agent",
+  "agents",
   "upstream",
   "detect",
+  "shell",
   "help"
 ]);
 
@@ -84,7 +95,54 @@ function createUnknownCommandError() {
 }
 
 function writeUnknownCommandError() {
-  process.stderr.write("Unknown command. See: skills-sync help\n");
+  process.stderr.write("Unknown command. See: help\n");
+}
+
+function normalizeRootCommand(rawRoot) {
+  if (typeof rawRoot !== "string") {
+    return rawRoot;
+  }
+
+  const trimmed = rawRoot.trim();
+  if (trimmed.length === 0) {
+    return trimmed;
+  }
+
+  const candidates = [];
+  const addCandidate = (value) => {
+    const normalized = String(value ?? "").trim();
+    if (normalized.length > 0) {
+      candidates.push(normalized);
+    }
+  };
+
+  addCandidate(trimmed);
+  if (trimmed.startsWith("/") && trimmed.length > 1) {
+    addCandidate(trimmed.slice(1));
+  }
+  if (/[\\/]/.test(trimmed)) {
+    addCandidate(path.win32.basename(trimmed));
+    addCandidate(path.posix.basename(trimmed));
+  }
+
+  for (const candidate of candidates) {
+    if (candidate === "agent") {
+      return "agents";
+    }
+    if (KNOWN_ROOT_COMMANDS.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return trimmed;
+}
+
+function normalizeCliArgv(argv) {
+  if (!Array.isArray(argv) || argv.length === 0) {
+    return [];
+  }
+  const [rawRoot, ...rest] = argv;
+  return [normalizeRootCommand(rawRoot), ...rest];
 }
 
 function preflightUnknownCommandCheck(argv) {
@@ -93,7 +151,7 @@ function preflightUnknownCommandCheck(argv) {
   }
 
   const [root, child] = argv;
-  const listChildren = new Set(["skills", "upstreams", "profiles", "everything", "upstream-content"]);
+  const listChildren = new Set(["skills", "upstreams", "profiles", "everything", "upstream-content", "agents"]);
   const searchChildren = new Set(["skills"]);
   const profileChildren = new Set(["show", "add-skill", "remove-skill", "add-mcp", "remove-mcp", "export", "import"]);
   const agentChildren = new Set(["inventory", "drift"]);
@@ -114,7 +172,7 @@ function preflightUnknownCommandCheck(argv) {
   if (root === "profile" && child && !child.startsWith("-") && !profileChildren.has(child)) {
     throw createUnknownCommandError();
   }
-  if (root === "agent" && child && !child.startsWith("-") && !agentChildren.has(child)) {
+  if (root === "agents" && child && !child.startsWith("-") && !agentChildren.has(child)) {
     throw createUnknownCommandError();
   }
   if (root === "upstream" && child && !child.startsWith("-") && !upstreamChildren.has(child)) {
@@ -149,28 +207,194 @@ function resolveMcpArgsOption({ args, arg }) {
   return variadicArgs;
 }
 
+function normalizeOptionalText(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeRequiredText(value, label) {
+  const normalized = normalizeOptionalText(value);
+  if (!normalized) {
+    throw new Error(`${label} is required.`);
+  }
+  return normalized;
+}
+
+async function resolveRequiredTextOption({
+  value,
+  label,
+  placeholder,
+  missingMessage
+}) {
+  const normalized = normalizeOptionalText(value);
+  if (normalized) {
+    return normalized;
+  }
+
+  if (canPrompt()) {
+    const prompted = await promptForText({
+      message: label,
+      placeholder,
+      validate: (inputValue) =>
+        normalizeOptionalText(inputValue) ? undefined : `${label} is required.`
+    });
+    return normalizeRequiredText(prompted, label);
+  }
+
+  throw new Error(missingMessage || `${label} is required.`);
+}
+
+async function resolveProfileForBuild(profileName) {
+  const normalizedProfile = normalizeOptionalText(profileName);
+  if (normalizedProfile) {
+    return normalizedProfile;
+  }
+
+  const defaultProfile = await readDefaultProfile();
+  if (defaultProfile) {
+    return defaultProfile;
+  }
+
+  if (canPrompt()) {
+    return resolveRequiredTextOption({
+      value: null,
+      label: "Profile name",
+      placeholder: "personal",
+      missingMessage: "--profile is required."
+    });
+  }
+
+  throw new Error("Profile is required. Set a default profile with 'use <name>'.");
+}
+
+async function resolveProfileForAgentDrift(profileName) {
+  const normalizedProfile = normalizeOptionalText(profileName);
+  if (normalizedProfile) {
+    return normalizedProfile;
+  }
+
+  const defaultProfile = await readDefaultProfile();
+  if (defaultProfile) {
+    return defaultProfile;
+  }
+
+  if (canPrompt()) {
+    return resolveRequiredTextOption({
+      value: null,
+      label: "Profile name",
+      placeholder: "personal",
+      missingMessage: "--profile is required."
+    });
+  }
+
+  return null;
+}
+
+async function promptForMissingMcpTransportSettings({
+  command,
+  url,
+  args,
+  env
+}) {
+  const normalizedCommand = normalizeOptionalText(command);
+  const normalizedUrl = normalizeOptionalText(url);
+  if (normalizedCommand || normalizedUrl) {
+    return {
+      command: normalizedCommand,
+      url: normalizedUrl,
+      args,
+      env
+    };
+  }
+
+  if (!canPrompt()) {
+    return {
+      command: normalizedCommand,
+      url: normalizedUrl,
+      args,
+      env
+    };
+  }
+
+  const transport = await promptForSelect({
+    message: "MCP transport",
+    options: [
+      {
+        value: "stdio",
+        label: "stdio command",
+        hint: "command + optional args/env"
+      },
+      {
+        value: "http",
+        label: "http endpoint",
+        hint: "URL only"
+      }
+    ]
+  });
+
+  if (transport === "http") {
+    const promptedUrl = await promptForText({
+      message: "MCP server URL",
+      placeholder: "https://example.com/mcp",
+      validate: (inputValue) =>
+        normalizeOptionalText(inputValue) ? undefined : "MCP server URL is required."
+    });
+    return {
+      command: null,
+      url: normalizeRequiredText(promptedUrl, "MCP server URL"),
+      args: [],
+      env: []
+    };
+  }
+
+  const promptedCommand = await promptForText({
+    message: "MCP server command",
+    placeholder: "node",
+    validate: (inputValue) =>
+      normalizeOptionalText(inputValue) ? undefined : "MCP server command is required."
+  });
+  const argsInput = await promptForText({
+    message: "Command args (optional)",
+    placeholder: "--flag value, --another"
+  });
+  const envInput = await promptForText({
+    message: "Env entries KEY=VALUE (optional)",
+    placeholder: "API_KEY=abc, MODE=dev"
+  });
+
+  return {
+    command: normalizeRequiredText(promptedCommand, "MCP server command"),
+    url: null,
+    args: parseCommaOrWhitespaceList(argsInput),
+    env: parseEnvEntries(envInput)
+  };
+}
+
 async function cmdBuild(profileName, lockModeRaw) {
   const lockMode = (lockModeRaw || "write").toLowerCase();
   if (!VALID_BUILD_LOCK_MODES.has(lockMode)) {
     throw new Error("Invalid --lock value. Use read, write, or refresh.");
   }
-  const resolved = profileName ?? await readDefaultProfile();
-  if (!resolved) {
-    throw new Error("--profile is required (or set a default profile with 'skills-sync use <name>').");
-  }
-  await buildProfile(resolved, { lockMode });
+  const resolvedProfile = await resolveProfileForBuild(profileName);
+  await buildProfile(resolvedProfile, { lockMode });
 }
 
 async function cmdApplyWithOptionalBuild(profileName, shouldBuild, options = {}) {
-  const normalizedProfile = typeof profileName === "string" && profileName.trim().length > 0 ? profileName.trim() : null;
-  const resolvedProfile = normalizedProfile ?? await readDefaultProfile();
+  const normalizedProfile = normalizeOptionalText(profileName);
+  let resolvedProfile = normalizedProfile ?? await readDefaultProfile();
   if (shouldBuild) {
     if (!resolvedProfile) {
-      throw new Error(
-        "apply --build requires --profile <name> or a default profile."
-      );
+      resolvedProfile = await resolveRequiredTextOption({
+        value: null,
+        label: "Profile name",
+        placeholder: "personal",
+        missingMessage: "apply --build requires an active profile. Set one with 'use <name>'."
+      });
     }
-    await buildProfile(resolvedProfile, { lockMode: "write" });
+    await buildProfile(resolvedProfile, { lockMode: "write", suggestNextStep: false });
   }
   await cmdApply(resolvedProfile, { dryRun: options.dryRun === true });
 }
@@ -183,8 +407,8 @@ function createProgram() {
     .version(readPackageVersion())
     .exitOverride()
     .configureOutput({
-      writeOut: (str) => process.stdout.write(str),
-      writeErr: (str) => process.stderr.write(str),
+      writeOut: (str) => process.stdout.write(styleHelpOutput(str, process.stdout)),
+      writeErr: (str) => process.stderr.write(styleHelpOutput(str, process.stderr)),
       outputError: () => {}
     });
 
@@ -247,24 +471,14 @@ function createProgram() {
   const listCommand = program.command("list").description("List available resources.");
   listCommand
     .command("skills")
-    .description("List discovered upstream skills (directories under skills/** containing SKILL.md).")
-    .option("--upstream <id>", "upstream id (optional; defaults to all configured upstreams)")
-    .option("--ref <ref>", "ref/branch/tag")
-    .option("--profile <name>", "profile name to infer upstream/ref defaults")
-    .option("--verbose", "include skill titles (slower; reads SKILL.md contents)")
-    .option("--versbose", "alias for --verbose")
+    .description("List local skills from the active/default profile pack.")
+    .option("--profile <name>", "profile name (defaults to active/default profile)")
     .option("--format <format>", "output format: text|json", "text")
     .action((options) => {
-      const format = (options.format || "text").toLowerCase();
-      if (format !== "text" && format !== "json") {
-        throw new Error("Invalid --format value. Use text or json.");
-      }
-      return cmdListSkills({
-        upstream: options.upstream,
-        ref: options.ref,
+      const format = parseFormatOption(options.format);
+      return cmdListLocalSkills({
         profile: options.profile,
-        format,
-        verbose: options.verbose === true || options.versbose === true
+        format
       });
     });
   listCommand
@@ -292,6 +506,15 @@ function createProgram() {
       return cmdListEverything({ format });
     });
   listCommand
+    .command("agents")
+    .description("List locally detected agents.")
+    .option("--agents <agents>", "optional comma-separated agent filter, e.g. codex,claude")
+    .option("--format <format>", "output format: text|json", "text")
+    .action((options) => {
+      const format = parseFormatOption(options.format);
+      return cmdListAgents({ format, agents: options.agents });
+    });
+  listCommand
     .command("upstream-content")
     .description("List skills and discoverable MCP server manifests available in upstream repository refs.")
     .option("--upstream <id>", "upstream id (optional; defaults to all configured upstreams)")
@@ -312,9 +535,12 @@ function createProgram() {
     });
 
   program
-    .command("use <name>")
+    .command("use [name]")
     .description("Set the default profile; auto-scaffolds an empty local profile if missing.")
-    .action((name) => writeDefaultProfile(name));
+    .action(async (name) => {
+      const resolvedName = normalizeOptionalText(name) || "personal";
+      return writeDefaultProfile(resolvedName);
+    });
 
   program
     .command("current")
@@ -339,37 +565,67 @@ function createProgram() {
       });
     });
   profileCommand
-    .command("add-skill <name>")
+    .command("add-skill [name]")
     .description("Add an upstream skill import to a profile.")
-    .requiredOption("--upstream <id>", "upstream id")
-    .requiredOption("--path <repoPath>", "upstream repository path, e.g. skills/my-skill")
+    .option("--upstream <id>", "upstream id")
+    .option("--path <repoPath>", "upstream repository path, e.g. skills/my-skill")
     .option("--ref <ref>", "ref/branch/tag (defaults to upstream defaultRef)")
     .option("--dest-prefix <prefix>", "destination prefix in bundled skills tree")
-    .action((name, options) =>
+    .action(async (name, options) =>
       cmdProfileAddSkill({
-        profile: name,
-        upstream: options.upstream,
-        skillPath: options.path,
+        profile: await resolveRequiredTextOption({
+          value: name,
+          label: "Profile name",
+          placeholder: "personal",
+          missingMessage: "Profile name is required. Usage: profile add-skill <name>."
+        }),
+        upstream: await resolveRequiredTextOption({
+          value: options.upstream,
+          label: "Upstream id",
+          placeholder: "anthropic",
+          missingMessage: "--upstream <id> is required."
+        }),
+        skillPath: await resolveRequiredTextOption({
+          value: options.path,
+          label: "Skill path",
+          placeholder: "skills/my-skill",
+          missingMessage: "--path <repoPath> is required."
+        }),
         ref: options.ref,
         destPrefix: options.destPrefix
       }));
   profileCommand
-    .command("remove-skill <name>")
+    .command("remove-skill [name]")
     .description("Remove skill import path(s) from a profile.")
-    .requiredOption("--upstream <id>", "upstream id")
-    .requiredOption("--path <repoPath>", "upstream repository path, e.g. skills/my-skill")
+    .option("--upstream <id>", "upstream id")
+    .option("--path <repoPath>", "upstream repository path, e.g. skills/my-skill")
     .option("--ref <ref>", "optional ref filter")
     .option("--dest-prefix <prefix>", "optional destination prefix filter")
-    .action((name, options) =>
+    .action(async (name, options) =>
       cmdProfileRemoveSkill({
-        profile: name,
-        upstream: options.upstream,
-        skillPath: options.path,
+        profile: await resolveRequiredTextOption({
+          value: name,
+          label: "Profile name",
+          placeholder: "personal",
+          missingMessage: "Profile name is required. Usage: profile remove-skill <name>."
+        }),
+        upstream: await resolveRequiredTextOption({
+          value: options.upstream,
+          label: "Upstream id",
+          placeholder: "anthropic",
+          missingMessage: "--upstream <id> is required."
+        }),
+        skillPath: await resolveRequiredTextOption({
+          value: options.path,
+          label: "Skill path",
+          placeholder: "skills/my-skill",
+          missingMessage: "--path <repoPath> is required."
+        }),
         ref: options.ref,
         destPrefix: options.destPrefix
       }));
   profileCommand
-    .command("add-mcp <name> <server>")
+    .command("add-mcp [name] [server]")
     .description("Add or update an MCP server in a profile.")
     .option("--command <command>", "server command executable (stdio transport)")
     .option("--url <url>", "server URL (HTTP transport)")
@@ -381,22 +637,52 @@ function createProgram() {
       []
     )
     .option("--env <entries...>", "optional env vars as KEY=VALUE entries")
-    .action((name, server, options) =>
-      cmdProfileAddMcp({
-        profile: name,
-        name: server,
+    .action(async (name, server, options) => {
+      const resolvedProfileName = await resolveRequiredTextOption({
+        value: name,
+        label: "Profile name",
+        placeholder: "personal",
+        missingMessage: "Profile name is required. Usage: profile add-mcp <name> <server>."
+      });
+      const resolvedServerName = await resolveRequiredTextOption({
+        value: server,
+        label: "MCP server name",
+        placeholder: "my_server",
+        missingMessage: "MCP server name is required. Usage: profile add-mcp <name> <server>."
+      });
+      const resolvedArgs = resolveMcpArgsOption({ args: options.args, arg: options.arg });
+      const resolvedTransport = await promptForMissingMcpTransportSettings({
         command: options.command,
         url: options.url,
-        args: resolveMcpArgsOption({ args: options.args, arg: options.arg }),
+        args: resolvedArgs,
         env: options.env
-      }));
+      });
+      return cmdProfileAddMcp({
+        profile: resolvedProfileName,
+        name: resolvedServerName,
+        command: resolvedTransport.command,
+        url: resolvedTransport.url,
+        args: resolvedTransport.args,
+        env: resolvedTransport.env
+      });
+    });
   profileCommand
-    .command("remove-mcp <name> <server>")
+    .command("remove-mcp [name] [server]")
     .description("Remove an MCP server from a profile.")
-    .action((name, server) =>
+    .action(async (name, server) =>
       cmdProfileRemoveMcp({
-        profile: name,
-        name: server
+        profile: await resolveRequiredTextOption({
+          value: name,
+          label: "Profile name",
+          placeholder: "personal",
+          missingMessage: "Profile name is required. Usage: profile remove-mcp <name> <server>."
+        }),
+        name: await resolveRequiredTextOption({
+          value: server,
+          label: "MCP server name",
+          placeholder: "my_server",
+          missingMessage: "MCP server name is required. Usage: profile remove-mcp <name> <server>."
+        })
       }));
   profileCommand
     .command("export [name]")
@@ -408,19 +694,29 @@ function createProgram() {
         output: options.output
       }));
   profileCommand
-    .command("import <name>")
+    .command("import [name]")
     .description("Import profile config JSON.")
-    .requiredOption("--input <path>", "path to exported profile JSON")
+    .option("--input <path>", "path to exported profile JSON")
     .option("--replace", "overwrite existing local profile files if present")
-    .action((name, options) =>
+    .action(async (name, options) =>
       cmdProfileImport({
-        profile: name,
-        input: options.input,
+        profile: await resolveRequiredTextOption({
+          value: name,
+          label: "Profile name",
+          placeholder: "imported-profile",
+          missingMessage: "Profile name is required. Usage: profile import <name>."
+        }),
+        input: await resolveRequiredTextOption({
+          value: options.input,
+          label: "Import file path",
+          placeholder: "profile-export.json",
+          missingMessage: "--input <path> is required."
+        }),
         replace: options.replace === true
       }));
 
-  const agentCommand = program.command("agent").description("Inspect detected agent installs and profile drift.");
-  agentCommand
+  function registerAgentsSubcommands(agentCommand) {
+    agentCommand
     .command("inventory")
     .description("Inspect installed skills and MCP servers per detected agent.")
     .option("--agents <agents>", "optional comma-separated agent filter, e.g. codex,claude")
@@ -432,51 +728,80 @@ function createProgram() {
         agents: options.agents
       });
     });
-  agentCommand
+    agentCommand
     .command("drift")
     .description("Check or reconcile drift between profile-expected config and detected agent installs.")
     .option("--profile <name>", "profile name (falls back to default profile)")
     .option("--agents <agents>", "optional comma-separated agent filter, e.g. codex,claude")
     .option("--dry-run", "report drift only without mutating files")
     .option("--format <format>", "output format: text|json", "text")
-    .action((options) => {
+    .action(async (options) => {
       const format = parseFormatOption(options.format);
+      const profile = await resolveProfileForAgentDrift(options.profile);
       return cmdAgentDrift({
-        profile: options.profile,
+        profile,
         dryRun: options.dryRun === true,
         format,
         agents: options.agents
       });
     });
+  }
+
+  const agentsCommand = program.command("agents").description("Inspect detected agent installs and profile drift.");
+  registerAgentsSubcommands(agentsCommand);
 
   const upstreamCommand = program.command("upstream").description("Manage configured upstream repositories.");
   upstreamCommand
-    .command("add <id>")
+    .command("add [id]")
     .description("Add an upstream repository.")
-    .requiredOption("--repo <url>", "git repository URL")
+    .option("--repo <url>", "git repository URL")
     .option("--default-ref <ref>", "default ref/branch/tag", "main")
     .option("--type <type>", "upstream type (currently only git)", "git")
-    .action((id, options) =>
+    .action(async (id, options) =>
       cmdUpstreamAdd({
-        id,
-        repo: options.repo,
+        id: await resolveRequiredTextOption({
+          value: id,
+          label: "Upstream id",
+          placeholder: "my-upstream",
+          missingMessage: "Upstream id is required. Usage: upstream add <id>."
+        }),
+        repo: await resolveRequiredTextOption({
+          value: options.repo,
+          label: "Git repository URL",
+          placeholder: "https://github.com/org/repo.git",
+          missingMessage: "--repo <url> is required."
+        }),
         defaultRef: options.defaultRef,
         type: options.type
       }));
   upstreamCommand
-    .command("remove <id>")
+    .command("remove [id]")
     .description("Remove an upstream repository.")
-    .action((id) => cmdUpstreamRemove({ id }));
+    .action(async (id) =>
+      cmdUpstreamRemove({
+        id: await resolveRequiredTextOption({
+          value: id,
+          label: "Upstream id",
+          placeholder: "my-upstream",
+          missingMessage: "Upstream id is required. Usage: upstream remove <id>."
+        })
+      }));
 
   program
-    .command("new <name>")
+    .command("new [name]")
     .description("Scaffold a new profile and pack.")
-    .action((name) => cmdNewProfile(name));
+    .action(async (name) => cmdNewProfile(normalizeOptionalText(name) || "personal"));
 
   program
-    .command("remove <name>")
+    .command("remove [name]")
     .description("Delete a profile definition (pack is preserved).")
-    .action((name) => cmdRemoveProfile(name));
+    .action(async (name) =>
+      cmdRemoveProfile(await resolveRequiredTextOption({
+        value: name,
+        label: "Profile name",
+        placeholder: "my-profile",
+        missingMessage: "Profile name is required. Usage: remove <name>."
+      })));
 
   const searchCommand = program.command("search").description("Search available resources.");
   searchCommand
@@ -486,7 +811,6 @@ function createProgram() {
     .option("--upstream <id>", "upstream id (optional; defaults to all configured upstreams)")
     .option("--ref <ref>", "ref/branch/tag")
     .option("--profile <name>", "profile name to infer upstream/ref defaults")
-    .option("--interactive", "interactive prompt mode")
     .option("--verbose", "include title metadata and title matching (slower)")
     .option("--versbose", "alias for --verbose")
     .option("--format <format>", "output format: text|json", "text")
@@ -498,20 +822,38 @@ function createProgram() {
         profile: options.profile,
         query: options.query,
         format,
-        interactive: options.interactive === true,
         verbose: options.verbose === true || options.versbose === true
       });
     });
+
+  program
+    .command("shell")
+    .description("Launch interactive shell mode with command completion and colorized prompts.")
+    .option("--profile <name>", "optional shell profile context for build/apply/doctor commands")
+    .action((options) =>
+      cmdShell({
+        profile: options.profile,
+        executeCommand: (commandArgs) => runCli(commandArgs)
+      }));
 
   program.command("help").description("Show help.").action(() => program.outputHelp());
   return program;
 }
 
 export async function runCli(argv = process.argv.slice(2)) {
+  const normalizedArgv = normalizeCliArgv(argv);
+
+  if (normalizedArgv.length === 0) {
+    await cmdShell({
+      executeCommand: (commandArgs) => runCli(commandArgs)
+    });
+    return 0;
+  }
+
   try {
-    preflightUnknownCommandCheck(argv);
+    preflightUnknownCommandCheck(normalizedArgv);
     const program = createProgram();
-    await program.parseAsync(["node", "skills-sync", ...argv]);
+    await program.parseAsync(["node", "skills-sync", ...normalizedArgv]);
     return 0;
   } catch (error) {
     if (
@@ -526,7 +868,11 @@ export async function runCli(argv = process.argv.slice(2)) {
       writeUnknownCommandError();
       return 2;
     }
-    process.stderr.write(`[skills-sync] ERROR: ${redactPathDetails(error.message)}\n`);
+    if (isPromptCancelledError(error)) {
+      process.stderr.write("Prompt cancelled.\n");
+      return 130;
+    }
+    process.stderr.write(`${danger("[skills-sync] ERROR:", process.stderr)} ${redactPathDetails(error.message)}\n`);
     return 1;
   }
 }
