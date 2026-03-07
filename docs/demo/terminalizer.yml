@@ -1,0 +1,69 @@
+# Specify a command to be executed
+command: null
+
+# Specify the current working directory path
+cwd: null
+
+# Export additional ENV variables
+env:
+  recording: true
+
+# Explicitly set the number of columns and rows
+cols: 88
+rows: 22
+
+# Loop indefinitely on GitHub
+repeat: 0
+
+# Render quality
+quality: 100
+
+# Preserve captured timing while keeping long idle gaps short
+frameDelay: auto
+maxIdleTime: 700
+
+# Use a terminal-like floating frame that reads well in the README
+frameBox:
+  type: floating
+  title: skills-sync
+  style:
+    border: 0px black solid
+
+# No watermark
+watermark:
+  imagePath: null
+  style:
+    position: absolute
+    right: 15px
+    bottom: 15px
+    width: 100px
+    opacity: 0.9
+
+# Terminal feel
+cursorStyle: bar
+fontFamily: "Cascadia Code, Consolas, Monaco, monospace"
+fontSize: 14
+lineHeight: 1.2
+letterSpacing: 0
+
+# High-contrast theme for GitHub README viewing
+theme:
+  background: "#09111f"
+  foreground: "#d9e2f2"
+  cursor: "#f7c948"
+  black: "#0b1220"
+  red: "#ff7b72"
+  green: "#7ee787"
+  yellow: "#f2cc60"
+  blue: "#79c0ff"
+  magenta: "#d2a8ff"
+  cyan: "#a5f3fc"
+  white: "#c9d1d9"
+  brightBlack: "#6e7681"
+  brightRed: "#ffa198"
+  brightGreen: "#56d364"
+  brightYellow: "#e3b341"
+  brightBlue: "#58a6ff"
+  brightMagenta: "#bc8cff"
+  brightCyan: "#76e3ea"
+  brightWhite: "#f0f6fc"

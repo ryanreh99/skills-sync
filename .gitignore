@@ -4,6 +4,7 @@ dist/
 node_modules/
 .cache/
 upstreams_cache/
+docs/demo/_sandbox/
 **/*.env
 **/*token*
 **/*secret*

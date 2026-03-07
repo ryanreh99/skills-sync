@@ -159,8 +159,6 @@ export async function cmdProfileRefresh({
         target.contentHash = nextHash;
         target.refreshedAt = new Date().toISOString();
         target.capabilities = materialized.capabilities;
-        target.title = materialized.title;
-        target.summary = materialized.summary;
         if (!record) {
           lockState.lock.imports.push(target);
         }

@@ -75,12 +75,16 @@ skills-sync profile inspect personal
 
 Register an upstream:
 
+![Register an upstream demo](docs/demo/register-upstream.gif)
+
 ```bash
 skills-sync upstream add --source matlab/skills
 skills-sync list upstreams
 ```
 
 Import directly from a source without registering it first:
+
+![Import directly from a source demo](docs/demo/import-direct-from-source.gif)
 
 ```bash
 skills-sync profile add-skill personal \
@@ -92,6 +96,8 @@ skills-sync profile add-skill personal \
 
 List and search skills:
 
+![List and search skills demo](docs/demo/list-and-search-skills.gif)
+
 ```bash
 skills-sync list skills --profile personal --detail full
 skills-sync search skills --query matlab --scope discoverable
@@ -99,6 +105,8 @@ skills-sync search skills --query spreadsheet --profile personal --scope install
 ```
 
 Inspect and refresh imported state:
+
+![Inspect and refresh imported state demo](docs/demo/inspect-and-refresh-state.gif)
 
 ```bash
 skills-sync profile inspect personal
@@ -108,12 +116,16 @@ skills-sync profile refresh personal --upstream matlab_skills --build --apply
 
 Apply to selected agents only:
 
+![Apply to selected agents demo](docs/demo/apply-selected-agents.gif)
+
 ```bash
 skills-sync apply --profile personal --agents codex,claude
 skills-sync unlink --agents codex --dry-run
 ```
 
 Export or sync workspace state:
+
+![Export or sync workspace state demo](docs/demo/workspace-sync.gif)
 
 ```bash
 skills-sync workspace export
