@@ -69,7 +69,8 @@ export async function run({ localOverridesPath }) {
     "--ref",
     "main",
     "--dest-prefix",
-    "anthropic"
+    "anthropic",
+    "--no-sync"
   ]);
   const sourcesAfterAdd = JSON.parse(await fs.readFile(personalSourcesPath, "utf8"));
   const hasAddedSkill = sourcesAfterAdd.imports.some(
@@ -87,7 +88,8 @@ export async function run({ localOverridesPath }) {
     "--upstream",
     "anthropic",
     "--path",
-    "skills/test-skill-default-profile"
+    "skills/test-skill-default-profile",
+    "--no-sync"
   ]);
   const sourcesAfterDefaultProfileAdd = JSON.parse(await fs.readFile(personalSourcesPath, "utf8"));
   const hasDefaultProfileAddedSkill = sourcesAfterDefaultProfileAdd.imports.some(
@@ -115,6 +117,7 @@ export async function run({ localOverridesPath }) {
     "main",
     "--dest-prefix",
     "anthropic",
+    "--no-sync",
     "--yes"
   ]);
   const sourcesAfterRemove = JSON.parse(await fs.readFile(personalSourcesPath, "utf8"));
@@ -131,6 +134,7 @@ export async function run({ localOverridesPath }) {
     "anthropic",
     "--path",
     "skills/test-skill-default-profile",
+    "--no-sync",
     "--yes"
   ]);
 
@@ -147,7 +151,8 @@ export async function run({ localOverridesPath }) {
     "b",
     "--env",
     "ALPHA=1",
-    "BETA=two words"
+    "BETA=two words",
+    "--no-sync"
   ]);
   const mcpAfterAdd = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
   assert.equal(
@@ -173,7 +178,8 @@ export async function run({ localOverridesPath }) {
     "add-mcp",
     "unit_test_default_profile_server",
     "--url",
-    "https://example.com/default-profile-mcp"
+    "https://example.com/default-profile-mcp",
+    "--no-sync"
   ]);
   const mcpAfterDefaultProfileAdd = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
   assert.equal(
@@ -189,7 +195,8 @@ export async function run({ localOverridesPath }) {
     "personal",
     "unit_test_http_server",
     "--url",
-    "https://example.com/mcp"
+    "https://example.com/mcp",
+    "--no-sync"
   ]);
   const mcpAfterHttpAdd = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
   assert.equal(
@@ -218,7 +225,8 @@ export async function run({ localOverridesPath }) {
     "--arg",
     "--transport",
     "--arg",
-    "stdio"
+    "stdio",
+    "--no-sync"
   ]);
   const mcpAfterDashArgsAdd = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
   assert.equal(
@@ -285,11 +293,12 @@ export async function run({ localOverridesPath }) {
     "--args",
     "run",
     "--env",
-    "MCP_TEST_HOME=$HOME"
+    "MCP_TEST_HOME=$HOME",
+    "--no-sync"
   ]);
 
   // --- profile remove-mcp ---
-  runCli(["profile", "remove-mcp", "personal", "unit_test_server"]);
+  runCli(["profile", "remove-mcp", "personal", "unit_test_server", "--no-sync"]);
   const mcpAfterRemove = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
   assert.equal(
     Object.prototype.hasOwnProperty.call(mcpAfterRemove.servers ?? {}, "unit_test_server"),
@@ -298,7 +307,7 @@ export async function run({ localOverridesPath }) {
   );
 
   // --- profile remove-mcp without explicit profile uses current/default profile ---
-  runCli(["profile", "remove-mcp", "unit_test_default_profile_server"]);
+  runCli(["profile", "remove-mcp", "unit_test_default_profile_server", "--no-sync"]);
   const mcpAfterDefaultProfileRemove = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
   assert.equal(
     Object.prototype.hasOwnProperty.call(mcpAfterDefaultProfileRemove.servers ?? {}, "unit_test_default_profile_server"),
@@ -503,7 +512,8 @@ export async function run({ localOverridesPath }) {
     "--upstream-id",
     "local-fixtures",
     "--all",
-    "--build"
+    "--build",
+    "--no-sync"
   ]);
   runCli([
     "profile",
@@ -515,7 +525,8 @@ export async function run({ localOverridesPath }) {
     "local-path",
     "--upstream-id",
     "local-fixtures",
-    "--all"
+    "--all",
+    "--no-sync"
   ]);
 
   const upstreamsAfterLocalImport = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
@@ -596,6 +607,7 @@ export async function run({ localOverridesPath }) {
     "local-fixtures",
     "--all",
     "--prune-upstream",
+    "--no-sync",
     "--yes"
   ]);
   const upstreamsAfterLocalRemove = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
@@ -617,7 +629,7 @@ export async function run({ localOverridesPath }) {
   );
 
   const importedProfileName = "imported-profile-from-export";
-  runCli(["profile", "import", importedProfileName, "--input", exportPath]);
+  runCli(["profile", "import", importedProfileName, "--input", exportPath, "--no-sync"]);
   const importedProfilePath = path.join(localOverridesPath, "profiles", `${importedProfileName}.json`);
   const importedPackMcpPath = path.join(localOverridesPath, "packs", importedProfileName, "mcp", "servers.json");
   const importedProfileDoc = JSON.parse(await fs.readFile(importedProfilePath, "utf8"));
@@ -647,6 +659,12 @@ export async function run({ localOverridesPath }) {
   );
 
   // --- workspace export/diff/sync ---
+  const missingManifestDiff = runCli(["workspace", "diff"], 1);
+  assert.equal(
+    missingManifestDiff.stderr.includes("Run 'workspace export' first or pass --input <path>."),
+    true,
+    "workspace diff should explain how to create the default manifest when it is missing."
+  );
   const manifestPath = path.join(localOverridesPath, "exports", "workspace-manifest.json");
   runCli(["workspace", "export", "--output", manifestPath]);
   assert.equal(

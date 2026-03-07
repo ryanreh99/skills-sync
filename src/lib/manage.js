@@ -229,7 +229,7 @@ export async function cmdUpstreamRemove({ id }) {
   if (consumers.length > 0) {
     logWarn(
       `Upstream '${upstreamId}' is still referenced by profile(s): ${consumers.join(", ")}. ` +
-        "Update profile imports before the next build."
+        "Update profile imports before the next sync."
     );
   }
 }

@@ -130,7 +130,7 @@
                     },
                     {
                         "delay":  56,
-                        "content":  "\u001b[90m  sync    -\u003e build -\u003e apply\u001b[0m\r\n"
+                        "content":  "\u001b[90m  sync    -\u003e sync | sync --dry-run\u001b[0m\r\n"
                     },
                     {
                         "delay":  56,
@@ -206,7 +206,7 @@
                     },
                     {
                         "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mexport        \u001b[0m  \u001b[90mwrite a full workspace manifest\u001b[0m\r\n  diff            \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n  sync (dry-run)  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n  sync            \u001b[90mapply manifest reconciliation\u001b[0m\r\n"
+                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mexport        \u001b[0m  \u001b[90mwrite a full workspace manifest\u001b[0m\r\n  diff            \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n  sync (dry-run)  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n  sync            \u001b[90mreconcile manifest to workspace\u001b[0m\r\n"
                     },
                     {
                         "delay":  360,
@@ -258,11 +258,11 @@
                     },
                     {
                         "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mexport        \u001b[0m  \u001b[90mwrite a full workspace manifest\u001b[0m\r\n  diff            \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n  sync (dry-run)  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n  sync            \u001b[90mapply manifest reconciliation\u001b[0m\r\n"
+                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mexport        \u001b[0m  \u001b[90mwrite a full workspace manifest\u001b[0m\r\n  diff            \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n  sync (dry-run)  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n  sync            \u001b[90mreconcile manifest to workspace\u001b[0m\r\n"
                     },
                     {
                         "delay":  320,
-                        "content":  "\u001b[5A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[2K\r  export          \u001b[90mwrite a full workspace manifest\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mdiff          \u001b[0m  \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n\u001b[2K\r  sync (dry-run)  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n\u001b[2K\r  sync            \u001b[90mapply manifest reconciliation\u001b[0m\r\n"
+                        "content":  "\u001b[5A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[2K\r  export          \u001b[90mwrite a full workspace manifest\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mdiff          \u001b[0m  \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n\u001b[2K\r  sync (dry-run)  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n\u001b[2K\r  sync            \u001b[90mreconcile manifest to workspace\u001b[0m\r\n"
                     },
                     {
                         "delay":  300,
@@ -366,15 +366,15 @@
                     },
                     {
                         "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mexport        \u001b[0m  \u001b[90mwrite a full workspace manifest\u001b[0m\r\n  diff            \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n  sync (dry-run)  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n  sync            \u001b[90mapply manifest reconciliation\u001b[0m\r\n"
+                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mexport        \u001b[0m  \u001b[90mwrite a full workspace manifest\u001b[0m\r\n  diff            \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n  sync (dry-run)  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n  sync            \u001b[90mreconcile manifest to workspace\u001b[0m\r\n"
                     },
                     {
                         "delay":  320,
-                        "content":  "\u001b[5A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[2K\r  export          \u001b[90mwrite a full workspace manifest\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mdiff          \u001b[0m  \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n\u001b[2K\r  sync (dry-run)  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n\u001b[2K\r  sync            \u001b[90mapply manifest reconciliation\u001b[0m\r\n"
+                        "content":  "\u001b[5A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[2K\r  export          \u001b[90mwrite a full workspace manifest\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mdiff          \u001b[0m  \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n\u001b[2K\r  sync (dry-run)  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n\u001b[2K\r  sync            \u001b[90mreconcile manifest to workspace\u001b[0m\r\n"
                     },
                     {
                         "delay":  320,
-                        "content":  "\u001b[5A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[2K\r  export          \u001b[90mwrite a full workspace manifest\u001b[0m\r\n\u001b[2K\r  diff            \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36msync (dry-run)\u001b[0m  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n\u001b[2K\r  sync            \u001b[90mapply manifest reconciliation\u001b[0m\r\n"
+                        "content":  "\u001b[5A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mWorkspace options\u001b[0m\r\n\u001b[2K\r  export          \u001b[90mwrite a full workspace manifest\u001b[0m\r\n\u001b[2K\r  diff            \u001b[90mcompare manifest vs live workspace\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36msync (dry-run)\u001b[0m  \u001b[90mpreview manifest reconciliation\u001b[0m\r\n\u001b[2K\r  sync            \u001b[90mreconcile manifest to workspace\u001b[0m\r\n"
                     },
                     {
                         "delay":  360,

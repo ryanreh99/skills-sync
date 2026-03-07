@@ -67,7 +67,7 @@ export async function buildProfile(profileName, options = {}) {
 
   const { references, skillImports } = collectSourcePlanning(sources, upstreams.byId);
   if (!quiet && !cacheExistsBeforeBuild && references.length > 0) {
-    logInfo("First build may take longer while upstream cache is initialized.");
+    logInfo("First sync may take longer while upstream cache is initialized.");
   }
   const lockConfigByMode = {
     read: {
@@ -195,13 +195,13 @@ export async function buildProfile(profileName, options = {}) {
   }
 
   if (!quiet) {
-    logInfo(`Built profile '${profileName}'.`);
+    logInfo(`Prepared runtime artifacts for profile '${profileName}'.`);
     logInfo(`Lock mode: ${lockMode} | Resolved upstream refs: ${references.length}`);
     if (suggestNextStep) {
-      logInfo("Next step: run apply.");
+      logInfo("Next step: run sync.");
     }
     if (lockMode === "read" && references.length > 0) {
-      logWarn("Build ran with --lock=read. No upstream pins were written.");
+      logWarn("Artifact generation ran with --lock=read. No upstream pins were written.");
     }
   }
 

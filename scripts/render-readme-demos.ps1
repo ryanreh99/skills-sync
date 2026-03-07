@@ -3,18 +3,20 @@ param(
   [Parameter()]
   [ValidateSet(
     "register-upstream",
+    "add-skills-from-upstream",
+    "agents-drift",
     "import-direct-from-source",
     "list-and-search-skills",
     "inspect-and-refresh-state",
-    "apply-selected-agents",
     "workspace-sync"
   )]
   [string[]]$Workflow = @(
     "register-upstream",
+    "add-skills-from-upstream",
+    "agents-drift",
     "import-direct-from-source",
     "list-and-search-skills",
     "inspect-and-refresh-state",
-    "apply-selected-agents",
     "workspace-sync"
   ),
   [switch]$SkipBuild

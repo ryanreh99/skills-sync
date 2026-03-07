@@ -17,7 +17,7 @@ This formula installs a release tarball produced by `npm pack`, with bundled run
    npm ci
    npm run prepublishOnly
    ```
-3. Build the tarball:
+3. Create the tarball:
    ```bash
    npm pack
    ```

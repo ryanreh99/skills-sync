@@ -3,10 +3,11 @@ param(
   [Parameter(Mandatory)]
   [ValidateSet(
     "register-upstream",
+    "add-skills-from-upstream",
+    "agents-drift",
     "import-direct-from-source",
     "list-and-search-skills",
     "inspect-and-refresh-state",
-    "apply-selected-agents",
     "workspace-sync"
   )]
   [string]$Workflow,
@@ -77,11 +78,17 @@ $SearchMenuOptions = @(
   (New-MenuOption -Label "skills verbose" -Hint "include title metadata and title matching")
 )
 
+$AgentsMenuOptions = @(
+  (New-MenuOption -Label "inventory" -Hint "inspect detected agent resources"),
+  (New-MenuOption -Label "drift (dry-run)" -Hint "check drift without changes"),
+  (New-MenuOption -Label "drift" -Hint "reconcile drift")
+)
+
 $WorkspaceMenuOptions = @(
   (New-MenuOption -Label "export" -Hint "write a full workspace manifest"),
   (New-MenuOption -Label "diff" -Hint "compare manifest vs live workspace"),
   (New-MenuOption -Label "sync (dry-run)" -Hint "preview manifest reconciliation"),
-  (New-MenuOption -Label "sync" -Hint "apply manifest reconciliation")
+  (New-MenuOption -Label "sync" -Hint "reconcile manifest to workspace")
 )
 
 $DetailLevelOptions = @(
@@ -106,15 +113,14 @@ $ImportSelectionOptions = @(
 )
 
 $ImportPostActionOptions = @(
-  (New-MenuOption -Label "build" -Hint "update deterministic output now"),
-  (New-MenuOption -Label "build + apply" -Hint "materialize runtime output immediately"),
-  (New-MenuOption -Label "none" -Hint "defer build/apply")
+  (New-MenuOption -Label "sync now" -Hint "update runtime artifacts and agent targets"),
+  (New-MenuOption -Label "skip sync" -Hint "leave changes in workspace only")
 )
 
 $RefreshModeOptions = @(
   (New-MenuOption -Label "dry-run" -Hint "preview changes only"),
-  (New-MenuOption -Label "refresh only" -Hint "update lock state without build/apply"),
-  (New-MenuOption -Label "refresh + build + apply" -Hint "update and materialize immediately")
+  (New-MenuOption -Label "refresh and sync" -Hint "update lock state and agent targets"),
+  (New-MenuOption -Label "refresh without sync" -Hint "update lock state only")
 )
 
 $UpstreamChoiceOptions = @(
@@ -219,7 +225,7 @@ function Get-ShellBannerText {
     "$(Paint-Text -Text "Profile context enabled: $($script:ActiveProfile)" -Code $script:Ansi.Gray)",
     "$(Paint-Text -Text 'Modes:' -Code $script:Ansi.Gray)",
     "$(Paint-Text -Text '  setup   -> init | init --seed' -Code $script:Ansi.Gray)",
-    "$(Paint-Text -Text '  sync    -> build -> apply' -Code $script:Ansi.Gray)",
+    "$(Paint-Text -Text '  sync    -> sync | sync --dry-run' -Code $script:Ansi.Gray)",
     "$(Paint-Text -Text 'Explore and Manage:' -Code $script:Ansi.Gray)",
     "$(Paint-Text -Text '  list      -> profiles, skills, MCP servers, upstreams, and detected agents' -Code $script:Ansi.Gray)",
     "$(Paint-Text -Text '  agents    -> inventory/drift to identify drift and sync status' -Code $script:Ansi.Gray)",
@@ -424,18 +430,13 @@ function Initialize-BaseWorkspace {
 }
 
 function Initialize-FullWorkspace {
-  param([switch]$BuildProfile)
-
   Initialize-BaseWorkspace
   Seed-UpstreamCache -UpstreamId "matlab_skills" -RepositoryPath $context.MatlabRepo
   Seed-UpstreamCache -UpstreamId "openai_curated" -RepositoryPath $context.OpenAiRepo
   Invoke-SkillsSyncHidden "upstream" "add" "--source" "matlab/skills" "--default-ref" "main"
   Invoke-SkillsSyncHidden "profile" "add-skill" "personal" "--upstream" "matlab_skills" "--path" "skills/matlab-test-generator"
   Invoke-SkillsSyncHidden "profile" "add-skill" "personal" "--source" "https://github.com/openai/skills/tree/main/skills/.curated" "--upstream-id" "openai_curated" "--all"
-
-  if ($BuildProfile) {
-    Invoke-SkillsSyncHidden "build" "--profile" "personal"
-  }
+  Invoke-SkillsSyncHidden "sync" "--profile" "personal"
 }
 
 $context = New-DemoContext -Workflow $Workflow
@@ -454,6 +455,51 @@ switch ($Workflow) {
     Write-ShellInput -Text "list"
     Show-SelectPrompt -Title "List options" -Options $ListMenuOptions -SelectedIndex 3
     Invoke-CommandOutput -Arguments @("list", "upstreams")
+  }
+
+  "add-skills-from-upstream" {
+    Initialize-BaseWorkspace
+    Seed-UpstreamCache -UpstreamId "matlab_skills" -RepositoryPath $context.MatlabRepo
+
+    Write-ShellInput -Text "profile"
+    Show-SelectPrompt -Title "Profile options" -Options $ProfileMenuOptions -SelectedIndex 6
+    Show-TextPrompt -Title "Source locator" -Value "matlab/skills"
+    Invoke-CommandOutput -Arguments @("profile", "add-upstream", "--source", "matlab/skills")
+
+    Write-ShellInput -Text "list"
+    Show-SelectPrompt -Title "List options" -Options $ListMenuOptions -SelectedIndex 6
+    Show-SelectPrompt -Title "Upstream id" -Options $UpstreamChoiceOptions -SelectedIndex 0
+    Invoke-CommandOutput -Arguments @("list", "upstream-content", "--upstream", "matlab_skills")
+
+    Write-ShellInput -Text "profile"
+    Show-SelectPrompt -Title "Profile options" -Options $ProfileMenuOptions -SelectedIndex 3
+    Show-SelectPrompt -Title "Import source" -Options $ImportSourceOptions -SelectedIndex 0
+    Show-SelectPrompt -Title "Upstream" -Options $UpstreamChoiceOptions -SelectedIndex 0
+    Show-SelectPrompt -Title "Selection mode" -Options $ImportSelectionOptions -SelectedIndex 1
+    Show-TextPrompt -Title "Skill path" -Value "skills/matlab-test-generator"
+    Show-SelectPrompt -Title "After import" -Options $ImportPostActionOptions -SelectedIndex 0
+    Invoke-CommandOutput -Arguments @(
+      "profile",
+      "add-skill",
+      "personal",
+      "--upstream",
+      "matlab_skills",
+      "--path",
+      "skills/matlab-test-generator"
+    )
+  }
+
+  "agents-drift" {
+    Initialize-FullWorkspace
+    Remove-PathIfPresent -Path (Join-Path $env:HOME ".codex/skills/vendor_imports/openai_curated/spreadsheet")
+
+    Write-ShellInput -Text "agents"
+    Show-SelectPrompt -Title "Agents options" -Options $AgentsMenuOptions -SelectedIndex 0
+    Invoke-CommandOutput -Arguments @("agents", "inventory")
+
+    Write-ShellInput -Text "agents"
+    Show-SelectPrompt -Title "Agents options" -Options $AgentsMenuOptions -SelectedIndex 1
+    Invoke-CommandOutput -Arguments @("agents", "drift", "--dry-run")
   }
 
   "import-direct-from-source" {
@@ -475,13 +521,12 @@ switch ($Workflow) {
       "https://github.com/openai/skills/tree/main/skills/.curated",
       "--upstream-id",
       "openai_curated",
-      "--all",
-      "--build"
+      "--all"
     )
   }
 
   "list-and-search-skills" {
-    Initialize-FullWorkspace -BuildProfile
+    Initialize-FullWorkspace
 
     Write-ShellInput -Text "list"
     Show-SelectPrompt -Title "List options" -Options $ListMenuOptions -SelectedIndex 1
@@ -502,7 +547,7 @@ switch ($Workflow) {
   }
 
   "inspect-and-refresh-state" {
-    Initialize-FullWorkspace -BuildProfile
+    Initialize-FullWorkspace
     Update-MatlabRepository -RepositoryPath $context.MatlabRepo
 
     Write-ShellInput -Text "profile"
@@ -517,25 +562,12 @@ switch ($Workflow) {
     Write-ShellInput -Text "profile"
     Show-SelectPrompt -Title "Profile options" -Options $ProfileMenuOptions -SelectedIndex 2
     Show-SelectPrompt -Title "Upstream" -Options $UpstreamChoiceOptions -SelectedIndex 0
-    Show-SelectPrompt -Title "Refresh mode" -Options $RefreshModeOptions -SelectedIndex 2
-    Invoke-CommandOutput -Arguments @("profile", "refresh", "personal", "--upstream", "matlab_skills", "--build", "--apply")
-  }
-
-  "apply-selected-agents" {
-    Initialize-FullWorkspace -BuildProfile
-
-    Write-ShellInput -Text "apply"
-    Show-TextPrompt -Title "Agents" -Value "codex,claude"
-    Invoke-CommandOutput -Arguments @("apply", "--profile", "personal", "--agents", "codex,claude")
-
-    Write-ShellInput -Text "unlink"
-    Show-TextPrompt -Title "Agents" -Value "codex"
-    Show-SelectPrompt -Title "Dry-run" -Options $YesNoOptions -SelectedIndex 0
-    Invoke-CommandOutput -Arguments @("unlink", "--agents", "codex", "--dry-run")
+    Show-SelectPrompt -Title "Refresh mode" -Options $RefreshModeOptions -SelectedIndex 1
+    Invoke-CommandOutput -Arguments @("profile", "refresh", "personal", "--upstream", "matlab_skills")
   }
 
   "workspace-sync" {
-    Initialize-FullWorkspace -BuildProfile
+    Initialize-FullWorkspace
 
     Write-ShellInput -Text "workspace"
     Show-SelectPrompt -Title "Workspace options" -Options $WorkspaceMenuOptions -SelectedIndex 0

@@ -43,8 +43,7 @@ function getScaffoldFiles(localRoot, profileName) {
         "",
         "Workflow:",
         "1. Run `use <name>`",
-        "2. Run `build`",
-        "3. Run `apply`",
+        "2. Run `sync`",
         ""
       ].join("\n"),
       type: "text"
@@ -244,8 +243,7 @@ export async function cmdInit({ seed = false, dryRun = false, profile = null } =
     }
     process.stdout.write("\n");
     process.stdout.write("Next steps:\n");
-    process.stdout.write("  1) Run: build\n");
-    process.stdout.write("  2) Run: apply\n");
+    process.stdout.write("  1) Run: sync\n");
     return;
   }
 
@@ -289,7 +287,6 @@ export async function cmdInit({ seed = false, dryRun = false, profile = null } =
   process.stdout.write("\n");
   process.stdout.write("Next steps:\n");
   process.stdout.write(`  1) Run: use ${selectedProfile}\n`);
-  process.stdout.write("  2) Run: build\n");
-  process.stdout.write("  3) Run: apply\n");
-  process.stdout.write("  4) Run: doctor\n");
+  process.stdout.write("  2) Run: sync\n");
+  process.stdout.write("  3) Run: doctor\n");
 }

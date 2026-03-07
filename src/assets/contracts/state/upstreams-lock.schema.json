@@ -98,11 +98,17 @@
             ]
           },
           "resolvedRevision": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "minLength": 1
           },
           "latestRevision": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "minLength": 1
           },
           "contentHash": {

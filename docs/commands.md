@@ -11,8 +11,7 @@ Running `skills-sync` with no command opens interactive shell mode.
 ## Root Commands
 
 - `init [--seed] [--dry-run] [--profile <name>]`
-- `build [--profile <name>] [--lock read|write|refresh]`
-- `apply [--profile <name>] [--build] [--agents <comma-list>] [--dry-run]`
+- `sync [--profile <name>] [--agents <comma-list>] [--dry-run]`
 - `unlink [--agents <comma-list>] [--dry-run]`
 - `doctor [--profile <name>]`
 - `detect [--format text|json] [--agents <comma-list>]`
@@ -46,16 +45,16 @@ Running `skills-sync` with no command opens interactive shell mode.
 
 - `profile show [name] [--detail concise|full] [--agents <comma-list>] [--format text|json]`
 - `profile inspect [name] [--format text|json]`
-- `profile refresh [name] [--upstream <id>] [--path <repoPath> ...] [--all] [--build] [--apply] [--dry-run] [--format text|json]`
+- `profile refresh [name] [--upstream <id>] [--path <repoPath> ...] [--all] [--no-sync] [--dry-run] [--format text|json]`
 - `profile diff <left> <right> [--format text|json]`
 - `profile clone <source> <target>`
 - `profile new-skill <skillName> [--profile <name>] [--path <path>] [--frontmatter] [--include-scripts] [--include-references]`
-- `profile add-skill [name] [--upstream <id>] [--upstream-id <id>] [--source <locator>] [--provider auto|git|local-path] [--root <path>] [--path <repoPath> ...] [--all] [--interactive] [--ref <ref>] [--pin] [--dest-prefix <prefix>] [--build] [--apply]`
-- `profile remove-skill [name] [--upstream <id>] [--path <repoPath> ...] [--all] [--interactive] [--ref <ref>] [--dest-prefix <prefix>] [--prune-upstream] [--build] [--apply] [--yes]`
-- `profile add-mcp [name] [server] [--command <command> [--args <arg...> | --arg <arg>...] [--env <KEY=VALUE...>] | --url <url>]`
-- `profile remove-mcp [name] [server]`
+- `profile add-skill [name] [--upstream <id>] [--upstream-id <id>] [--source <locator>] [--provider auto|git|local-path] [--root <path>] [--path <repoPath> ...] [--all] [--interactive] [--ref <ref>] [--pin] [--dest-prefix <prefix>] [--no-sync]`
+- `profile remove-skill [name] [--upstream <id>] [--path <repoPath> ...] [--all] [--interactive] [--ref <ref>] [--dest-prefix <prefix>] [--prune-upstream] [--no-sync] [--yes]`
+- `profile add-mcp [name] [server] [--command <command> [--args <arg...> | --arg <arg>...] [--env <KEY=VALUE...>] | --url <url>] [--no-sync]`
+- `profile remove-mcp [name] [server] [--no-sync]`
 - `profile export [name] [--output <path>]`
-- `profile import [name] [--input <path>] [--replace]`
+- `profile import [name] [--input <path>] [--replace] [--no-sync]`
 - `profile add-upstream [id] [--source <locator>] [--repo <url>] [--provider auto|git|local-path] [--root <path>] [--default-ref <ref>] [--type git]`
 - `profile remove-upstream [id]`
 
@@ -65,6 +64,8 @@ Notes:
 - `--repo` remains supported as a backward-compatible alias for git sources
 - `profile add-skill` can auto-register an upstream from `--source`
 - `profile remove-skill` prompts for confirmation in TTY mode unless `--yes` is passed
+- these commands sync automatically unless `--no-sync` is passed:
+  `profile add-skill`, `profile remove-skill`, `profile add-mcp`, `profile remove-mcp`, `profile refresh`, `profile import`
 
 ## Upstream
 
@@ -100,10 +101,10 @@ Default manifest path: `workspace/skills-sync.manifest.json`
 
 - prompts appear only on interactive TTY terminals
 - `use [name]` and `new [name]` default to `personal`
-- `build`, `apply`, and `doctor` can omit `--profile` when a default profile is set
+- `sync` and `doctor` can omit `--profile` when a default profile is set
 - `workspace/skills-sync.lock.json` is the canonical imported-source lockfile
 - legacy `workspace/upstreams.lock.json` is read for migration but not written
-- unsupported optional skill capabilities are surfaced as warnings, not fatal import/apply errors
+- unsupported optional skill capabilities are surfaced as warnings, not fatal import/sync errors
 - unknown commands fail with `Unknown command. See: help`
 
 ## Interactive Shell Shortcuts

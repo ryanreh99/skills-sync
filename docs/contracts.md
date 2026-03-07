@@ -73,19 +73,16 @@ Required top-level keys:
 Per-tool target fields:
 - `skillsDir`: runtime skills directory target
 - `mcpConfig`: runtime MCP config target
-- `canOverride` (boolean): build projection policy for MCP config
+- `canOverride` (boolean): runtime projection policy for MCP config
   - `true`: dist MCP projection can be generated directly from canonical bundle
-  - `false`: build reads existing local config (if present) and only replaces MCP sections
+  - `false`: runtime artifact generation reads existing local config (if present) and only replaces MCP sections
 
-## Build Contract
+## Runtime Artifact Contract
 
 Canonical artifact:
 - `~/.skills-sync/internal/common/bundle.json`
 - `~/.skills-sync/internal/common/skills/`
 - `~/.skills-sync/internal/common/mcp.json`
-
-Schema:
-- `internal/contracts/build/bundle.schema.json`
 
 `~/.skills-sync/internal/common` is authoritative.  
 All other `dist/*` paths are projections.
@@ -102,7 +99,7 @@ Primary projections:
 
 ## Runtime Mutation Contract
 
-`apply` behavior:
+`sync` behavior:
 - skills directories are linked where supported
 - MCP config is merged under `skills-sync__*` namespace
 - unmanaged user entries are preserved

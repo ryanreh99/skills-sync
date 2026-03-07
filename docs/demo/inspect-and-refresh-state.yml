@@ -130,7 +130,7 @@
                     },
                     {
                         "delay":  56,
-                        "content":  "\u001b[90m  sync    -\u003e build -\u003e apply\u001b[0m\r\n"
+                        "content":  "\u001b[90m  sync    -\u003e sync | sync --dry-run\u001b[0m\r\n"
                     },
                     {
                         "delay":  56,
@@ -214,7 +214,7 @@
                     },
                     {
                         "delay":  70,
-                        "content":  "Capability mismatches: 0\r\n"
+                        "content":  "Capability mismatches: 15\r\n"
                     },
                     {
                         "delay":  70,
@@ -278,7 +278,7 @@
                     },
                     {
                         "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mRefresh mode\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mdry-run                \u001b[0m  \u001b[90mpreview changes only\u001b[0m\r\n  refresh only             \u001b[90mupdate lock state without build/apply\u001b[0m\r\n  refresh + build + apply  \u001b[90mupdate and materialize immediately\u001b[0m\r\n"
+                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mRefresh mode\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mdry-run             \u001b[0m  \u001b[90mpreview changes only\u001b[0m\r\n  refresh and sync      \u001b[90mupdate lock state and agent targets\u001b[0m\r\n  refresh without sync  \u001b[90mupdate lock state only\u001b[0m\r\n"
                     },
                     {
                         "delay":  360,
@@ -350,19 +350,23 @@
                     },
                     {
                         "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mRefresh mode\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mdry-run                \u001b[0m  \u001b[90mpreview changes only\u001b[0m\r\n  refresh only             \u001b[90mupdate lock state without build/apply\u001b[0m\r\n  refresh + build + apply  \u001b[90mupdate and materialize immediately\u001b[0m\r\n"
+                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mRefresh mode\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mdry-run             \u001b[0m  \u001b[90mpreview changes only\u001b[0m\r\n  refresh and sync      \u001b[90mupdate lock state and agent targets\u001b[0m\r\n  refresh without sync  \u001b[90mupdate lock state only\u001b[0m\r\n"
                     },
                     {
                         "delay":  320,
-                        "content":  "\u001b[4A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mRefresh mode\u001b[0m\r\n\u001b[2K\r  dry-run                  \u001b[90mpreview changes only\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mrefresh only           \u001b[0m  \u001b[90mupdate lock state without build/apply\u001b[0m\r\n\u001b[2K\r  refresh + build + apply  \u001b[90mupdate and materialize immediately\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[4A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mRefresh mode\u001b[0m\r\n\u001b[2K\r  dry-run                  \u001b[90mpreview changes only\u001b[0m\r\n\u001b[2K\r  refresh only             \u001b[90mupdate lock state without build/apply\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mrefresh + build + apply\u001b[0m  \u001b[90mupdate and materialize immediately\u001b[0m\r\n"
+                        "content":  "\u001b[4A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mRefresh mode\u001b[0m\r\n\u001b[2K\r  dry-run               \u001b[90mpreview changes only\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mrefresh and sync    \u001b[0m  \u001b[90mupdate lock state and agent targets\u001b[0m\r\n\u001b[2K\r  refresh without sync  \u001b[90mupdate lock state only\u001b[0m\r\n"
                     },
                     {
                         "delay":  360,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Built profile \u0027personal\u0027.\r\n"
+                        "content":  "Profile refresh for \u0027personal\u0027: changed=1 unchanged=0 pinned=0 errors=0\r\n"
+                    },
+                    {
+                        "delay":  70,
+                        "content":  "  matlab_skills:skills/matlab-test-generator\tchanged\r\n"
+                    },
+                    {
+                        "delay":  70,
+                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Prepared runtime artifacts for profile \u0027personal\u0027.\r\n"
                     },
                     {
                         "delay":  70,
@@ -370,23 +374,11 @@
                     },
                     {
                         "delay":  70,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Next step: run apply.\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Applied profile \u0027personal\u0027.\r\n"
+                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Synced profile \u0027personal\u0027.\r\n"
                     },
                     {
                         "delay":  70,
                         "content":  "\u001b[1;36m[skills-sync]\u001b[0m Target OS: windows\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "Profile refresh for \u0027personal\u0027: changed=1 unchanged=0 pinned=0 errors=0\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "  matlab_skills:skills/matlab-test-generator\tchanged\r\n"
                     },
                     {
                         "delay":  440,

@@ -21,6 +21,10 @@ function normalizeOptionalText(value) {
   return normalized.length > 0 ? normalized : null;
 }
 
+function resolveWorkspaceManifestInputPath(input) {
+  return path.resolve(normalizeOptionalText(input) || WORKSPACE_MANIFEST_PATH);
+}
+
 async function readJsonIfExists(filePath, fallbackValue) {
   if (!(await fs.pathExists(filePath))) {
     return fallbackValue;
@@ -93,6 +97,24 @@ async function validateManifest(manifest) {
   await assertObjectMatchesSchema(manifest, SCHEMAS.workspaceManifest, "workspace manifest");
 }
 
+async function loadWorkspaceManifestInput(input) {
+  const normalizedInput = normalizeOptionalText(input);
+  const inputPath = resolveWorkspaceManifestInputPath(normalizedInput);
+
+  if (!(await fs.pathExists(inputPath))) {
+    if (normalizedInput) {
+      throw new Error(`Workspace manifest not found at '${inputPath}'.`);
+    }
+    throw new Error(
+      `Workspace manifest not found at '${inputPath}'. Run 'workspace export' first or pass --input <path>.`
+    );
+  }
+
+  const manifest = await readJsonFile(inputPath);
+  await validateManifest(manifest);
+  return { inputPath, manifest };
+}
+
 function diffNameSets(left, right) {
   const leftSet = new Set(left);
   const rightSet = new Set(right);
@@ -141,9 +163,7 @@ export async function cmdWorkspaceExport({ output } = {}) {
 }
 
 export async function cmdWorkspaceImport({ input, replace = false } = {}) {
-  const inputPath = path.resolve(normalizeOptionalText(input) || WORKSPACE_MANIFEST_PATH);
-  const manifest = await readJsonFile(inputPath);
-  await validateManifest(manifest);
+  const { inputPath, manifest } = await loadWorkspaceManifestInput(input);
 
   await writeJsonFile(path.join(LOCAL_OVERRIDES_ROOT, "upstreams.json"), {
     schemaVersion: 2,
@@ -164,9 +184,7 @@ export async function cmdWorkspaceImport({ input, replace = false } = {}) {
 }
 
 export async function cmdWorkspaceDiff({ input, format = "text" } = {}) {
-  const inputPath = path.resolve(normalizeOptionalText(input) || WORKSPACE_MANIFEST_PATH);
-  const manifest = await readJsonFile(inputPath);
-  await validateManifest(manifest);
+  const { inputPath, manifest } = await loadWorkspaceManifestInput(input);
   const live = await buildWorkspaceManifest();
 
   const profileDiff = diffNameSets(

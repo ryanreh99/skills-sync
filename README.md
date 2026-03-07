@@ -7,19 +7,19 @@
 
 ## What It Does
 
-`skills-sync` keeps environment state in a workspace and materializes that state into supported agents.
+`skills-sync` keeps environment state in a workspace and syncs it into supported agents from one profile-driven source of truth.
 
 It manages:
 
-- local skills stored in profile packs
-- imported skills tracked from repos or local paths
-- sources and upstreams used to discover and refresh skills
-- MCP server configuration per profile
-- deterministic build output before anything is applied
-- runtime materialization into agent-specific directories and config files
-- refresh, inspect, drift, and reconcile operations after initial setup
+- profiles, packs, and profile-scoped MCP server and skills configuration
+- local skills plus imported skills from git repos, repo subdirectories, or local paths
+- sources and upstreams for discovery, attachment, refresh, and provenance tracking
+- lock state, revision tracking, and inventory views for installed and imported content
+- profile inspection and upstream skills refresh so you can review what a profile contains, where imported skills came from, and pull in upstream updates
+- drift checks across local agents so you can compare expected state with what is installed locally and spot missing or changed skills and MCP config
+- workspace manifest export, diff, import, and reconcile workflows
 
-In practice, this means you define an environment once and apply it to multiple agents.
+In practice, this means you define an environment once and sync it to multiple agents.
 
 ## Supported Agents
 
@@ -40,27 +40,16 @@ npm i -g @ryanreh99/skills-sync
 This is a realistic first-use flow:
 
 ```bash
-# initialize the local workspace
+# initialize the local workspace with starter content
 skills-sync init --seed
 
-# register a source of external skills
-skills-sync profile add-upstream --source matlab/skills
+# Use the default skills-sync profile
+skills-sync use personal
 
-# inspect what that source contains
-skills-sync list upstream-content --upstream matlab_skills
-
-# attach one skill to the personal profile
-skills-sync profile add-skill personal --upstream matlab_skills --path skills/matlab-test-generator
-
-# build deterministic runtime output
-skills-sync build --profile personal
-
-# apply that output to agent locations
-skills-sync apply --profile personal
-
-# inspect the resulting profile inventory and source state
-skills-sync profile inspect personal
+# sync runtime output to all agent locations
+skills-sync sync
 ```
+
 
 ## Core Concepts
 
@@ -68,18 +57,53 @@ skills-sync profile inspect personal
 - `Upstream`: a source registered in the workspace so it can be discovered, attached, refreshed, and tracked.
 - `Profile`: a named environment containing skills, imported sources, and MCP configuration.
 - `Inventory`: the managed view of skills, provenance, revisions, install state, and agent materialization.
-- `Build`: compute the desired runtime output for a profile without touching agent installs.
-- `Apply`: materialize the built output into the directories and config files used by supported agents.
+- `Sync`: the recommended workflow that prepares runtime artifacts and updates supported agents.
 
 ## Common Workflows
 
-Register an upstream:
+These commands sync automatically unless you pass `--no-sync`: `profile add-skill`, `profile remove-skill`, `profile add-mcp`, `profile remove-mcp`, `profile refresh`, and `profile import`.
 
-![Register an upstream demo](docs/demo/register-upstream.gif)
+### How to add skills from an upstream:
+
+![How to add skills from an upstream demo](docs/demo/add-skills-from-upstream.gif)
+
 
 ```bash
-skills-sync upstream add --source matlab/skills
-skills-sync list upstreams
+skills-sync profile add-upstream --source matlab/skills
+skills-sync list upstream-content --upstream matlab_skills
+skills-sync profile add-skill --upstream matlab_skills --path skills/matlab-test-generator
+```
+
+
+### Check drift across local agents:
+
+![Check drift across local agents demo](docs/demo/agents-drift.gif)
+
+```bash
+skills-sync agents inventory
+skills-sync agents drift --dry-run
+```
+
+
+### Inspect and refresh upstream skills:
+
+![Inspect and refresh imported state demo](docs/demo/inspect-and-refresh-state.gif)
+
+```bash
+skills-sync profile inspect personal
+skills-sync profile refresh personal --dry-run
+skills-sync profile refresh personal --upstream matlab_skills
+```
+
+
+### List and search skills:
+
+![List and search skills demo](docs/demo/list-and-search-skills.gif)
+
+```bash
+skills-sync list skills --profile personal --detail full
+skills-sync search skills --query matlab --scope discoverable
+skills-sync search skills --query spreadsheet --profile personal --scope installed
 ```
 
 Import directly from a source without registering it first:
@@ -90,71 +114,15 @@ Import directly from a source without registering it first:
 skills-sync profile add-skill personal \
   --source https://github.com/openai/skills/tree/main/skills/.curated \
   --upstream-id openai_curated \
-  --all \
-  --build
+  --all
 ```
 
-List and search skills:
-
-![List and search skills demo](docs/demo/list-and-search-skills.gif)
+### Export and import a profile:
 
 ```bash
-skills-sync list skills --profile personal --detail full
-skills-sync search skills --query matlab --scope discoverable
-skills-sync search skills --query spreadsheet --profile personal --scope installed
+skills-sync profile export personal --output personal-export.json
+skills-sync profile import personal_copy --input personal-export.json
 ```
-
-Inspect and refresh imported state:
-
-![Inspect and refresh imported state demo](docs/demo/inspect-and-refresh-state.gif)
-
-```bash
-skills-sync profile inspect personal
-skills-sync profile refresh personal --dry-run
-skills-sync profile refresh personal --upstream matlab_skills --build --apply
-```
-
-Apply to selected agents only:
-
-![Apply to selected agents demo](docs/demo/apply-selected-agents.gif)
-
-```bash
-skills-sync apply --profile personal --agents codex,claude
-skills-sync unlink --agents codex --dry-run
-```
-
-Export or sync workspace state:
-
-![Export or sync workspace state demo](docs/demo/workspace-sync.gif)
-
-```bash
-skills-sync workspace export
-skills-sync workspace diff --format json
-skills-sync workspace sync --dry-run
-```
-
-## Capability Handling Across Agents
-
-`skills-sync` manages full skill directories, not just `SKILL.md`.
-
-- optional files such as scripts, helpers, references, assets, and frontmatter are preserved
-- agents can consume different subsets of the same skill
-- if an agent ignores an optional capability, that does not block import, build, apply, or refresh
-- capability mismatches are surfaced through inventory, `profile inspect`, `doctor`, and `agents drift`
-
-The baseline portable unit is still the instruction content in `SKILL.md`, but the full directory remains the managed artifact.
-
-## Workspace State And Files
-
-Important workspace files:
-
-- `workspace/upstreams.json`: registered upstreams and their normalized source descriptors
-- `workspace/profiles/<name>.json`: profile metadata, including pack location and inheritance settings
-- `workspace/packs/<profile>/sources.json`: imported skill bindings for a profile
-- `workspace/packs/<profile>/mcp/servers.json`: MCP servers defined for a profile
-- `workspace/skills-sync.lock.json`: resolved imported-source state, revisions, hashes, and refresh metadata
-- `workspace/skills-sync.manifest.json`: exported whole-workspace state for restore or reconcile workflows
-- `workspace/state/active-profile.json`: current applied runtime state used by `apply`, `unlink`, and drift checks
 
 ## Documentation
 

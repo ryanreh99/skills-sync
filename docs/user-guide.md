@@ -6,17 +6,15 @@ The normal workflow is:
 
 1. register or reference an external source
 2. attach skills to a profile
-3. build deterministic runtime artifacts
-4. apply them to one or more agents
-5. inspect, refresh, or reconcile later
+3. run `skills-sync sync`
+4. inspect, refresh, or reconcile later
 
 ## Initialize a Workspace
 
 ```bash
 skills-sync init --seed
 skills-sync use personal
-skills-sync build
-skills-sync apply
+skills-sync sync
 ```
 
 Check the current environment:
@@ -35,7 +33,7 @@ Register an upstream explicitly:
 ```bash
 skills-sync upstream add anthropic --source anthropics/skills
 skills-sync list upstream-content --upstream anthropic
-skills-sync profile add-skill personal --upstream anthropic --path skills/frontend-design --build --apply
+skills-sync profile add-skill personal --upstream anthropic --path skills/frontend-design
 ```
 
 Or import directly from an ad hoc source:
@@ -44,8 +42,7 @@ Or import directly from an ad hoc source:
 skills-sync profile add-skill personal \
   --source https://github.com/openai/skills/tree/main/skills/.curated \
   --upstream-id openai_curated \
-  --all \
-  --build
+  --all
 ```
 
 Local path sources are first-class too:
@@ -74,9 +71,16 @@ skills-sync list upstream-content --upstream anthropic --verbose
 skills-sync list upstream-content --source ./team-skills --provider local-path --format json
 ```
 
-## Inventory and Agent Tolerance
+## Capability Handling Across Agents
 
-Instruction content from `SKILL.md` is the baseline portable unit. Optional scripts, assets, references, helpers, and frontmatter are preserved even when some agents only consume part of them.
+`skills-sync` manages full skill directories, not just `SKILL.md`.
+
+- optional files such as scripts, helpers, references, assets, and frontmatter are preserved
+- agents can consume different subsets of the same skill
+- if an agent ignores an optional capability, that does not block import, sync, or refresh
+- capability mismatches are surfaced through inventory, `profile inspect`, `doctor`, and `agents drift`
+
+The baseline portable unit is still the instruction content in `SKILL.md`, but the full directory remains the managed artifact.
 
 Use these commands to inspect that state:
 
@@ -86,7 +90,7 @@ skills-sync profile inspect personal
 skills-sync agents drift --dry-run
 ```
 
-Capability mismatches are surfaced as warnings or metadata. They do not block import, build, apply, or refresh on their own.
+Capability mismatches are surfaced as warnings or metadata. They do not block import, sync, or refresh on their own.
 
 ## Refresh Imported Skills
 
@@ -96,21 +100,20 @@ Preview changes:
 skills-sync profile refresh personal --dry-run
 ```
 
-Refresh one source and rebuild:
+Refresh one source and sync:
 
 ```bash
-skills-sync profile refresh personal --upstream anthropic --build --apply
+skills-sync profile refresh personal --upstream anthropic
 ```
 
 Imported-source state is stored in `workspace/skills-sync.lock.json`.
+These commands sync automatically unless you pass `--no-sync`: `profile add-skill`, `profile remove-skill`, `profile add-mcp`, `profile remove-mcp`, `profile refresh`, and `profile import`.
 
 ## Remove Skills Cleanly
 
 ```bash
 skills-sync profile remove-skill personal --upstream anthropic --path skills/frontend-design --yes
 skills-sync profile remove-skill personal --upstream team_skills --all --prune-upstream --yes
-skills-sync build
-skills-sync apply
 ```
 
 Use `unlink --agents ...` when you only want to remove runtime materialization from selected agents.
@@ -152,6 +155,18 @@ skills-sync workspace sync --dry-run
 skills-sync workspace sync
 ```
 
+## Workspace State And Files
+
+Important workspace files:
+
+- `workspace/upstreams.json`: registered upstreams and their normalized source descriptors
+- `workspace/profiles/<name>.json`: profile metadata, including pack location and inheritance settings
+- `workspace/packs/<profile>/sources.json`: imported skill bindings for a profile
+- `workspace/packs/<profile>/mcp/servers.json`: MCP servers defined for a profile
+- `workspace/skills-sync.lock.json`: resolved imported-source state, revisions, hashes, and refresh metadata
+- `workspace/skills-sync.manifest.json`: exported whole-workspace state for restore or reconcile workflows
+- `workspace/state/active-profile.json`: current synced runtime state used by `unlink` and drift checks
+
 ## Interactive Shell
 
 Run `skills-sync` with no arguments to open shell mode.
@@ -170,8 +185,7 @@ Example:
 
 ```text
 skills-sync
-skills-sync(personal) > build
-skills-sync(personal) > apply --agents codex,claude
+skills-sync(personal) > sync --agents codex,claude
 skills-sync(personal) > profile inspect
 skills-sync(personal) > workspace diff
 skills-sync(personal) > exit

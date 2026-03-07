@@ -148,6 +148,6 @@ If a field is not clearly documented in official docs, it is marked **UNVERIFIED
 
 ## Conservative defaults used by this repo
 
-- `apply` manages **user-level targets only** by default.
-- Cursor adapter uses copy+aliases projection (same as Gemini) — skills are copied to `dist/.cursor/skills` with flat `vendor__*` aliases for any nested skill paths, then bound to `~/.cursor/skills` at apply time.
+- `sync` manages **user-level targets only** by default.
+- Cursor adapter uses copy+aliases projection (same as Gemini) — skills are copied to `dist/.cursor/skills` with flat `vendor__*` aliases for any nested skill paths, then bound to `~/.cursor/skills` during runtime sync.
 - When schema/path behavior is ambiguous, docs are preserved in this file and implementation avoids destructive assumptions.

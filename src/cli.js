@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { buildProfile } from "./lib/build.js";
-import { cmdApply, cmdUnlink } from "./lib/bindings.js";
+import { applyBindings, cmdApply, cmdUnlink } from "./lib/bindings.js";
 import { cmdAgentDrift, cmdAgentInventory, cmdListAgents } from "./lib/agents.js";
 import { cmdDetect } from "./lib/detect.js";
 import { cmdDoctor } from "./lib/doctor.js";
@@ -63,6 +63,7 @@ import { cmdWorkspaceDiff, cmdWorkspaceExport, cmdWorkspaceImport, cmdWorkspaceS
 const VALID_BUILD_LOCK_MODES = new Set(["read", "write", "refresh"]);
 const KNOWN_ROOT_COMMANDS = new Set([
   "init",
+  "sync",
   "build",
   "apply",
   "doctor",
@@ -437,7 +438,7 @@ async function confirmProfileMutation({
   const selection = await promptForSelect({
     message,
     options: [
-      { value: "yes", label: "continue", hint: "apply the requested change" },
+      { value: "yes", label: "continue", hint: "perform the requested change" },
       { value: "no", label: "cancel", hint: "abort without changes" }
     ]
   });
@@ -747,6 +748,18 @@ async function cmdBuild(profileName, lockModeRaw) {
   await buildProfile(resolvedProfile, { lockMode });
 }
 
+async function cmdSync(profileName, options = {}) {
+  const resolvedProfile = await resolveProfileForBuild(profileName);
+  await buildProfile(resolvedProfile, { lockMode: "write", suggestNextStep: false });
+  if (options.dryRun === true) {
+    return applyBindings(resolvedProfile, {
+      dryRun: true,
+      agents: options.agents
+    });
+  }
+  return cmdApply(resolvedProfile, { agents: options.agents });
+}
+
 async function cmdApplyWithOptionalBuild(profileName, shouldBuild, options = {}) {
   const normalizedProfile = normalizeOptionalText(profileName);
   let resolvedProfile = normalizedProfile ?? await readDefaultProfile();
@@ -756,12 +769,27 @@ async function cmdApplyWithOptionalBuild(profileName, shouldBuild, options = {})
         value: null,
         label: "Profile name",
         placeholder: "personal",
-        missingMessage: "apply --build requires an active profile. Set one with 'use <name>'."
+        missingMessage: "An active profile is required. Set one with 'use <name>'."
       });
     }
     await buildProfile(resolvedProfile, { lockMode: "write", suggestNextStep: false });
   }
   await cmdApply(resolvedProfile, { dryRun: options.dryRun === true, agents: options.agents });
+}
+
+async function runPostMutationSync(profileName, options = {}) {
+  const { noSync = false, build = false, apply = false } = options;
+  if (noSync === true) {
+    if (apply === true) {
+      await cmdSync(profileName);
+      return;
+    }
+    if (build === true) {
+      await buildProfile(profileName, { lockMode: "write", suggestNextStep: false });
+    }
+    return;
+  }
+  await cmdSync(profileName);
 }
 
 function createProgram() {
@@ -776,6 +804,23 @@ function createProgram() {
       writeErr: (str) => process.stderr.write(styleHelpOutput(str, process.stderr)),
       outputError: () => {}
     });
+  program.addHelpText(
+    "after",
+    [
+      "",
+      "Typical workflow:",
+      "  1. Edit or add skills/MCPs",
+      "  2. Run:",
+      "",
+      "     skills-sync sync",
+      "",
+      "Preview changes without modifying agents:",
+      "",
+      "  skills-sync sync --dry-run",
+      "",
+      "Profile mutations sync automatically unless you pass --no-sync."
+    ].join("\n")
+  );
 
   program
     .command("init")
@@ -791,15 +836,27 @@ function createProgram() {
       }));
 
   program
-    .command("build")
-    .description("Build deterministic runtime artifacts from a profile.")
+    .command("sync")
+    .description("Recommended: prepare runtime artifacts and sync them to agent targets.")
+    .option("--profile <name>", "profile name (falls back to default profile)")
+    .option("--agents <agents>", "optional comma-separated agent filter, e.g. codex,claude")
+    .option("--dry-run", "prepare runtime artifacts and preview sync changes without modifying agents")
+    .action((options) =>
+      cmdSync(options.profile, {
+        dryRun: options.dryRun === true,
+        agents: options.agents
+      }));
+
+  program
+    .command("build", { hidden: true })
+    .description("Advanced: build deterministic runtime artifacts from a profile.")
     .option("--profile <name>", "profile name (falls back to default profile)")
     .option("--lock <mode>", "lock mode: read|write|refresh", "write")
     .action((options) => cmdBuild(options.profile, options.lock));
 
   program
-    .command("apply")
-    .description("Bind prebuilt runtime artifacts to tool target paths.")
+    .command("apply", { hidden: true })
+    .description("Advanced: bind prebuilt runtime artifacts to tool target paths.")
     .option("--profile <name>", "profile name (optional; defaults to runtime bundle profile)")
     .option("--build", "run build before applying")
     .option("--agents <agents>", "optional comma-separated agent filter, e.g. codex,claude")
@@ -812,7 +869,7 @@ function createProgram() {
 
   program
     .command("unlink")
-    .description("Remove bindings created by apply using state file.")
+    .description("Remove managed runtime bindings using the state file.")
     .option("--agents <agents>", "optional comma-separated agent filter, e.g. codex,claude")
     .option("--dry-run", "show what unlink would remove without mutating filesystem")
     .action((options) => cmdUnlink({ dryRun: options.dryRun === true, agents: options.agents }));
@@ -989,25 +1046,35 @@ function createProgram() {
       }));
   profileCommand
     .command("refresh [name]")
-    .description("Refresh imported skills for a profile and optionally rebuild/re-apply.")
+    .description("Refresh imported skills for a profile.")
     .option("--upstream <id>", "limit refresh to a single upstream")
     .option("--path <repoPath>", "imported skill selection path", collectOptionValues, [])
     .option("--all", "refresh all imported skills")
-    .option("--build", "run build after refresh")
-    .option("--apply", "run build + apply after refresh")
+    .addOption(new Option("--build", "internal: with --no-sync, update runtime artifacts after refresh").hideHelp())
+    .addOption(new Option("--apply", "internal: with --no-sync, update agent targets after refresh").hideHelp())
+    .option("--no-sync", "skip the automatic sync after refresh")
     .option("--dry-run", "show refresh results without writing lock state")
     .option("--format <format>", "output format: text|json", "text")
-    .action(async (name, options) =>
-      cmdProfileRefresh({
-        profile: await resolveProfileForProfileMutation(name, "profile refresh [name]"),
+    .action(async (name, options) => {
+      const profile = await resolveProfileForProfileMutation(name, "profile refresh [name]");
+      await cmdProfileRefresh({
+        profile,
         upstream: normalizeOptionalText(options.upstream),
         skillPaths: Array.isArray(options.path) ? options.path : [],
         all: options.all === true,
-        build: options.build === true || options.apply === true,
-        apply: options.apply === true,
+        build: false,
+        apply: false,
         dryRun: options.dryRun === true,
         format: parseFormatOption(options.format)
-      }));
+      });
+      if (options.dryRun !== true) {
+        await runPostMutationSync(profile, {
+          noSync: options.sync === false,
+          build: options.build === true,
+          apply: options.apply === true
+        });
+      }
+    });
   profileCommand
     .command("show [name]")
     .description("Show skills and MCP servers for a profile (defaults to current profile).")
@@ -1038,8 +1105,9 @@ function createProgram() {
     .option("--ref <ref>", "ref/branch/tag (defaults to upstream defaultRef)")
     .option("--pin", "track the import as pinned instead of floating")
     .option("--dest-prefix <prefix>", "destination prefix in bundled skills tree")
-    .option("--build", "run build after attaching the skill")
-    .option("--apply", "run build + apply after attaching the skill")
+    .addOption(new Option("--build", "internal: with --no-sync, update runtime artifacts after attaching the skill").hideHelp())
+    .addOption(new Option("--apply", "internal: with --no-sync, update agent targets after attaching the skill").hideHelp())
+    .option("--no-sync", "skip the automatic sync after attaching the skill")
     .action(async (name, options) => {
       const profile = await resolveProfileForProfileMutation(name, "profile add-skill [name]");
       const upstream = normalizeOptionalText(options.upstream);
@@ -1061,7 +1129,7 @@ function createProgram() {
         interactive: options.interactive === true
       });
 
-      return cmdProfileAddSkill({
+      await cmdProfileAddSkill({
         profile,
         upstream: resolvedUpstream,
         source,
@@ -1073,7 +1141,12 @@ function createProgram() {
         ref: options.ref,
         pin: options.pin === true,
         destPrefix: options.destPrefix,
-        build: options.build === true || options.apply === true,
+        build: false,
+        apply: false
+      });
+      await runPostMutationSync(profile, {
+        noSync: options.sync === false,
+        build: options.build === true,
         apply: options.apply === true
       });
     });
@@ -1087,8 +1160,9 @@ function createProgram() {
     .option("--ref <ref>", "optional ref filter")
     .option("--dest-prefix <prefix>", "optional destination prefix filter")
     .option("--prune-upstream", "remove an upstream registration if nothing else references it")
-    .option("--build", "run build after removing the skill")
-    .option("--apply", "run build + apply after removing the skill")
+    .addOption(new Option("--build", "internal: with --no-sync, update runtime artifacts after removing the skill").hideHelp())
+    .addOption(new Option("--apply", "internal: with --no-sync, update agent targets after removing the skill").hideHelp())
+    .option("--no-sync", "skip the automatic sync after removing the skill")
     .option("--yes", "skip the confirmation prompt")
     .action(async (name, options) => {
       const profile = await resolveProfileForProfileMutation(name, "profile remove-skill [name]");
@@ -1120,12 +1194,11 @@ function createProgram() {
         });
       }
 
-      if (options.build === true || options.apply === true) {
-        await buildProfile(profile, { lockMode: "write" });
-      }
-      if (options.apply === true) {
-        await cmdApply(profile, { dryRun: false });
-      }
+      await runPostMutationSync(profile, {
+        noSync: options.sync === false,
+        build: options.build === true,
+        apply: options.apply === true
+      });
     });
   profileCommand
     .command("new-skill <skillName>")
@@ -1157,6 +1230,7 @@ function createProgram() {
       []
     )
     .option("--env <entries...>", "optional env vars as KEY=VALUE entries")
+    .option("--no-sync", "skip the automatic sync after adding or updating the MCP server")
     .action(async (name, server, options) => {
       const resolved = await resolveMcpProfileAndServerArgs({
         profileArg: name,
@@ -1170,7 +1244,7 @@ function createProgram() {
         args: resolvedArgs,
         env: options.env
       });
-      return cmdProfileAddMcp({
+      await cmdProfileAddMcp({
         profile: resolved.profile,
         name: resolved.server,
         command: resolvedTransport.command,
@@ -1178,19 +1252,26 @@ function createProgram() {
         args: resolvedTransport.args,
         env: resolvedTransport.env
       });
+      await runPostMutationSync(resolved.profile, {
+        noSync: options.sync === false
+      });
     });
   profileCommand
     .command("remove-mcp [name] [server]")
     .description("Remove an MCP server from a profile (defaults to current profile when omitted).")
-    .action(async (name, server) => {
+    .option("--no-sync", "skip the automatic sync after removing the MCP server")
+    .action(async (name, server, options) => {
       const resolved = await resolveMcpProfileAndServerArgs({
         profileArg: name,
         serverArg: server,
         commandName: "profile remove-mcp"
       });
-      return cmdProfileRemoveMcp({
+      await cmdProfileRemoveMcp({
         profile: resolved.profile,
         name: resolved.server
+      });
+      await runPostMutationSync(resolved.profile, {
+        noSync: options.sync === false
       });
     });
   profileCommand
@@ -1225,14 +1306,16 @@ function createProgram() {
     .description("Import profile config JSON.")
     .option("--input <path>", "path to exported profile JSON")
     .option("--replace", "overwrite existing local profile files if present")
-    .action(async (name, options) =>
-      cmdProfileImport({
-        profile: await resolveRequiredTextOption({
-          value: name,
-          label: "Profile name",
-          placeholder: "imported-profile",
-          missingMessage: "Profile name is required. Usage: profile import <name>."
-        }),
+    .option("--no-sync", "skip the automatic sync after importing the profile")
+    .action(async (name, options) => {
+      const profile = await resolveRequiredTextOption({
+        value: name,
+        label: "Profile name",
+        placeholder: "imported-profile",
+        missingMessage: "Profile name is required. Usage: profile import <name>."
+      });
+      await cmdProfileImport({
+        profile,
         input: await resolveRequiredTextOption({
           value: options.input,
           label: "Import file path",
@@ -1240,7 +1323,11 @@ function createProgram() {
           missingMessage: "--input <path> is required."
         }),
         replace: options.replace === true
-      }));
+      });
+      await runPostMutationSync(profile, {
+        noSync: options.sync === false
+      });
+    });
   profileCommand
     .command("add-upstream [id]")
     .description("Register an external source as an upstream (profile workflow alias).")
@@ -1397,7 +1484,7 @@ function createProgram() {
   program
     .command("shell")
     .description("Launch interactive shell mode with command completion and colorized prompts.")
-    .option("--profile <name>", "optional shell profile context for build/apply/doctor commands")
+    .option("--profile <name>", "optional shell profile context for sync/doctor commands")
     .action((options) =>
       cmdShell({
         profile: options.profile,

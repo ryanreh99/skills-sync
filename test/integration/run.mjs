@@ -24,6 +24,7 @@ import * as suiteApply from "./suites/apply.mjs";
 import * as suiteAgent from "./suites/agent.mjs";
 import * as suiteUnlink from "./suites/unlink.mjs";
 import * as suiteDoctor from "./suites/doctor.mjs";
+import * as suiteSync from "./suites/sync.mjs";
 
 const runtimePath = path.join(repoRoot, ".tmp-test-runtime");
 const localBackupPath = path.join(testHomePath, ".tmp-test-workspace-backup");
@@ -84,6 +85,9 @@ async function runTests() {
 
     // Phase 9: doctor (depends on runtime artifacts from Phase 7)
     await runSuite("doctor", () => suiteDoctor.run(ctx));
+
+    // Phase 10: sync UX and mutation auto-sync behaviour
+    await runSuite("sync", () => suiteSync.run(ctx));
   } finally {
     await fs.rm(localOverridesPath, { recursive: true, force: true });
     await fs.rm(distPath, { recursive: true, force: true });

@@ -9,10 +9,11 @@ function Get-RepoRoot {
 function Get-DemoWorkflows {
   return @(
     "register-upstream",
+    "add-skills-from-upstream",
+    "agents-drift",
     "import-direct-from-source",
     "list-and-search-skills",
     "inspect-and-refresh-state",
-    "apply-selected-agents",
     "workspace-sync"
   )
 }
@@ -111,6 +112,38 @@ function Invoke-CheckedNative {
   }
 }
 
+function Invoke-CheckedNativeAllowStderr {
+  param(
+    [Parameter(Mandatory)][string]$FilePath,
+    [Parameter()][string[]]$Arguments = @(),
+    [Parameter()][string]$WorkingDirectory = (Get-RepoRoot),
+    [Parameter()][switch]$Quiet
+  )
+
+  $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+  $PSNativeCommandUseErrorActionPreference = $false
+  try {
+    Push-Location $WorkingDirectory
+    try {
+      $output = & $FilePath @Arguments 2>&1
+      $exitCode = $LASTEXITCODE
+    } finally {
+      Pop-Location
+    }
+  } finally {
+    $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+  }
+
+  if ($exitCode -ne 0) {
+    $rendered = if ($output) { ($output -join "`n").Trim() } else { "" }
+    throw "Command failed: $FilePath $($Arguments -join ' ')`n$rendered"
+  }
+
+  if (-not $Quiet) {
+    return $output
+  }
+}
+
 function Convert-NativeOutputToText {
   param([Parameter()]$Output)
 
@@ -135,6 +168,13 @@ function Invoke-SkillsSyncHidden {
 
   $allArguments = @((Get-SkillsSyncEntryPoint)) + $Arguments
   Invoke-CheckedNative -FilePath "node" -Arguments $allArguments -Quiet
+}
+
+function Invoke-SkillsSyncHiddenAllowStderr {
+  param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+
+  $allArguments = @((Get-SkillsSyncEntryPoint)) + $Arguments
+  Invoke-CheckedNativeAllowStderr -FilePath "node" -Arguments $allArguments -Quiet
 }
 
 function Invoke-SkillsSyncVisible {

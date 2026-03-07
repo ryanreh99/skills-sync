@@ -130,7 +130,7 @@
                     },
                     {
                         "delay":  56,
-                        "content":  "\u001b[90m  sync    -\u003e build -\u003e apply\u001b[0m\r\n"
+                        "content":  "\u001b[90m  sync    -\u003e sync | sync --dry-run\u001b[0m\r\n"
                     },
                     {
                         "delay":  56,
@@ -538,7 +538,7 @@
                     },
                     {
                         "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mAfter import\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mbuild        \u001b[0m  \u001b[90mupdate deterministic output now\u001b[0m\r\n  build + apply  \u001b[90mmaterialize runtime output immediately\u001b[0m\r\n  none           \u001b[90mdefer build/apply\u001b[0m\r\n"
+                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mAfter import\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36msync now \u001b[0m  \u001b[90mupdate runtime artifacts and agent targets\u001b[0m\r\n  skip sync  \u001b[90mleave changes in workspace only\u001b[0m\r\n"
                     },
                     {
                         "delay":  360,
@@ -550,7 +550,7 @@
                     },
                     {
                         "delay":  70,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Built profile \u0027personal\u0027.\r\n"
+                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Prepared runtime artifacts for profile \u0027personal\u0027.\r\n"
                     },
                     {
                         "delay":  70,
@@ -558,7 +558,11 @@
                     },
                     {
                         "delay":  70,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Next step: run apply.\r\n"
+                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Synced profile \u0027personal\u0027.\r\n"
+                    },
+                    {
+                        "delay":  70,
+                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Target OS: windows\r\n"
                     },
                     {
                         "delay":  440,

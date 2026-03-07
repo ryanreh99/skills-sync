@@ -5,8 +5,7 @@ import { accent, brand, danger, formatPrompt, heading, muted, success, warning }
 
 const ROOT_COMMANDS = [
   "init",
-  "build",
-  "apply",
+  "sync",
   "doctor",
   "unlink",
   "list",
@@ -50,6 +49,7 @@ const ROOT_SUBCOMMANDS = {
 
 const ROOT_OPTIONS = {
   init: ["--seed", "--dry-run", "--profile"],
+  sync: ["--profile", "--agents", "--dry-run"],
   build: ["--profile", "--lock"],
   apply: ["--profile", "--build", "--agents", "--dry-run"],
   doctor: ["--profile"],
@@ -96,7 +96,7 @@ const SUBCOMMAND_OPTIONS = {
   profile: {
     show: ["--detail", "--agents", "--format"],
     inspect: ["--format"],
-    refresh: ["--upstream", "--path", "--all", "--build", "--apply", "--dry-run", "--format"],
+    refresh: ["--upstream", "--path", "--all", "--no-sync", "--dry-run", "--format"],
     diff: ["--format"],
     clone: [],
     "new-skill": ["--profile", "--path", "--frontmatter", "--include-scripts", "--include-references"],
@@ -112,8 +112,7 @@ const SUBCOMMAND_OPTIONS = {
       "--ref",
       "--pin",
       "--dest-prefix",
-      "--build",
-      "--apply"
+      "--no-sync"
     ],
     "remove-skill": [
       "--upstream",
@@ -123,14 +122,13 @@ const SUBCOMMAND_OPTIONS = {
       "--ref",
       "--dest-prefix",
       "--prune-upstream",
-      "--build",
-      "--apply",
+      "--no-sync",
       "--yes"
     ],
-    "add-mcp": ["--command", "--url", "--args", "--arg", "--env"],
-    "remove-mcp": [],
+    "add-mcp": ["--command", "--url", "--args", "--arg", "--env", "--no-sync"],
+    "remove-mcp": ["--no-sync"],
     export: ["--output"],
-    import: ["--input", "--replace"],
+    import: ["--input", "--replace", "--no-sync"],
     "add-upstream": ["--source", "--repo", "--provider", "--root", "--default-ref", "--type"],
     "remove-upstream": []
   },
@@ -153,7 +151,7 @@ const SUBCOMMAND_OPTIONS = {
 const SHELL_ALIASES = [":help", ":profile", ":clear", ":exit", "help", "clear", "exit", "quit"];
 const SHELL_SHORTCUTS = ["list", "agents", "profile", "search", "workspace"];
 
-const PROFILE_AWARE_COMMANDS = new Set(["build", "apply", "doctor"]);
+const PROFILE_AWARE_COMMANDS = new Set(["sync", "build", "apply", "doctor"]);
 
 function normalizeRootToken(token) {
   if (typeof token !== "string") {
@@ -382,9 +380,9 @@ function resolveShortcutCommands(shortcut) {
       message: "Workspace options",
       commands: [
         { value: "workspace export", label: "export", hint: "write a full workspace manifest" },
-        { value: "workspace diff", label: "diff", hint: "compare manifest vs live workspace" },
-        { value: "workspace sync --dry-run", label: "sync (dry-run)", hint: "preview manifest reconciliation" },
-        { value: "workspace sync", label: "sync", hint: "apply manifest reconciliation" }
+        { value: "workspace diff", label: "diff", hint: "compare a saved manifest vs live workspace" },
+        { value: "workspace sync --dry-run", label: "sync (dry-run)", hint: "preview reconciliation from a saved manifest" },
+        { value: "workspace sync", label: "sync", hint: "reconcile a saved manifest to workspace" }
       ]
     };
   }
@@ -434,7 +432,7 @@ function printShellHelp(activeProfile) {
   process.stdout.write(`  ${accent(":profile default")}    Reset shell profile to current default profile\n`);
   process.stdout.write(`  ${accent(":profile none")}       Disable shell profile context\n`);
   process.stdout.write(`  ${accent("list agents profile search workspace")}  Open shortcut selection menus\n`);
-  process.stdout.write(`  ${accent("init build apply doctor unlink")}  Core commands\n`);
+  process.stdout.write(`  ${accent("init sync doctor unlink")}  Common commands\n`);
   process.stdout.write("\n");
   process.stdout.write(
     `${muted("Tip: press TAB for command completion. Quoted arguments are supported.")}\n`
@@ -490,7 +488,7 @@ export async function cmdShell({ profile, executeCommand }) {
   }
   process.stdout.write(`${muted("Modes:")}\n`);
   process.stdout.write(`${muted("  setup   -> init | init --seed")}\n`);
-  process.stdout.write(`${muted("  sync    -> build -> apply")}\n`);
+    process.stdout.write(`${muted("  sync -> sync | sync --dry-run")}\n`);
   process.stdout.write(`${muted("Explore and Manage:")}\n`);
   process.stdout.write(`${muted("  list      -> profiles, skills, MCP servers, upstreams, and detected agents")}\n`);
   process.stdout.write(`${muted("  agents    -> inventory/drift to identify drift and sync status")}\n`);

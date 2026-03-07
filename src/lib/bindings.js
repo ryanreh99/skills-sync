@@ -166,7 +166,7 @@ function formatUnmanagedPathError(targetPath, profileName) {
     "Refusing to replace an unmanaged existing target.\n" +
     "Remediation:\n" +
     " - Move or remove the existing target manually.\n" +
-    ` - Re-run apply for profile '${profileName}'.`
+    ` - Re-run sync for profile '${profileName}'.`
   );
 }
 
@@ -347,13 +347,13 @@ export async function applyBindings(profileName, options = {}) {
   const bundleMcpPath = path.join(runtimeInternalRoot, "common", "mcp.json");
   const requestedProfile = typeof profileName === "string" && profileName.trim().length > 0 ? profileName.trim() : null;
   const profileHint = requestedProfile ?? "<name>";
-  const buildGuidance = `Set active profile: use ${profileHint}\nRun build first: build`;
+  const syncGuidance = `Set active profile: use ${profileHint}\nRun sync: sync`;
 
   if (!(await fs.pathExists(bundlePath))) {
-    throw new Error(`Missing runtime bundle metadata.\n${buildGuidance}`);
+    throw new Error(`Missing runtime bundle metadata.\n${syncGuidance}`);
   }
   if (!(await fs.pathExists(bundleMcpPath))) {
-    throw new Error(`Missing runtime bundle MCP manifest.\n${buildGuidance}`);
+    throw new Error(`Missing runtime bundle MCP manifest.\n${syncGuidance}`);
   }
 
   let bundle;
@@ -365,13 +365,13 @@ export async function applyBindings(profileName, options = {}) {
   const bundleProfile = typeof bundle.profile === "string" && bundle.profile.trim().length > 0 ? bundle.profile.trim() : null;
   const effectiveProfile = requestedProfile ?? bundleProfile;
   if (!effectiveProfile) {
-    throw new Error("Could not determine profile for apply. Set one first with 'use <name>', then run build.");
+    throw new Error("Could not determine profile for runtime sync. Set one first with 'use <name>', then run sync.");
   }
   if (requestedProfile && bundleProfile && bundleProfile !== requestedProfile) {
     throw new Error(
       `Runtime artifacts are stale for requested profile '${requestedProfile}'. Found bundle profile '${bundleProfile}'.\n` +
         `Set active profile: use ${requestedProfile}\n` +
-        "Run build first: build"
+        "Run sync: sync"
     );
   }
   const canonicalMcp = await fs.readJson(bundleMcpPath);
@@ -383,11 +383,11 @@ export async function applyBindings(profileName, options = {}) {
     const existingState = await fs.readJson(statePath).catch(() => null);
     if (existingState?.profile && existingState.profile !== effectiveProfile && selectedAgents && selectedAgents.size > 0) {
       throw new Error(
-        `Cannot apply selected agents for profile '${effectiveProfile}' while active state belongs to '${existingState.profile}'. Run unlink first.`
+        `Cannot sync selected agents for profile '${effectiveProfile}' while active state belongs to '${existingState.profile}'. Run unlink first.`
       );
     }
     if (dryRun) {
-      info("Dry-run: existing state file detected. Apply would unlink previous managed bindings first.");
+      info("Dry-run: existing state file detected. Sync would unlink previous managed bindings first.");
     } else {
       const unlinkResult = await unlinkInternal({
         suppressNoStateMessage: true,
@@ -399,8 +399,8 @@ export async function applyBindings(profileName, options = {}) {
         );
         if (!remainingOutsideSelection) {
           throw new Error(
-            "Cannot continue apply because some previous bindings could not be safely unlinked.\n" +
-              "Run unlink/doctor, resolve reported paths manually, then retry apply."
+            "Cannot continue sync because some previous bindings could not be safely unlinked.\n" +
+              "Run unlink/doctor, resolve reported paths manually, then retry sync."
           );
         }
       }
@@ -418,9 +418,9 @@ export async function applyBindings(profileName, options = {}) {
       const sourcePath = path.resolve(spec.sourcePath);
       if (!(await fs.pathExists(sourcePath))) {
         throw new Error(
-          "Source directory missing for apply.\n" +
+          "Source directory missing for runtime sync.\n" +
             `Set active profile: use ${effectiveProfile}\n` +
-            "Run build first: build"
+            "Run sync: sync"
         );
       }
 
@@ -501,9 +501,9 @@ export async function applyBindings(profileName, options = {}) {
       const sourcePath = path.resolve(spec.sourcePath);
       if (!(await fs.pathExists(sourcePath))) {
         throw new Error(
-          "Source config missing for apply.\n" +
+          "Source config missing for runtime sync.\n" +
             `Set active profile: use ${effectiveProfile}\n` +
-            "Run build first: build"
+            "Run sync: sync"
         );
       }
 
@@ -552,7 +552,7 @@ export async function applyBindings(profileName, options = {}) {
     for (const action of plannedActions) {
       byTool.set(action.tool, (byTool.get(action.tool) ?? 0) + 1);
     }
-    info(`Dry-run apply for profile '${effectiveProfile}' complete. No files were modified.`);
+    info(`Dry-run sync preview for profile '${effectiveProfile}' complete. No files were modified.`);
     for (const tool of Array.from(byTool.keys()).sort((left, right) => left.localeCompare(right))) {
       info(`  ${tool}: ${byTool.get(tool)} planned action(s)`);
     }
@@ -595,7 +595,7 @@ export async function applyBindings(profileName, options = {}) {
     false
   );
 
-  info(`Applied profile '${effectiveProfile}'.`);
+  info(`Synced profile '${effectiveProfile}'.`);
   info(`Target OS: ${osName}`);
 }
 
