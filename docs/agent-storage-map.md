@@ -110,6 +110,34 @@ If a field is not clearly documented in official docs, it is marked **UNVERIFIED
 
 ---
 
+## GitHub Copilot
+
+### Config and MCP
+- MCP config:
+  - User: `~/.copilot/mcp-config.json`
+- Copilot MCP server entries are JSON objects keyed under `mcpServers`.
+- Current docs show:
+  - local/stdio servers use keys like `type`, `command`, `args`, `env`, `tools`
+  - remote servers use keys like `type`, `url`, `headers`, `tools`
+- `skills-sync` projects command-based servers to `type: "stdio"` and URL-based servers to `type: "http"` by default unless the input manifest explicitly marks them as `sse`.
+
+### Skills / discovery
+- Project and user skill directories are supported via `.copilot/skills` and `~/.copilot/skills`.
+- Top-level aliases improve discoverability for nested imported skills.
+
+### Precedence and env vars
+- The MCP config file location is documented.
+- Additional override/env behavior is still treated conservatively unless explicitly documented.
+
+### Stability
+- MCP support is documented and actively evolving; the Copilot adapter should be treated as a projection layer over a volatile external contract.
+
+### Sources
+- https://docs.github.com/copilot/customizing-copilot/extending-copilot-chat-with-mcp
+- https://docs.github.com/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot
+
+---
+
 ## Gemini CLI (Google)
 
 ### Config and MCP

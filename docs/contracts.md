@@ -45,10 +45,15 @@ Shape:
 {
   "servers": {
     "stdio-server": { "command": "...", "args": [], "env": { "KEY": "VALUE" } },
-    "http-server": { "url": "https://example.com/mcp" }
+    "http-server": { "url": "https://example.com/mcp" },
+    "sse-server": { "url": "https://example.com/sse", "transport": "sse" }
   }
 }
 ```
+
+Notes:
+- URL-based servers may omit `transport`; `skills-sync` treats them as HTTP by default for Copilot projection.
+- `transport` is agent-neutral metadata in the input manifest. Agent adapters project it into each tool's native config shape.
 
 ### Upstreams + Lock
 - `workspace/upstreams.json` (fallback `internal/starter/upstreams.json`)

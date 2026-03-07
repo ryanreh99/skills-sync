@@ -76,9 +76,13 @@ export function buildManagedServerEntries(canonicalMcp) {
     server: (() => {
       const server = servers[name] ?? {};
       if (typeof server.url === "string" && server.url.trim().length > 0) {
-        return {
+        const normalized = {
           url: expandRuntimeValue(server.url.trim())
         };
+        if (typeof server.transport === "string" && server.transport.trim().length > 0) {
+          normalized.transport = server.transport.trim();
+        }
+        return normalized;
       }
       const normalized = {
         ...server,
@@ -95,6 +99,58 @@ export function buildManagedServerEntries(canonicalMcp) {
   }));
 }
 
+function normalizeCopilotRemoteType(value) {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return normalized === "sse" ? "sse" : "http";
+}
+
+function buildToolJsonServer(server, tool) {
+  if (typeof server.url === "string" && server.url.trim().length > 0) {
+    if (tool === "copilot") {
+      return {
+        type: normalizeCopilotRemoteType(server.transport),
+        url: server.url,
+        tools: ["*"]
+      };
+    }
+    return {
+      url: server.url
+    };
+  }
+
+  const base = {
+    command: server.command,
+    args: Array.isArray(server.args) ? server.args : []
+  };
+  if (server.env && Object.keys(server.env).length > 0) {
+    base.env = server.env;
+  }
+
+  if (tool === "gemini") {
+    return base;
+  }
+  if (tool === "copilot") {
+    return {
+      type: "stdio",
+      ...base,
+      tools: ["*"]
+    };
+  }
+  return {
+    transport: "stdio",
+    ...base
+  };
+}
+
+export function buildToolJsonMcpServers(canonicalMcp, tool, options = {}) {
+  const { managed = false } = options;
+  const projected = {};
+  for (const entry of buildManagedServerEntries(canonicalMcp)) {
+    projected[managed ? entry.managedName : entry.rawName] = buildToolJsonServer(entry.server, tool);
+  }
+  return projected;
+}
+
 function writeManagedJsonServers(document, canonicalMcp, tool) {
   if (!document.mcpServers) {
     document.mcpServers = {};
@@ -109,27 +165,8 @@ function writeManagedJsonServers(document, canonicalMcp, tool) {
     }
   }
 
-  for (const entry of buildManagedServerEntries(canonicalMcp)) {
-    if (typeof entry.server.url === "string" && entry.server.url.trim().length > 0) {
-      document.mcpServers[entry.managedName] = {
-        url: entry.server.url
-      };
-      continue;
-    }
-    const base = {
-      command: entry.server.command,
-      args: Array.isArray(entry.server.args) ? entry.server.args : []
-    };
-    if (entry.server.env && Object.keys(entry.server.env).length > 0) {
-      base.env = entry.server.env;
-    }
-    document.mcpServers[entry.managedName] =
-      tool === "gemini"
-        ? base
-        : {
-            transport: "stdio",
-            ...base
-          };
+  for (const [name, server] of Object.entries(buildToolJsonMcpServers(canonicalMcp, tool, { managed: true }))) {
+    document.mcpServers[name] = server;
   }
 }
 

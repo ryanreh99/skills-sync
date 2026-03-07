@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { normalizeSourceInput, inferUpstreamIdFromSourceDescriptor } from "../src/lib/source-normalization.js";
 import { scanSkillDirectory } from "../src/lib/skill-capabilities.js";
 import { summarizeCapabilitySupport } from "../src/lib/agent-registry.js";
+import { buildToolJsonMcpServers } from "../src/lib/mcp-config.js";
 
 test("normalizeSourceInput handles GitHub shorthand", async () => {
   const descriptor = await normalizeSourceInput("openai/skills");
@@ -154,4 +155,43 @@ test("loadImportLock migrates legacy pins into the new lockfile location without
   } finally {
     await fs.rm(tempHome, { recursive: true, force: true });
   }
+});
+
+test("buildToolJsonMcpServers renders Copilot-compatible stdio and remote server shapes", () => {
+  const projected = buildToolJsonMcpServers(
+    {
+      mcpServers: {
+        filesystem: {
+          transport: "stdio",
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-filesystem"]
+        },
+        notion: {
+          url: "https://mcp.notion.com/mcp"
+        },
+        events: {
+          url: "https://example.com/sse",
+          transport: "sse"
+        }
+      }
+    },
+    "copilot"
+  );
+
+  assert.deepEqual(projected.filesystem, {
+    type: "stdio",
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-filesystem"],
+    tools: ["*"]
+  });
+  assert.deepEqual(projected.notion, {
+    type: "http",
+    url: "https://mcp.notion.com/mcp",
+    tools: ["*"]
+  });
+  assert.deepEqual(projected.events, {
+    type: "sse",
+    url: "https://example.com/sse",
+    tools: ["*"]
+  });
 });

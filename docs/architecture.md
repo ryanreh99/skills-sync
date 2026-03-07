@@ -97,6 +97,8 @@ Canonical source:
 - Runtime sync:
   - skills dir binding
   - managed MCP JSON entries under `mcpServers.skills-sync__*`
+  - stdio servers are projected with Copilot `type: "stdio"` and `tools: ["*"]`
+  - URL servers are projected with Copilot `type: "http" | "sse"`; omitted remote transport defaults to `http`
 
 ### Gemini CLI
 - Projection:

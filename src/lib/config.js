@@ -185,6 +185,17 @@ function normalizeMcpEnvMap(rawEnv) {
   return normalized;
 }
 
+function normalizeMcpTransport(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "stdio" || normalized === "http" || normalized === "sse") {
+    return normalized;
+  }
+  return null;
+}
+
 export function normalizeMcpManifest(serversManifest) {
   const servers = serversManifest.servers ?? {};
   const sortedNames = Object.keys(servers).sort((left, right) => left.localeCompare(right));
@@ -192,9 +203,14 @@ export function normalizeMcpManifest(serversManifest) {
   for (const name of sortedNames) {
     const server = servers[name] ?? {};
     if (typeof server.url === "string" && server.url.trim().length > 0) {
-      normalizedServers[name] = {
+      const normalizedServer = {
         url: server.url.trim()
       };
+      const transport = normalizeMcpTransport(server.transport);
+      if (transport === "http" || transport === "sse") {
+        normalizedServer.transport = transport;
+      }
+      normalizedServers[name] = normalizedServer;
       continue;
     }
     const normalizedServer = {

@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import path from "node:path";
 import { logWarn, readJsonFile } from "../core.js";
+import { buildToolJsonMcpServers } from "../mcp-config.js";
 import { projectTopLevelSkills } from "./common.js";
 
 export async function projectCopilotFromBundle(options) {
@@ -21,7 +22,11 @@ export async function projectCopilotFromBundle(options) {
   const skillsMethod = "copy+aliases";
 
   const canonicalMcp = await readJsonFile(bundleMcpPath);
-  let projected = canonicalMcp;
+  const projectedMcpServers = buildToolJsonMcpServers(canonicalMcp, "copilot");
+  let projected = {
+    ...canonicalMcp,
+    mcpServers: projectedMcpServers
+  };
 
   if (!canOverride && localConfigPath && (await fs.pathExists(localConfigPath))) {
     try {
@@ -31,7 +36,7 @@ export async function projectCopilotFromBundle(options) {
       }
       projected = {
         ...existing,
-        mcpServers: canonicalMcp?.mcpServers ?? {}
+        mcpServers: projectedMcpServers
       };
     } catch (error) {
       logWarn(`Failed to seed Copilot runtime config from local settings: ${error.message}`);

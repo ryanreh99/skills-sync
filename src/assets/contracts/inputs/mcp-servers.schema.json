@@ -29,6 +29,14 @@
             "type": "string",
             "minLength": 1
           },
+          "transport": {
+            "type": "string",
+            "enum": [
+              "stdio",
+              "http",
+              "sse"
+            ]
+          },
           "url": {
             "type": "string",
             "minLength": 1

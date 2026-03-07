@@ -73,6 +73,21 @@ export async function run({ distPath, runtimePath }) {
     undefined,
     "Dist Copilot config should be fully overrideable (no editor settings)."
   );
+  assert.equal(
+    distCopilotDoc.mcpServers?.filesystem?.type,
+    "stdio",
+    "Dist Copilot stdio servers should use Copilot's 'type' field."
+  );
+  assert.deepEqual(
+    distCopilotDoc.mcpServers?.filesystem?.tools,
+    ["*"],
+    "Dist Copilot managed MCP entries should include a permissive tools allowlist."
+  );
+  assert.equal(
+    "transport" in (distCopilotDoc.mcpServers?.filesystem ?? {}),
+    false,
+    "Dist Copilot stdio servers should not include the legacy transport field."
+  );
 
   // Gemini (canOverride:false): build merges pre-existing non-MCP user settings
   const distGeminiDoc = JSON.parse(await fs.readFile(path.join(distPath, ".gemini", "settings.json"), "utf8"));
@@ -116,6 +131,21 @@ export async function run({ distPath, runtimePath }) {
   assertManagedJsonMerged(JSON.stringify(claudeRuntimeDoc), "claude");
   assertManagedJsonMerged(JSON.stringify(cursorRuntimeDoc), "cursor");
   assertManagedJsonMerged(JSON.stringify(copilotRuntimeDoc), "copilot");
+  assert.equal(
+    copilotRuntimeDoc.mcpServers?.["skills-sync__filesystem"]?.type,
+    "stdio",
+    "Copilot managed stdio servers should use the 'type' field."
+  );
+  assert.deepEqual(
+    copilotRuntimeDoc.mcpServers?.["skills-sync__filesystem"]?.tools,
+    ["*"],
+    "Copilot managed stdio servers should include a permissive tools allowlist."
+  );
+  assert.equal(
+    "transport" in (copilotRuntimeDoc.mcpServers?.["skills-sync__filesystem"] ?? {}),
+    false,
+    "Copilot managed stdio servers should not include the legacy transport field."
+  );
 
   const geminiRuntimeDoc = JSON.parse(
     await fs.readFile(path.join(runtimePath, ".gemini", "settings.json"), "utf8")

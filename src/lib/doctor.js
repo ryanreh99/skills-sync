@@ -22,6 +22,7 @@ import {
 import { getStatePath } from "./bindings.js";
 import { collectImportedSkillEntries, collectLocalSkillEntries } from "./bundle.js";
 import { loadEffectiveTargets, resolvePack, resolveProfile } from "./config.js";
+import { buildToolJsonMcpServers } from "./mcp-config.js";
 import { loadEffectiveProfileState } from "./profile-runtime.js";
 import { collectSourcePlanning, getCommitObjectType, getLockKey, loadLockfile, loadUpstreamsConfig, resolveReferences, validateAllLockPins } from "./upstreams.js";
 import { extractCodexMcpTables, renderCodexMcpTables } from "./adapters/codex.js";
@@ -236,12 +237,12 @@ async function validateRuntimeArtifacts({
     }
   }
 
-  const expectedMcpServersNormalized = normalizedMcpServersString(canonicalMcp?.mcpServers ?? {});
-  for (const projectionPath of [
-    path.join(runtimeInternalRoot, ".claude", "mcp.json"),
-    path.join(runtimeInternalRoot, ".copilot", "mcp-config.json"),
-    path.join(runtimeInternalRoot, ".gemini", "settings.json")
-  ]) {
+  const expectedJsonMcpByPath = new Map([
+    [path.join(runtimeInternalRoot, ".claude", "mcp.json"), canonicalMcp?.mcpServers ?? {}],
+    [path.join(runtimeInternalRoot, ".copilot", "mcp-config.json"), buildToolJsonMcpServers(canonicalMcp, "copilot")],
+    [path.join(runtimeInternalRoot, ".gemini", "settings.json"), canonicalMcp?.mcpServers ?? {}]
+  ]);
+  for (const [projectionPath, expectedMcpServers] of expectedJsonMcpByPath.entries()) {
     if (!(await fs.pathExists(projectionPath))) {
       continue;
     }
@@ -256,7 +257,7 @@ async function validateRuntimeArtifacts({
         errors.push(`Projection is missing mcpServers object: ${projectionPath}`);
         continue;
       }
-      if (normalizedMcpServersString(actualMcpServers) !== expectedMcpServersNormalized) {
+      if (normalizedMcpServersString(actualMcpServers) !== normalizedMcpServersString(expectedMcpServers)) {
         errors.push(`Projection mcpServers does not match canonical bundle: ${projectionPath}`);
       }
     } catch (error) {
