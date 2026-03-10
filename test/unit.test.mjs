@@ -9,6 +9,8 @@ import { normalizeSourceInput, inferUpstreamIdFromSourceDescriptor } from "../sr
 import { scanSkillDirectory } from "../src/lib/skill-capabilities.js";
 import { summarizeCapabilitySupport } from "../src/lib/agent-registry.js";
 import { buildToolJsonMcpServers } from "../src/lib/mcp-config.js";
+import { resolveShortcutCommands } from "../src/lib/shell.js";
+import { fetchRefAndResolveCommit } from "../src/lib/git-runtime.js";
 
 test("normalizeSourceInput handles GitHub shorthand", async () => {
   const descriptor = await normalizeSourceInput("openai/skills");
@@ -194,4 +196,76 @@ test("buildToolJsonMcpServers renders Copilot-compatible stdio and remote server
     url: "https://example.com/sse",
     tools: ["*"]
   });
+});
+
+test("fetchRefAndResolveCommit falls back from missing main to master", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "skills-sync-main-master-fallback-"));
+  const originPath = path.join(tempRoot, "origin");
+  const clonePath = path.join(tempRoot, "clone");
+
+  const runGitChecked = (args, cwd) => {
+    const result = spawnSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "skills-sync-tests",
+        GIT_AUTHOR_EMAIL: "skills-sync-tests@example.com",
+        GIT_COMMITTER_NAME: "skills-sync-tests",
+        GIT_COMMITTER_EMAIL: "skills-sync-tests@example.com"
+      }
+    });
+
+    assert.equal(
+      result.status,
+      0,
+      `git ${args.join(" ")} should succeed.\nSTDOUT:\n${result.stdout ?? ""}\nSTDERR:\n${result.stderr ?? ""}`
+    );
+    return result.stdout.trim();
+  };
+
+  try {
+    await fs.mkdir(originPath, { recursive: true });
+    runGitChecked(["init"], originPath);
+    runGitChecked(["branch", "-M", "master"], originPath);
+    await fs.writeFile(path.join(originPath, "README.md"), "fixture\n", "utf8");
+    runGitChecked(["add", "README.md"], originPath);
+    runGitChecked(["commit", "-m", "init"], originPath);
+    const expectedCommit = runGitChecked(["rev-parse", "--verify", "master^{commit}"], originPath);
+
+    runGitChecked(["clone", "--filter=blob:none", "--no-checkout", originPath, clonePath], tempRoot);
+
+    const resolved = await fetchRefAndResolveCommit(clonePath, "main", { repo: originPath });
+    assert.equal(
+      resolved.ref,
+      "master",
+      "Missing main should fall back to the repository default/master branch."
+    );
+    assert.equal(
+      resolved.commit,
+      expectedCommit,
+      "Fallback resolution should return the master branch commit."
+    );
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("profile shell shortcuts route skill mutations through interactive selection", () => {
+  const profileShortcut = resolveShortcutCommands("profile");
+  assert.equal(Boolean(profileShortcut), true, "profile shortcut config should exist.");
+
+  const addSkillShortcut = profileShortcut.commands.find((item) => item.label === "add-skill");
+  const removeSkillShortcut = profileShortcut.commands.find((item) => item.label === "remove-skill");
+
+  assert.equal(
+    addSkillShortcut?.value,
+    "profile add-skill --interactive",
+    "profile add-skill shortcut should opt into interactive skill selection."
+  );
+  assert.equal(
+    removeSkillShortcut?.value,
+    "profile remove-skill --interactive",
+    "profile remove-skill shortcut should opt into interactive removal selection."
+  );
 });

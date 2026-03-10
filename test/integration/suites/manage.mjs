@@ -383,6 +383,61 @@ export async function run({ localOverridesPath }) {
     "upstream add should auto-detect default ref from repository HEAD when omitted."
   );
 
+  // --- list upstream-content falls back from missing main to master ---
+  const mainFallbackRepoPath = path.join(localOverridesPath, "unit-test-main-fallback-repo");
+  await fs.rm(mainFallbackRepoPath, { recursive: true, force: true });
+  await fs.mkdir(path.join(mainFallbackRepoPath, "skills", "master-only-skill"), { recursive: true });
+  runGit(["init"], mainFallbackRepoPath);
+  runGit(["branch", "-M", "master"], mainFallbackRepoPath);
+  await fs.writeFile(
+    path.join(mainFallbackRepoPath, "skills", "master-only-skill", "SKILL.md"),
+    [
+      "---",
+      "title: master-only-skill",
+      "summary: master branch fixture",
+      "---",
+      "",
+      "# master-only-skill",
+      "",
+      "Master branch fixture."
+    ].join("\n"),
+    "utf8"
+  );
+  runGit(["add", "skills/master-only-skill/SKILL.md"], mainFallbackRepoPath);
+  runGit(["commit", "-m", "fixture"], mainFallbackRepoPath);
+
+  runCli([
+    "upstream",
+    "add",
+    "unit-test-main-fallback",
+    "--source",
+    mainFallbackRepoPath,
+    "--provider",
+    "git",
+    "--default-ref",
+    "main"
+  ]);
+  const fallbackContent = JSON.parse(
+    runCli([
+      "list",
+      "upstream-content",
+      "--upstream",
+      "unit-test-main-fallback",
+      "--format",
+      "json"
+    ]).stdout.trim()
+  );
+  assert.equal(
+    fallbackContent.ref,
+    "master",
+    "list upstream-content should fall back to master when the configured main ref does not exist."
+  );
+  assert.equal(
+    fallbackContent.skills.some((item) => item.path === "skills/master-only-skill"),
+    true,
+    "list upstream-content should still discover skills after falling back from main to master."
+  );
+
   // --- list upstreams reflects add ---
   const upstreamsJsonAfterAdd = runCli(["list", "upstreams", "--format", "json"]);
   const upstreamsPayloadAfterAdd = JSON.parse(upstreamsJsonAfterAdd.stdout.trim());
@@ -425,6 +480,7 @@ export async function run({ localOverridesPath }) {
   runCli(["upstream", "remove", "unit-test-upstream"]);
   runCli(["profile", "remove-upstream", "unit-test-upstream-alias"]);
   runCli(["upstream", "remove", "unit-test-detect-ref"]);
+  runCli(["upstream", "remove", "unit-test-main-fallback"]);
   runCli(["upstream", "remove", "example_example"]);
   const localUpstreamsAfterRemove = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
   assert.equal(

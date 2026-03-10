@@ -7,6 +7,53 @@ import { CACHE_ROOT } from "./core.js";
 const execFileAsync = promisify(execFile);
 let checkedGitAvailability = false;
 
+function normalizeGitRef(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function isMissingRemoteRefError(error) {
+  const message = String(error?.message ?? "").toLowerCase();
+  return message.includes("couldn't find remote ref") || message.includes("could not find remote ref");
+}
+
+function buildFallbackRefCandidates(requestedRef, detectedDefaultRef) {
+  const candidates = [];
+  const seen = new Set();
+
+  const push = (value) => {
+    const normalized = normalizeGitRef(value);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    candidates.push(normalized);
+  };
+
+  push(detectedDefaultRef);
+  if (requestedRef === "main") {
+    push("master");
+  }
+
+  return candidates;
+}
+
+async function fetchSingleRefAndResolveCommit(repoPath, ref) {
+  try {
+    await runGit(["fetch", "--prune", "origin", ref], { cwd: repoPath });
+  } catch {
+    await runGit(["fetch", "--prune", "--force", "origin", ref], { cwd: repoPath });
+  }
+
+  return {
+    ref,
+    commit: await runGit(["rev-parse", "--verify", "FETCH_HEAD^{commit}"], { cwd: repoPath })
+  };
+}
+
 export async function runGit(args, options = {}) {
   const { cwd = process.cwd(), allowFailure = false } = options;
   try {
@@ -48,13 +95,34 @@ export async function ensureUpstreamClone(upstream) {
   return repoPath;
 }
 
-export async function fetchRefAndResolveCommit(repoPath, ref) {
-  try {
-    await runGit(["fetch", "--prune", "origin", ref], { cwd: repoPath });
-  } catch {
-    await runGit(["fetch", "--prune", "--force", "origin", ref], { cwd: repoPath });
+export async function fetchRefAndResolveCommit(repoPath, ref, options = {}) {
+  const requestedRef = normalizeGitRef(ref);
+  if (!requestedRef) {
+    throw new Error("Git ref is required.");
   }
-  return await runGit(["rev-parse", "--verify", "FETCH_HEAD^{commit}"], { cwd: repoPath });
+
+  try {
+    return await fetchSingleRefAndResolveCommit(repoPath, requestedRef);
+  } catch (error) {
+    if (!isMissingRemoteRefError(error)) {
+      throw error;
+    }
+
+    const detectedDefaultRef = await detectDefaultRefFromRepo(options.repo || "origin", { cwd: repoPath });
+    const fallbackRefs = buildFallbackRefCandidates(requestedRef, detectedDefaultRef);
+
+    for (const fallbackRef of fallbackRefs) {
+      try {
+        return await fetchSingleRefAndResolveCommit(repoPath, fallbackRef);
+      } catch (fallbackError) {
+        if (!isMissingRemoteRefError(fallbackError)) {
+          throw fallbackError;
+        }
+      }
+    }
+
+    throw error;
+  }
 }
 
 export async function ensureCommitAvailable(repoPath, commit) {
@@ -95,8 +163,11 @@ export async function checkoutCommit(repoPath, commit, checkoutTracker) {
   checkoutTracker.set(repoPath, commit);
 }
 
-export async function detectDefaultRefFromRepo(repo) {
-  const output = await runGit(["ls-remote", "--symref", repo, "HEAD"], { allowFailure: true });
+export async function detectDefaultRefFromRepo(repo, options = {}) {
+  const output = await runGit(["ls-remote", "--symref", repo, "HEAD"], {
+    cwd: options.cwd,
+    allowFailure: true
+  });
   if (typeof output !== "string" || output.trim().length === 0) {
     return null;
   }

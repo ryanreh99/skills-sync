@@ -319,7 +319,7 @@ function handleShellAlias(rawLine, activeProfile) {
   return { type: "none", nextProfile: activeProfile };
 }
 
-function resolveShortcutCommands(shortcut) {
+export function resolveShortcutCommands(shortcut) {
   const normalizedShortcut = normalizeRootToken(shortcut);
   if (normalizedShortcut === "list") {
     return {
@@ -352,8 +352,16 @@ function resolveShortcutCommands(shortcut) {
         { value: "profile show", label: "show", hint: "show active profile skills + MCP servers" },
         { value: "profile inspect", label: "inspect", hint: "check imports, freshness, and capability warnings" },
         { value: "profile refresh", label: "refresh", hint: "refresh imported skill sources" },
-        { value: "profile add-skill", label: "add-skill", hint: "add a skill import to profile" },
-        { value: "profile remove-skill", label: "remove-skill", hint: "remove a skill import from profile" },
+        {
+          value: "profile add-skill --interactive",
+          label: "add-skill",
+          hint: "add a skill import to profile"
+        },
+        {
+          value: "profile remove-skill --interactive",
+          label: "remove-skill",
+          hint: "remove a skill import from profile"
+        },
         { value: "profile new-skill demo-skill", label: "new-skill", hint: "scaffold a local skill directory" },
         { value: "profile add-upstream", label: "add-upstream", hint: "add an upstream repository" },
         { value: "profile remove-upstream", label: "remove-upstream", hint: "remove an upstream repository" },

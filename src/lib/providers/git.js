@@ -64,12 +64,14 @@ async function walkSkills(rootPath, currentRelative = "", entries = []) {
 async function resolveRevision(upstream, options = {}) {
   const repoPath = await ensureUpstreamClone(upstream);
   const requestedRef = options.ref || upstream.defaultRef || await detectDefaultRefFromRepo(upstream.repo) || "main";
-  const revision = options.revision || await fetchRefAndResolveCommit(repoPath, requestedRef);
-  await ensureCommitAvailable(repoPath, revision);
+  const resolved = options.revision
+    ? { ref: requestedRef, commit: options.revision }
+    : await fetchRefAndResolveCommit(repoPath, requestedRef, { repo: upstream.repo });
+  await ensureCommitAvailable(repoPath, resolved.commit);
   return {
     repoPath,
-    ref: requestedRef,
-    revision
+    ref: resolved.ref,
+    revision: resolved.commit
   };
 }
 

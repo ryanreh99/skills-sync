@@ -369,10 +369,13 @@ async function resolveInspectableUpstreams(filters) {
       updatePins: false,
       allowLockUpdate: false
     });
+    const resolvedReference = references[0]
+      ? resolved.get(getLockKey(references[0].upstreamId, references[0].ref))
+      : null;
     candidates.push({
       upstream: adHocUpstream,
-      ref: references[0]?.ref || null,
-      commit: references[0] ? resolved.get(getLockKey(references[0].upstreamId, references[0].ref))?.commit ?? null : null
+      ref: resolvedReference?.ref ?? references[0]?.ref ?? null,
+      commit: resolvedReference?.commit ?? null
     });
   } else if (filters.upstreamId) {
     const upstream = upstreams.byId.get(filters.upstreamId);
@@ -396,10 +399,11 @@ async function resolveInspectableUpstreams(filters) {
         allowLockUpdate: false
       });
       for (const reference of references) {
+        const resolvedReference = resolved.get(getLockKey(reference.upstreamId, reference.ref));
         candidates.push({
           upstream,
-          ref: reference.ref,
-          commit: resolved.get(getLockKey(reference.upstreamId, reference.ref))?.commit ?? null
+          ref: resolvedReference?.ref ?? reference.ref,
+          commit: resolvedReference?.commit ?? null
         });
       }
     }
@@ -428,10 +432,11 @@ async function resolveInspectableUpstreams(filters) {
         upstreamId: upstream.id,
         ref: upstream.defaultRef
       };
+      const resolvedReference = resolved.get(getLockKey(reference.upstreamId, reference.ref));
       candidates.push({
         upstream,
-        ref: reference.ref,
-        commit: resolved.get(getLockKey(reference.upstreamId, reference.ref))?.commit ?? null
+        ref: resolvedReference?.ref ?? reference.ref,
+        commit: resolvedReference?.commit ?? null
       });
     }
   }
@@ -838,6 +843,7 @@ export async function resolveReferences({
     const repoPath = await ensureUpstreamClone(upstream);
     const pin = findPin(lockState.lock, reference.upstreamId, reference.ref);
     let commit = null;
+    let resolvedRef = reference.ref;
 
     if (preferPinned && pin) {
       commit = pin.commit;
@@ -848,7 +854,9 @@ export async function resolveReferences({
           "Run sync to refresh local runtime artifacts and lock state."
       );
     } else {
-      commit = await fetchRefAndResolveCommit(repoPath, reference.ref);
+      const fetched = await fetchRefAndResolveCommit(repoPath, reference.ref, { repo: upstream.repo });
+      commit = fetched.commit;
+      resolvedRef = fetched.ref;
     }
 
     if ((updatePins || (!pin && allowLockUpdate)) && allowLockUpdate) {
@@ -859,7 +867,7 @@ export async function resolveReferences({
 
     resolved.set(key, {
       upstream,
-      ref: reference.ref,
+      ref: resolvedRef,
       commit,
       repoPath,
       pinUsed: Boolean(pin && preferPinned)
@@ -896,7 +904,7 @@ export async function resolveImportedMaterialization(upstream, skillImport, reso
       throw new Error(`Internal error: unresolved upstream reference for ${skillImport.upstreamId}@${skillImport.ref}`);
     }
     return provider.materialize(upstream, skillImport.selectionPath, {
-      ref: skillImport.ref,
+      ref: resolved.ref,
       revision: resolved.commit
     });
   }
@@ -908,9 +916,7 @@ export async function createUpstreamFromSourceInput({ id, source, provider, root
   let resolvedDefaultRef = descriptor.defaultRef || null;
   if (descriptor.provider === "git" && !resolvedDefaultRef && typeof descriptor.repo === "string") {
     try {
-      if (await fs.pathExists(descriptor.repo)) {
-        resolvedDefaultRef = await detectDefaultRefFromRepo(descriptor.repo);
-      }
+      resolvedDefaultRef = await detectDefaultRefFromRepo(descriptor.repo);
     } catch {
       resolvedDefaultRef = null;
     }
