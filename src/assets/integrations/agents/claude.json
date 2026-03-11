@@ -1,0 +1,78 @@
+{
+  "id": "claude",
+  "name": "Claude Code",
+  "config": {
+    "order": 20,
+    "adapter": "claude",
+    "projectionVersion": 1
+  },
+  "skills": {
+    "internalDir": ".claude/skills",
+    "bindMode": "root",
+    "targets": {
+      "windows": {
+        "dir": "%USERPROFILE%\\\\.claude\\\\skills"
+      },
+      "macos": {
+        "dir": "$HOME/.claude/skills"
+      },
+      "linux": {
+        "dir": "$HOME/.claude/skills"
+      }
+    },
+    "support": {
+      "nestedDiscovery": true,
+      "instructions": true,
+      "frontmatter": true,
+      "scripts": false,
+      "assets": true,
+      "references": true,
+      "helpers": false
+    }
+  },
+  "mcp": {
+    "internalConfig": ".claude/mcp.json",
+    "kind": "json-mcpServers",
+    "supportVersion": 1,
+    "hasNonMcpConfig": false,
+    "targets": {
+      "windows": {
+        "config": "%USERPROFILE%\\\\.claude\\\\mcp_servers.json"
+      },
+      "macos": {
+        "config": "$HOME/mcp_servers.json"
+      },
+      "linux": {
+        "config": "$HOME/.claude/mcp_servers.json"
+      }
+    },
+    "support": {
+      "transports": {
+        "stdio": true,
+        "streamableHttp": true,
+        "sse": true
+      },
+      "auth": {
+        "oauth": true,
+        "bearerToken": true,
+        "staticHeaders": true,
+        "envHeaders": true
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": true,
+        "prompts": true
+      },
+      "config": {
+        "command": true,
+        "args": true,
+        "env": true,
+        "url": true,
+        "scopes": true
+      }
+    }
+  },
+  "notes": [
+    "Claude Code preserves imported skill folders and auxiliary files, but Anthropic's documented customization primitives are CLAUDE.md, subagents, and slash commands."
+  ]
+}

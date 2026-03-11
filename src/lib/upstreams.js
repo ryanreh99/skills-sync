@@ -27,12 +27,24 @@ import {
 } from "./import-lock.js";
 import { getProvider } from "./providers/index.js";
 import {
+  createSourceIdentity,
+  getNormalizedSourceDescriptor,
   inferUpstreamIdFromSourceDescriptor,
   normalizeOptionalRoot,
   normalizeSelectionPath,
   normalizeSourceInput
 } from "./source-normalization.js";
-import { muted } from "./terminal-ui.js";
+import {
+  accent,
+  formatBadge,
+  muted,
+  renderKeyValueRows,
+  renderSection,
+  renderSimpleList,
+  renderTable,
+  success,
+  warning
+} from "./terminal-ui.js";
 
 const TEXT_SEARCH_RESULT_LIMIT = 20;
 
@@ -65,7 +77,7 @@ function normalizeOptionalText(value) {
 
 function cloneUpstreamDocument(doc) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     upstreams: Array.isArray(doc?.upstreams)
       ? doc.upstreams.map((entry) => ({ ...entry }))
       : []
@@ -74,7 +86,7 @@ function cloneUpstreamDocument(doc) {
 
 function migrateUpstreamEntry(entry) {
   const provider = entry?.provider || (entry?.path ? "local-path" : "git");
-  return {
+  const migrated = {
     id: normalizeRequiredText(entry.id, "Upstream id"),
     provider,
     ...(provider === "git"
@@ -90,11 +102,15 @@ function migrateUpstreamEntry(entry) {
     ...(normalizeOptionalText(entry.root) ? { root: normalizeOptionalRoot(entry.root) } : {}),
     ...(normalizeOptionalText(entry.displayName) ? { displayName: entry.displayName.trim() } : {})
   };
+  return {
+    ...migrated,
+    sourceIdentity: normalizeOptionalText(entry?.sourceIdentity) || createSourceIdentity(migrated)
+  };
 }
 
 function migrateUpstreamsDocument(doc) {
   const migrated = cloneUpstreamDocument(doc);
-  migrated.schemaVersion = 2;
+  migrated.schemaVersion = 3;
   migrated.upstreams = migrated.upstreams.map(migrateUpstreamEntry).sort((left, right) => left.id.localeCompare(right.id));
   return migrated;
 }
@@ -135,20 +151,26 @@ export function findPin(lockDocument, upstreamId, ref) {
   ) ?? null;
 }
 
-export function setPin(lockDocument, upstreamId, ref, commit) {
+export function setPin(lockDocument, upstream, ref, resolvedRevision) {
   lockDocument.pins = Array.isArray(lockDocument.pins) ? lockDocument.pins : [];
-  const existing = findPin(lockDocument, upstreamId, ref);
+  const existing = findPin(lockDocument, upstream.id, ref);
   if (existing) {
-    if (existing.commit === commit) {
+    if ((existing.resolvedRevision ?? existing.commit) === resolvedRevision) {
       return false;
     }
-    existing.commit = commit;
+    existing.resolvedRevision = resolvedRevision;
+    existing.sourceIdentity = upstream.sourceIdentity;
+    existing.sourceDescriptor = getNormalizedSourceDescriptor(upstream);
+    existing.updatedAt = new Date().toISOString();
     return true;
   }
   lockDocument.pins.push({
-    upstream: upstreamId,
+    upstream: upstream.id,
     ref,
-    commit
+    resolvedRevision,
+    sourceIdentity: upstream.sourceIdentity,
+    sourceDescriptor: getNormalizedSourceDescriptor(upstream),
+    updatedAt: new Date().toISOString()
   });
   return true;
 }
@@ -553,12 +575,29 @@ function formatUpstreamForOutput(upstream) {
   return {
     id: upstream.id,
     provider: upstream.provider,
+    sourceIdentity: upstream.sourceIdentity,
+    descriptor: getNormalizedSourceDescriptor(upstream),
     source: upstream.provider === "local-path" ? upstream.path : upstream.repo,
     originalInput: upstream.originalInput ?? (upstream.provider === "local-path" ? upstream.path : upstream.repo),
     ...(upstream.root ? { root: upstream.root } : {}),
     ...(upstream.defaultRef ? { defaultRef: upstream.defaultRef } : {}),
     ...(upstream.displayName ? { displayName: upstream.displayName } : {})
   };
+}
+
+function formatSearchTitle(result) {
+  return result.title || muted("-", process.stdout);
+}
+
+function formatTransport(server) {
+  return server.url ? server.url : `${server.command}${server.args.length > 0 ? ` ${server.args.join(" ")}` : ""}`;
+}
+
+function formatCapabilityBadges(capabilities) {
+  if (!Array.isArray(capabilities) || capabilities.length === 0) {
+    return muted("(none)", process.stdout);
+  }
+  return capabilities.map((capability) => formatBadge(capability, "accent", process.stdout)).join(" ");
 }
 
 export async function cmdListUpstreams({ format }) {
@@ -568,11 +607,19 @@ export async function cmdListUpstreams({ format }) {
     process.stdout.write(`${JSON.stringify({ upstreams: items }, null, 2)}\n`);
     return;
   }
-  for (const item of items) {
-    const ref = item.defaultRef ?? "-";
-    const root = item.root ?? "-";
-    process.stdout.write(`${item.id}\t${item.provider}\t${ref}\t${root}\t${item.source}\n`);
-  }
+  process.stdout.write(
+    `${renderTable(
+      ["Id", "Provider", "Default Ref", "Root", "Source"],
+      items.map((item) => [
+        item.id,
+        item.provider,
+        item.defaultRef ?? muted("-", process.stdout),
+        item.root ?? muted("-", process.stdout),
+        item.source
+      ]),
+      { stream: process.stdout }
+    )}\n`
+  );
 }
 
 export async function cmdListUpstreamContent({
@@ -638,36 +685,55 @@ export async function cmdListUpstreamContent({
 
   for (let index = 0; index < payloadItems.length; index += 1) {
     const item = payloadItems[index];
-    const revisionLabel = item.revision ? ` (${String(item.revision).slice(0, 12)})` : "";
-    process.stdout.write(`${item.id} [${item.provider}]${revisionLabel}\n`);
-    process.stdout.write(`Skills (${item.skills.length})\n`);
+    const lines = [renderSection("Upstream", { stream: process.stdout })];
+    lines.push(
+      renderKeyValueRows(
+        [
+          { key: "Id", value: accent(item.id, process.stdout) },
+          { key: "Provider", value: item.provider },
+          { key: "Ref", value: item.ref ?? muted("-", process.stdout) },
+          { key: "Revision", value: item.revision ? String(item.revision).slice(0, 12) : muted("-", process.stdout) },
+          { key: "Source", value: item.source }
+        ],
+        { stream: process.stdout }
+      )
+    );
+    lines.push("");
+    lines.push(renderSection("Skills", { count: item.skills.length, stream: process.stdout }));
     if (item.skills.length === 0) {
-      process.stdout.write("  (none)\n");
+      lines.push(renderSimpleList([], { empty: "(none)" }));
+    } else if (verbose) {
+      lines.push(
+        renderTable(
+          ["Path", "Title", "Capabilities"],
+          item.skills.map((skill) => [skill.path, skill.title, formatCapabilityBadges(skill.capabilities)]),
+          { stream: process.stdout }
+        )
+      );
     } else {
-      for (const skill of item.skills) {
-        if (verbose) {
-          process.stdout.write(`  ${skill.path}\t${skill.title}\t[${(skill.capabilities ?? []).join(",")}]\n`);
-        } else {
-          process.stdout.write(`  ${skill.path}\n`);
-        }
-      }
+      lines.push(renderTable(["Path"], item.skills.map((skill) => [skill.path]), { stream: process.stdout }));
     }
-    process.stdout.write(`MCP Servers (${item.mcpServers.length})\n`);
+    lines.push("");
+    lines.push(renderSection("MCP Servers", { count: item.mcpServers.length, stream: process.stdout }));
     if (item.mcpServers.length === 0) {
-      process.stdout.write("  (none found in source manifests)\n");
+      lines.push(renderSimpleList([], { empty: "(none found in source manifests)" }));
     } else {
-      for (const server of item.mcpServers) {
-        const transport = server.url ? server.url : `${server.command}${server.args.length > 0 ? ` ${server.args.join(" ")}` : ""}`;
-        process.stdout.write(`  ${server.name}\t${transport}\n`);
-      }
+      lines.push(
+        renderTable(
+          ["Name", "Target"],
+          item.mcpServers.map((server) => [server.name, formatTransport(server)]),
+          { stream: process.stdout }
+        )
+      );
     }
     if (item.warnings.length > 0) {
-      process.stdout.write("Warnings\n");
-      for (const warning of item.warnings) {
-        process.stdout.write(`  ${warning}\n`);
-      }
+      lines.push("");
+      lines.push(renderSection("Warnings", { count: item.warnings.length, stream: process.stdout }));
+      lines.push(renderSimpleList(item.warnings.map((issue) => warning(issue, process.stdout))));
     }
+    process.stdout.write(lines.join("\n"));
     if (index < payloadItems.length - 1) {
+      process.stdout.write("\n");
       process.stdout.write("\n");
     }
   }
@@ -811,11 +877,17 @@ export async function cmdSearchSkills({
     return;
   }
   const { visible, hiddenCount } = limitResultsForText(allResults);
-  for (const result of visible) {
-    const prefix = result.upstream ? `${result.sourceScope}:${result.upstream}` : result.sourceScope;
-    const title = result.title ? `\t${result.title}` : "";
-    process.stdout.write(`${prefix}  ${result.path}${title}\n`);
-  }
+  process.stdout.write(
+    `${renderTable(
+      ["Scope", "Path", "Title"],
+      visible.map((result) => [
+        result.upstream ? `${result.sourceScope}:${result.upstream}` : result.sourceScope,
+        result.path,
+        formatSearchTitle(result)
+      ]),
+      { stream: process.stdout }
+    )}\n`
+  );
   writeSearchTruncationNotice(hiddenCount);
 }
 
@@ -846,7 +918,7 @@ export async function resolveReferences({
     let resolvedRef = reference.ref;
 
     if (preferPinned && pin) {
-      commit = pin.commit;
+      commit = pin.resolvedRevision ?? pin.commit;
       await ensureCommitAvailable(repoPath, commit);
     } else if (requirePinned) {
       throw new Error(
@@ -860,7 +932,7 @@ export async function resolveReferences({
     }
 
     if ((updatePins || (!pin && allowLockUpdate)) && allowLockUpdate) {
-      if (setPin(lockState.lock, reference.upstreamId, reference.ref, commit)) {
+      if (setPin(lockState.lock, upstream, reference.ref, commit)) {
         lockState.changed = true;
       }
     }
@@ -889,9 +961,11 @@ export async function validateAllLockPins(lockState, upstreamById, errors) {
     }
     try {
       const repoPath = await ensureUpstreamClone(upstream);
-      await ensureCommitAvailable(repoPath, pin.commit);
+      await ensureCommitAvailable(repoPath, pin.resolvedRevision ?? pin.commit);
     } catch (error) {
-      errors.push(`Invalid lock pin ${pin.upstream}@${pin.ref} -> ${pin.commit}: ${error.message}`);
+      errors.push(
+        `Invalid lock pin ${pin.upstream}@${pin.ref} -> ${pin.resolvedRevision ?? pin.commit}: ${error.message}`
+      );
     }
   }
 }

@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import path from "node:path";
-import crypto from "node:crypto";
+import { hashPathContent } from "../digest.js";
 import { normalizeSelectionPath } from "../source-normalization.js";
 import { scanSkillDirectory } from "../skill-capabilities.js";
 
@@ -32,29 +32,6 @@ async function walkSkills(rootPath, currentRelative = "", entries = []) {
   }
 
   return entries;
-}
-
-async function hashPath(targetPath) {
-  const hash = crypto.createHash("sha256");
-
-  async function add(currentPath, currentRelative = "") {
-    const stats = await fs.stat(currentPath);
-    if (stats.isDirectory()) {
-      hash.update(`dir:${currentRelative}\n`);
-      const entries = await fs.readdir(currentPath, { withFileTypes: true });
-      entries.sort((left, right) => left.name.localeCompare(right.name));
-      for (const entry of entries) {
-        await add(path.join(currentPath, entry.name), currentRelative ? `${currentRelative}/${entry.name}` : entry.name);
-      }
-      return;
-    }
-
-    hash.update(`file:${currentRelative}\n`);
-    hash.update(await fs.readFile(currentPath));
-  }
-
-  await add(targetPath);
-  return hash.digest("hex");
 }
 
 export const localPathProvider = {
@@ -93,7 +70,7 @@ export const localPathProvider = {
     return {
       sourcePath,
       resolvedRevision: null,
-      contentHash: await hashPath(sourcePath),
+      contentHash: await hashPathContent(sourcePath),
       capabilities: scan.capabilities,
       title: scan.title,
       summary: scan.summary

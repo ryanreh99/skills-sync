@@ -1,16 +1,136 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import fsExtra from "fs-extra";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { normalizeSourceInput, inferUpstreamIdFromSourceDescriptor } from "../src/lib/source-normalization.js";
+import { buildTargetsDocument, loadAgentIntegrations, normalizeAgentIntegrationEntry } from "../src/lib/agent-integrations.js";
+import {
+  getMcpMergeStrategy,
+  loadAgentRegistry,
+  supportsMcpAuth,
+  supportsMcpCapability,
+  supportsMcpConfigField,
+  supportsMcpTransport,
+  supportsToolFiltering
+} from "../src/lib/agent-registry.js";
+import { createEmptyImportLock } from "../src/lib/import-lock.js";
+import { createSourceIdentity, normalizeSourceInput, inferUpstreamIdFromSourceDescriptor } from "../src/lib/source-normalization.js";
 import { scanSkillDirectory } from "../src/lib/skill-capabilities.js";
-import { summarizeCapabilitySupport } from "../src/lib/agent-registry.js";
-import { buildToolJsonMcpServers } from "../src/lib/mcp-config.js";
+import { summarizeSkillFeatureSupport } from "../src/lib/agent-registry.js";
+import { movePathWithFallback } from "../src/lib/init.js";
+import {
+  assessAgentMcpSupport,
+  buildAgentRuntimeMcpServers,
+  buildToolJsonMcpServers,
+  summarizeRequiredMcpSupport
+} from "../src/lib/mcp-config.js";
 import { resolveShortcutCommands } from "../src/lib/shell.js";
 import { fetchRefAndResolveCommit } from "../src/lib/git-runtime.js";
+import {
+  materializeProjectedSkillDirectory,
+  projectSkillsForAgent,
+  renderProjectedSkillMarkdown
+} from "../src/lib/adapters/common.js";
+
+function createAgentIntegrationFixture(overrides = {}) {
+  const {
+    config: configOverrides = null,
+    skills: skillsOverrides = null,
+    mcp: mcpOverrides = null,
+    ...entryOverrides
+  } = overrides;
+  return {
+    id: "fixture",
+    name: "Fixture",
+    config: {
+      order: 99,
+      adapter: "fixture",
+      projectionVersion: 1,
+      ...(configOverrides ?? {})
+    },
+    skills: {
+      internalDir: ".fixture/skills",
+      bindMode: "root",
+      targets: {
+        windows: {
+          dir: "%USERPROFILE%\\\\.fixture\\\\skills"
+        },
+        macos: {
+          dir: "$HOME/.fixture/skills"
+        },
+        linux: {
+          dir: "$HOME/.fixture/skills"
+        }
+      },
+      support: {
+        nestedDiscovery: true,
+        instructions: true,
+        frontmatter: false,
+        scripts: false,
+        assets: false,
+        references: false,
+        helpers: false,
+        ...((skillsOverrides?.support ?? null) ?? {})
+      },
+      ...Object.fromEntries(
+        Object.entries(skillsOverrides ?? {}).filter(([key]) => key !== "support")
+      )
+    },
+    mcp: {
+      internalConfig: ".fixture/mcp.json",
+      kind: "json-mcpServers",
+      supportVersion: 1,
+      hasNonMcpConfig: false,
+      targets: {
+        windows: {
+          config: "%USERPROFILE%\\\\.fixture\\\\mcp.json"
+        },
+        macos: {
+          config: "$HOME/.fixture/mcp.json"
+        },
+        linux: {
+          config: "$HOME/.fixture/mcp.json"
+        }
+      },
+      support: {
+        ...((mcpOverrides?.support ?? null) ?? {})
+      },
+      ...Object.fromEntries(
+        Object.entries(mcpOverrides ?? {}).filter(([key]) => key !== "support")
+      )
+    },
+    ...entryOverrides
+  };
+}
+
+function createLegacyAgentIntegrationFixture(overrides = {}) {
+  const normalized = normalizeAgentIntegrationEntry(createAgentIntegrationFixture(overrides));
+  return {
+    id: normalized.id,
+    name: normalized.name,
+    order: normalized.order,
+    adapter: normalized.adapter,
+    internal: { ...normalized.internal },
+    targets: Object.fromEntries(
+      Object.entries(normalized.targets).map(([osName, target]) => [osName, {
+        ...(target.skillsDir ? { skillsDir: target.skillsDir } : {}),
+        mcpConfig: target.mcpConfig
+      }])
+    ),
+    hasNonMcpConfig: normalized.hasNonMcpConfig,
+    projectionVersion: normalized.projectionVersion,
+    mcpSupportVersion: normalized.mcpSupportVersion,
+    mcpKind: normalized.mcpKind,
+    support: {
+      skills: { ...normalized.support.skills },
+      mcp: { ...normalized.support.mcp }
+    },
+    notes: [...normalized.notes]
+  };
+}
 
 test("normalizeSourceInput handles GitHub shorthand", async () => {
   const descriptor = await normalizeSourceInput("openai/skills");
@@ -52,6 +172,13 @@ test("normalizeSourceInput handles local filesystem paths", async () => {
   }
 });
 
+test("createSourceIdentity is stable for equivalent git descriptors", async () => {
+  const shorthand = await normalizeSourceInput("openai/skills");
+  const canonical = await normalizeSourceInput("https://github.com/openai/skills.git");
+  assert.equal(createSourceIdentity(shorthand), createSourceIdentity(canonical));
+  assert.equal(shorthand.sourceIdentity, canonical.sourceIdentity);
+});
+
 test("scanSkillDirectory records optional capabilities without dropping instructions", async () => {
   const skillRoot = await fs.mkdtemp(path.join(os.tmpdir(), "skills-sync-skill-scan-"));
   try {
@@ -87,44 +214,163 @@ test("scanSkillDirectory records optional capabilities without dropping instruct
   }
 });
 
-test("summarizeCapabilitySupport treats unsupported optional features as advisory mismatches", () => {
-  const summary = summarizeCapabilitySupport(["instructions", "scripts", "references"], {
-    capabilities: {
-      instructions: "native",
-      scripts: "ignored",
-      references: "preserved"
+test("renderProjectedSkillMarkdown strips YAML frontmatter when unsupported", () => {
+  const rendered = renderProjectedSkillMarkdown(
+    [
+      "---",
+      "title: projection-demo",
+      "summary: Projection test",
+      "---",
+      "",
+      "# projection-demo",
+      "",
+      "Body text."
+    ].join("\n"),
+    {
+      frontmatter: false
+    }
+  );
+
+  assert.equal(rendered.startsWith("---"), false);
+  assert.equal(rendered.includes("# projection-demo"), true);
+  assert.equal(rendered.includes("Body text."), true);
+});
+
+test("materializeProjectedSkillDirectory removes unsupported optional skill entries", async () => {
+  const skillRoot = await fs.mkdtemp(path.join(os.tmpdir(), "skills-sync-projected-skill-source-"));
+  const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "skills-sync-projected-skill-target-"));
+  const sourceSkillPath = path.join(skillRoot, "demo-skill");
+  const targetSkillPath = path.join(targetRoot, "demo-skill");
+
+  try {
+    await fs.mkdir(path.join(sourceSkillPath, "scripts"), { recursive: true });
+    await fs.mkdir(path.join(sourceSkillPath, "references"), { recursive: true });
+    await fs.mkdir(path.join(sourceSkillPath, "assets"), { recursive: true });
+    await fs.mkdir(path.join(sourceSkillPath, "helpers"), { recursive: true });
+    await fs.writeFile(
+      path.join(sourceSkillPath, "SKILL.md"),
+      [
+        "---",
+        "title: demo-skill",
+        "---",
+        "",
+        "# demo-skill",
+        "",
+        "Projected skill fixture."
+      ].join("\n"),
+      "utf8"
+    );
+    await fs.writeFile(path.join(sourceSkillPath, "scripts", "run.txt"), "echo hi\n", "utf8");
+    await fs.writeFile(path.join(sourceSkillPath, "references", "note.txt"), "ref\n", "utf8");
+    await fs.writeFile(path.join(sourceSkillPath, "assets", "note.txt"), "asset\n", "utf8");
+    await fs.writeFile(path.join(sourceSkillPath, "helpers", "note.txt"), "helper\n", "utf8");
+    await fs.writeFile(path.join(sourceSkillPath, "README.txt"), "keep\n", "utf8");
+
+    await materializeProjectedSkillDirectory(sourceSkillPath, targetSkillPath, {
+      frontmatter: false,
+      scripts: false,
+      references: false,
+      assets: false,
+      helpers: false
+    });
+
+    const projectedMarkdown = await fs.readFile(path.join(targetSkillPath, "SKILL.md"), "utf8");
+    assert.equal(projectedMarkdown.startsWith("---"), false);
+    assert.equal(await fsExtra.pathExists(path.join(targetSkillPath, "scripts")), false);
+    assert.equal(await fsExtra.pathExists(path.join(targetSkillPath, "references")), false);
+    assert.equal(await fsExtra.pathExists(path.join(targetSkillPath, "assets")), false);
+    assert.equal(await fsExtra.pathExists(path.join(targetSkillPath, "helpers")), false);
+    assert.equal(await fsExtra.pathExists(path.join(targetSkillPath, "README.txt")), true);
+  } finally {
+    await fs.rm(skillRoot, { recursive: true, force: true });
+    await fs.rm(targetRoot, { recursive: true, force: true });
+  }
+});
+
+test("projectSkillsForAgent creates flattened aliases and filtered skill trees when nested discovery is unsupported", async () => {
+  const bundleRoot = await fs.mkdtemp(path.join(os.tmpdir(), "skills-sync-bundle-skills-"));
+  const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "skills-sync-runtime-skills-"));
+  const sourceSkillPath = path.join(bundleRoot, "anthropic", "demo-skill");
+
+  try {
+    await fs.mkdir(path.join(sourceSkillPath, "scripts"), { recursive: true });
+    await fs.writeFile(
+      path.join(sourceSkillPath, "SKILL.md"),
+      [
+        "---",
+        "title: demo-skill",
+        "---",
+        "",
+        "# demo-skill",
+        "",
+        "Projection fixture."
+      ].join("\n"),
+      "utf8"
+    );
+    await fs.writeFile(path.join(sourceSkillPath, "scripts", "run.txt"), "echo hi\n", "utf8");
+
+    const projection = await projectSkillsForAgent(bundleRoot, path.join(runtimeRoot, "skills"), {
+      id: "fixture",
+      support: {
+        skills: {
+          nestedDiscovery: false,
+          frontmatter: false,
+          scripts: false,
+          assets: true,
+          references: true,
+          helpers: false
+        }
+      }
+    });
+
+    assert.deepEqual(
+      projection.projectionPlan.get("anthropic/demo-skill"),
+      ["anthropic/demo-skill", "vendor__anthropic__demo-skill"]
+    );
+    assert.equal(await fsExtra.pathExists(path.join(runtimeRoot, "skills", "anthropic", "demo-skill", "scripts")), false);
+    assert.equal(await fsExtra.pathExists(path.join(runtimeRoot, "skills", "vendor__anthropic__demo-skill")), true);
+    const aliasMarkdown = await fs.readFile(
+      path.join(runtimeRoot, "skills", "vendor__anthropic__demo-skill", "SKILL.md"),
+      "utf8"
+    );
+    assert.equal(aliasMarkdown.startsWith("---"), false);
+  } finally {
+    await fs.rm(bundleRoot, { recursive: true, force: true });
+    await fs.rm(runtimeRoot, { recursive: true, force: true });
+  }
+});
+
+test("summarizeSkillFeatureSupport only flags unsupported optional features as advisory mismatches", () => {
+  const summary = summarizeSkillFeatureSupport(["instructions", "scripts", "references"], {
+    support: {
+      skills: {
+        instructions: true,
+        scripts: false,
+        references: true
+      }
     }
   });
 
-  assert.deepEqual(summary.rows, [
-    { capability: "scripts", support: "ignored" },
-    { capability: "references", support: "preserved" }
+  assert.deepEqual(summary.checks, [
+    { feature: "scripts", supported: false },
+    { feature: "references", supported: true }
   ]);
-  assert.deepEqual(summary.mismatches, summary.rows);
+  assert.deepEqual(summary.unsupported, [
+    { feature: "scripts", supported: false }
+  ]);
 });
 
-test("loadImportLock migrates legacy pins into the new lockfile location without recreating legacy state", async () => {
+test("createEmptyImportLock returns the current v3 lockfile shape", () => {
+  const lock = createEmptyImportLock();
+  assert.equal(lock.schemaVersion, 3);
+  assert.deepEqual(lock.pins, []);
+  assert.deepEqual(lock.imports, []);
+});
+
+test("loadImportLock initializes the canonical v3 lockfile when none exists", async () => {
   const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "skills-sync-lock-migration-"));
   const workspaceRoot = path.join(tempHome, "workspace");
   await fs.mkdir(workspaceRoot, { recursive: true });
-  await fs.writeFile(
-    path.join(workspaceRoot, "upstreams.lock.json"),
-    JSON.stringify(
-      {
-        schemaVersion: 1,
-        pins: [
-          {
-            upstream: "anthropic",
-            ref: "main",
-            commit: "abcdef1"
-          }
-        ]
-      },
-      null,
-      2
-    ),
-    "utf8"
-  );
 
   const importLockUrl = pathToFileURL(path.join(process.cwd(), "src", "lib", "import-lock.js")).href;
   const script = `
@@ -133,8 +379,9 @@ test("loadImportLock migrates legacy pins into the new lockfile location without
     console.log(JSON.stringify({
       path: state.path,
       exists: state.exists,
-      imports: state.lock.imports,
-      legacyPins: state.legacyPins
+      changed: state.changed,
+      keys: Object.keys(state).sort(),
+      lock: state.lock
     }));
   `;
 
@@ -148,15 +395,226 @@ test("loadImportLock migrates legacy pins into the new lockfile location without
   });
 
   try {
-    assert.equal(result.status, 0, result.stderr || "Lock migration subprocess should succeed.");
+    assert.equal(result.status, 0, result.stderr || "Lock initialization subprocess should succeed.");
     const payload = JSON.parse(result.stdout.trim());
     assert.equal(payload.path, path.join(workspaceRoot, "skills-sync.lock.json"));
     assert.equal(payload.exists, false);
-    assert.deepEqual(payload.imports, []);
-    assert.deepEqual(payload.legacyPins, [{ upstream: "anthropic", ref: "main", commit: "abcdef1" }]);
+    assert.equal(payload.changed, false);
+    assert.deepEqual(payload.keys, ["changed", "exists", "lock", "path"]);
+    assert.equal(payload.lock.schemaVersion, 3);
+    assert.deepEqual(payload.lock.pins, []);
+    assert.deepEqual(payload.lock.imports, []);
   } finally {
     await fs.rm(tempHome, { recursive: true, force: true });
   }
+});
+
+test("loadAgentRegistry exposes formal compatibility matrix metadata", async () => {
+  const registry = await loadAgentRegistry();
+  const cursor = registry.find((entry) => entry.id === "cursor");
+  assert.equal(typeof cursor?.projectionVersion, "number");
+  assert.equal(typeof cursor?.mcpSupportVersion, "number");
+  assert.equal(typeof cursor?.support?.skills?.nestedDiscovery, "boolean");
+  assert.equal(typeof cursor?.support?.mcp?.transports?.stdio, "boolean");
+  assert.equal(typeof cursor?.support?.mcp?.config?.mergeStrategy, "string");
+  assert.equal(typeof cursor?.mcpKind, "string");
+  assert.equal(Array.isArray(cursor?.notes), true);
+});
+
+test("loadAgentIntegrations derives registry and targets from per-agent integration files", async () => {
+  const integrations = await loadAgentIntegrations();
+  const ids = integrations.map((entry) => entry.id);
+  assert.deepEqual(ids, ["codex", "claude", "cursor", "copilot", "gemini"]);
+
+  const windowsTargets = buildTargetsDocument(integrations, "windows");
+  assert.equal(typeof windowsTargets.codex?.mcpConfig, "string");
+  assert.equal(typeof windowsTargets.cursor?.skillsDir, "string");
+  assert.equal(typeof integrations[0]?.hasNonMcpConfig, "boolean");
+  assert.equal(typeof windowsTargets.codex?.hasNonMcpConfig, "boolean");
+  assert.equal(typeof integrations[0]?.internal?.skillsDir, "string");
+  assert.equal(typeof integrations[0]?.adapter, "string");
+});
+
+test("normalizeAgentIntegrationEntry defaults missing MCP support and version conservatively", () => {
+  const normalized = normalizeAgentIntegrationEntry(createAgentIntegrationFixture({
+    mcp: {
+      supportVersion: undefined,
+      support: undefined
+    }
+  }));
+
+  assert.equal(normalized.mcpSupportVersion, 1);
+  assert.equal(normalized.support.mcp.transports.stdio, false);
+  assert.equal(normalized.support.mcp.auth.oauth, false);
+  assert.equal(normalized.support.mcp.capabilities.tools, false);
+  assert.equal(normalized.support.mcp.config.mergeStrategy, "replace");
+});
+
+test("normalizeAgentIntegrationEntry preserves authored mcp.hasNonMcpConfig and emits it into derived targets", () => {
+  const normalized = normalizeAgentIntegrationEntry(createAgentIntegrationFixture({
+    mcp: {
+      hasNonMcpConfig: true
+    }
+  }));
+  const windowsTargets = buildTargetsDocument([normalized], "windows");
+
+  assert.equal(normalized.hasNonMcpConfig, true);
+  assert.equal(windowsTargets.fixture.hasNonMcpConfig, true);
+});
+
+test("normalizeAgentIntegrationEntry migrates legacy nested hasNonMcpConfig values", () => {
+  const fixture = createLegacyAgentIntegrationFixture();
+  delete fixture.hasNonMcpConfig;
+  fixture.targets.windows.hasNonMcpConfig = true;
+  fixture.targets.macos.hasNonMcpConfig = true;
+  fixture.targets.linux.hasNonMcpConfig = true;
+
+  const normalized = normalizeAgentIntegrationEntry(fixture);
+
+  assert.equal(normalized.hasNonMcpConfig, true);
+  assert.equal("hasNonMcpConfig" in normalized.targets.windows, false);
+});
+
+test("normalizeAgentIntegrationEntry deep-merges partial MCP support overrides", () => {
+  const normalized = normalizeAgentIntegrationEntry(createAgentIntegrationFixture({
+    mcp: {
+      support: {
+        transports: {
+          stdio: true
+        },
+        config: {
+          url: true,
+          mergeStrategy: "managed-block"
+        }
+      }
+    }
+  }));
+
+  assert.equal(normalized.support.mcp.transports.stdio, true);
+  assert.equal(normalized.support.mcp.transports.sse, false);
+  assert.equal(normalized.support.mcp.config.url, true);
+  assert.equal(normalized.support.mcp.config.command, false);
+  assert.equal(normalized.support.mcp.config.mergeStrategy, "managed-block");
+});
+
+test("MCP support selectors read normalized agent matrices", async () => {
+  const registry = await loadAgentRegistry();
+  const byId = new Map(registry.map((entry) => [entry.id, entry]));
+
+  assert.equal(supportsMcpTransport(byId.get("codex"), "stdio"), true);
+  assert.equal(supportsMcpTransport(byId.get("codex"), "sse"), true);
+  assert.equal(supportsMcpAuth(byId.get("gemini"), "providerAuth"), true);
+  assert.equal(supportsMcpAuth(byId.get("copilot"), "oauth"), false);
+  assert.equal(supportsMcpCapability(byId.get("claude"), "resources"), true);
+  assert.equal(supportsMcpCapability(byId.get("cursor"), "resources"), false);
+  assert.equal(supportsMcpConfigField(byId.get("cursor"), "envFile"), true);
+  assert.equal(supportsMcpConfigField(byId.get("claude"), "enabledTools"), false);
+  assert.equal(getMcpMergeStrategy(byId.get("codex")), "managed-block");
+  assert.equal(getMcpMergeStrategy(byId.get("cursor")), "replace");
+  assert.equal(supportsToolFiltering(byId.get("codex")), true);
+  assert.equal(supportsToolFiltering(byId.get("claude")), false);
+});
+
+test("summarizeRequiredMcpSupport derives runtime MCP requirements from canonical servers and config kind", () => {
+  const requirements = summarizeRequiredMcpSupport(
+    {
+      mcpServers: {
+        filesystem: {
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-filesystem"],
+          env: {
+            ROOT: "$HOME"
+          }
+        },
+        notion: {
+          url: "https://mcp.notion.com/mcp"
+        },
+        events: {
+          url: "https://example.com/sse",
+          transport: "sse"
+        }
+      }
+    },
+    {
+      configKind: "toml-managed-block"
+    }
+  );
+
+  assert.equal(requirements.capabilities.tools, true);
+  assert.equal(requirements.transports.stdio, true);
+  assert.equal(requirements.transports.streamableHttp, true);
+  assert.equal(requirements.transports.sse, true);
+  assert.equal(requirements.config.command, true);
+  assert.equal(requirements.config.args, true);
+  assert.equal(requirements.config.env, true);
+  assert.equal(requirements.config.url, true);
+  assert.equal(requirements.config.managedBlock, true);
+  assert.equal(requirements.config.mergeStrategy, "managed-block");
+});
+
+test("assessAgentMcpSupport reports unsupported requirement groups from the normalized support matrix", async () => {
+  const registry = await loadAgentRegistry();
+  const byId = new Map(registry.map((entry) => [entry.id, entry]));
+  const assessment = assessAgentMcpSupport(byId.get("copilot"), {
+    requirements: {
+      auth: {
+        oauth: true
+      },
+      capabilities: {
+        resources: true
+      },
+      advanced: {
+        roots: true
+      },
+      config: {
+        cwd: true,
+        managedBlock: true,
+        mergeStrategy: "managed-block"
+      }
+    }
+  });
+
+  assert.deepEqual(
+    assessment.issues.map((issue) => issue.message),
+    [
+      "support.mcp.auth.oauth",
+      "support.mcp.capabilities.resources",
+      "support.mcp.advanced.roots",
+      "support.mcp.config.cwd",
+      "support.mcp.config.managedBlock",
+      "support.mcp.config.mergeStrategy=managed-block"
+    ]
+  );
+});
+
+test("buildAgentRuntimeMcpServers rejects agent MCP projections that require unsupported transports", async () => {
+  const unsupportedAgent = normalizeAgentIntegrationEntry(createAgentIntegrationFixture({
+    mcp: {
+      support: {
+        transports: {
+          stdio: true,
+          streamableHttp: true,
+          sse: false
+        }
+      }
+    }
+  }));
+
+  assert.throws(
+    () =>
+      buildAgentRuntimeMcpServers(
+        {
+          mcpServers: {
+            events: {
+              url: "https://example.com/sse",
+              transport: "sse"
+            }
+          }
+        },
+        unsupportedAgent
+      ),
+    /support\.mcp\.transports\.sse/
+  );
 });
 
 test("buildToolJsonMcpServers renders Copilot-compatible stdio and remote server shapes", () => {
@@ -196,6 +654,62 @@ test("buildToolJsonMcpServers renders Copilot-compatible stdio and remote server
     url: "https://example.com/sse",
     tools: ["*"]
   });
+});
+
+test("buildToolJsonMcpServers renders Gemini-compatible command/url server shapes", () => {
+  const projected = buildToolJsonMcpServers(
+    {
+      mcpServers: {
+        filesystem: {
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-filesystem"]
+        },
+        notion: {
+          url: "https://mcp.notion.com/mcp"
+        }
+      }
+    },
+    "gemini"
+  );
+
+  assert.deepEqual(projected.filesystem, {
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-filesystem"]
+  });
+  assert.deepEqual(projected.notion, {
+    url: "https://mcp.notion.com/mcp"
+  });
+});
+
+test("movePathWithFallback copies and removes source when rename is blocked", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "skills-sync-init-move-fallback-"));
+  const sourcePath = path.join(tempRoot, "workspace");
+  const targetPath = path.join(tempRoot, "workspace.backup");
+  const markerPath = path.join(sourcePath, "profiles", "personal.json");
+
+  await fs.mkdir(path.dirname(markerPath), { recursive: true });
+  await fs.writeFile(markerPath, '{"name":"personal"}\n', "utf8");
+
+  const originalRename = fsExtra.rename;
+  fsExtra.rename = async () => {
+    const error = new Error("rename blocked");
+    error.code = "EPERM";
+    throw error;
+  };
+
+  try {
+    const moved = await movePathWithFallback(sourcePath, targetPath);
+    assert.equal(moved, true);
+    assert.equal(await fs.stat(targetPath).then(() => true).catch(() => false), true);
+    assert.equal(await fs.stat(sourcePath).then(() => true).catch(() => false), false);
+    assert.equal(
+      await fs.readFile(path.join(targetPath, "profiles", "personal.json"), "utf8"),
+      '{"name":"personal"}\n'
+    );
+  } finally {
+    fsExtra.rename = originalRename;
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("fetchRefAndResolveCommit falls back from missing main to master", async () => {

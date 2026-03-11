@@ -1,0 +1,87 @@
+{
+  "id": "codex",
+  "name": "Codex",
+  "config": {
+    "order": 10,
+    "adapter": "codex",
+    "projectionVersion": 1
+  },
+  "skills": {
+    "internalDir": ".codex/skills",
+    "bindMode": "children",
+    "targets": {
+      "windows": {
+        "dir": "%USERPROFILE%\\\\.codex\\\\skills\\\\vendor_imports"
+      },
+      "macos": {
+        "dir": "$HOME/.codex/skills/vendor_imports"
+      },
+      "linux": {
+        "dir": "$HOME/.codex/skills/vendor_imports"
+      }
+    },
+    "support": {
+      "nestedDiscovery": true,
+      "instructions": true,
+      "frontmatter": true,
+      "scripts": true,
+      "assets": true,
+      "references": true,
+      "helpers": false
+    }
+  },
+  "mcp": {
+    "internalConfig": ".codex/config.toml",
+    "kind": "toml-managed-block",
+    "supportVersion": 1,
+    "hasNonMcpConfig": true,
+    "targets": {
+      "windows": {
+        "config": "%USERPROFILE%\\\\.codex\\\\config.toml"
+      },
+      "macos": {
+        "config": "$HOME/.codex/config.toml"
+      },
+      "linux": {
+        "config": "$HOME/.codex/config.toml"
+      }
+    },
+    "support": {
+      "transports": {
+        "stdio": true,
+        "streamableHttp": true,
+        "sse": true
+      },
+      "auth": {
+        "oauth": true,
+        "bearerToken": true,
+        "staticHeaders": true,
+        "envHeaders": true
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": false,
+        "prompts": false
+      },
+      "config": {
+        "command": true,
+        "args": true,
+        "env": true,
+        "cwd": true,
+        "url": true,
+        "enabled": true,
+        "required": true,
+        "startupTimeout": true,
+        "toolTimeout": true,
+        "enabledTools": true,
+        "disabledTools": true,
+        "managedBlock": true,
+        "mergeStrategy": "managed-block"
+      }
+    }
+  },
+  "notes": [
+    "Uses a vendor_imports skills path for managed materialization.",
+    "Codex natively supports SKILL.md packages with frontmatter and optional scripts, references, and assets."
+  ]
+}

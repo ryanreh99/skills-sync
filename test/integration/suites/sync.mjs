@@ -26,10 +26,30 @@ export async function run({ localOverridesPath, runtimePath }) {
   );
   assert.equal(await pathExists(statePath), false, "sync --dry-run should not write active binding state.");
 
-  runCli(["sync", "--profile", "personal"]);
+  const syncResult = runCli(["sync", "--profile", "personal"]);
   assert.equal(await pathExists(statePath), true, "sync should write active binding state.");
   const stateAfterSync = JSON.parse(await fs.readFile(statePath, "utf8"));
   assert.equal(stateAfterSync.profile, "personal", "sync should apply the requested profile.");
+  assert.equal(
+    syncResult.stdout.includes("Sync gates"),
+    false,
+    "sync should not surface removed sync-gate output."
+  );
+  assert.equal(
+    syncResult.stdout.includes("trust approve"),
+    false,
+    "sync should not suggest removed trust commands."
+  );
+  assert.equal(
+    syncResult.stdout.includes("workspace/source-policy.json"),
+    false,
+    "sync should not reference the removed workspace/source-policy.json file."
+  );
+  assert.equal(
+    syncResult.stdout.includes("trust-policy-violation"),
+    false,
+    "sync should not print removed trust-policy diagnostics."
+  );
 
   runCli([
     "profile",
@@ -44,7 +64,7 @@ export async function run({ localOverridesPath, runtimePath }) {
   ]);
   let cursorMcpDoc = JSON.parse(await fs.readFile(cursorMcpPath, "utf8"));
   assert.equal(
-    Object.prototype.hasOwnProperty.call(cursorMcpDoc.mcpServers ?? {}, "skills-sync__sync_no_sync_server"),
+    Object.prototype.hasOwnProperty.call(cursorMcpDoc.mcpServers ?? {}, "sync_no_sync_server"),
     false,
     "--no-sync should prevent runtime MCP changes."
   );
@@ -61,7 +81,7 @@ export async function run({ localOverridesPath, runtimePath }) {
   ]);
   cursorMcpDoc = JSON.parse(await fs.readFile(cursorMcpPath, "utf8"));
   assert.equal(
-    Object.prototype.hasOwnProperty.call(cursorMcpDoc.mcpServers ?? {}, "skills-sync__sync_auto_server"),
+    Object.prototype.hasOwnProperty.call(cursorMcpDoc.mcpServers ?? {}, "sync_auto_server"),
     true,
     "profile add-mcp should auto-sync by default."
   );
@@ -69,7 +89,7 @@ export async function run({ localOverridesPath, runtimePath }) {
   runCli(["profile", "remove-mcp", "personal", "sync_auto_server"]);
   cursorMcpDoc = JSON.parse(await fs.readFile(cursorMcpPath, "utf8"));
   assert.equal(
-    Object.prototype.hasOwnProperty.call(cursorMcpDoc.mcpServers ?? {}, "skills-sync__sync_auto_server"),
+    Object.prototype.hasOwnProperty.call(cursorMcpDoc.mcpServers ?? {}, "sync_auto_server"),
     false,
     "profile remove-mcp should auto-sync by default."
   );

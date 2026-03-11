@@ -350,7 +350,7 @@ export function resolveShortcutCommands(shortcut) {
       message: "Profile options",
       commands: [
         { value: "profile show", label: "show", hint: "show active profile skills + MCP servers" },
-        { value: "profile inspect", label: "inspect", hint: "check imports, freshness, and capability warnings" },
+        { value: "profile inspect", label: "inspect", hint: "check imports, freshness, and feature warnings" },
         { value: "profile refresh", label: "refresh", hint: "refresh imported skill sources" },
         {
           value: "profile add-skill --interactive",

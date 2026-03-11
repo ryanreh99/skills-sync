@@ -54,6 +54,15 @@ skills-sync profile add-skill personal \
   --all
 ```
 
+## Imported Source Behavior
+
+Imported sources are accepted without a separate review step.
+
+- there is no `workspace/source-policy.json`
+- `sync` builds and applies directly; there is no separate sync-gate phase
+- `workspace/skills-sync.lock.json` records source identity, normalized source descriptors, resolved revisions, content digests, projection metadata, refresh outcomes, and eval state
+- `workspace/skills-sync.manifest.json` records the exported workspace shape and currently uses schema version `2`
+
 ## Discover Skills
 
 Search discoverable and installed content:
@@ -78,7 +87,7 @@ skills-sync list upstream-content --source ./team-skills --provider local-path -
 - optional files such as scripts, helpers, references, assets, and frontmatter are preserved
 - agents can consume different subsets of the same skill
 - if an agent ignores an optional capability, that does not block import, sync, or refresh
-- capability mismatches are surfaced through inventory, `profile inspect`, `doctor`, and `agents drift`
+- unsupported skill features are surfaced through inventory, `profile inspect`, `doctor`, and `agents drift`
 
 The baseline portable unit is still the instruction content in `SKILL.md`, but the full directory remains the managed artifact.
 
@@ -107,6 +116,8 @@ skills-sync profile refresh personal --upstream anthropic
 ```
 
 Imported-source state is stored in `workspace/skills-sync.lock.json`.
+The lockfile now records source identity, normalized source descriptors, resolved revisions, content digests, projection metadata, refresh outcomes, and reserved eval state.
+The current lockfile schema version is `3`.
 These commands sync automatically unless you pass `--no-sync`: `profile add-skill`, `profile remove-skill`, `profile add-mcp`, `profile remove-mcp`, `profile refresh`, and `profile import`.
 
 ## Remove Skills Cleanly
@@ -163,7 +174,7 @@ Important workspace files:
 - `workspace/profiles/<name>.json`: profile metadata, including pack location and inheritance settings
 - `workspace/packs/<profile>/sources.json`: imported skill bindings for a profile
 - `workspace/packs/<profile>/mcp/servers.json`: MCP servers defined for a profile
-- `workspace/skills-sync.lock.json`: resolved imported-source state, revisions, hashes, and refresh metadata
+- `workspace/skills-sync.lock.json`: resolved imported-source state, revisions, content digests, projection metadata, refresh metadata, and eval state
 - `workspace/skills-sync.manifest.json`: exported whole-workspace state for restore or reconcile workflows
 - `workspace/state/active-profile.json`: current synced runtime state used by `unlink` and drift checks
 
@@ -194,6 +205,7 @@ skills-sync(personal) > exit
 ## Migration Notes
 
 - the canonical lockfile is now `workspace/skills-sync.lock.json`
-- legacy `workspace/upstreams.lock.json` is migration input only
+- the current lockfile schema version is `3`
 - upstreams, profile docs, and source docs are schema-versioned
 - workspace manifests live at `workspace/skills-sync.manifest.json`
+- the current workspace manifest schema version is `2`

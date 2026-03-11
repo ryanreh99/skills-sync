@@ -56,6 +56,10 @@ export async function run({ localOverridesPath }) {
     "profile show should expose logical inventory entries."
   );
   assert.equal(Array.isArray(profilePayload.mcp.servers), true, "profile show should include mcp.servers array.");
+  const profileShowText = runCli(["profile", "show", "personal"]).stdout;
+  assert.equal(profileShowText.includes("Skills ("), true, "profile show text should include the skills section.");
+  assert.equal(profileShowText.includes("TARGET"), true, "profile show text should render MCP target columns.");
+  assert.equal(profileShowText.includes("\t"), false, "profile show text should not rely on tab separators.");
 
   // --- profile add-skill ---
   runCli([
@@ -514,6 +518,25 @@ export async function run({ localOverridesPath }) {
   const inspectBefore = JSON.parse(runCli(["profile", "inspect", "personal", "--format", "json"]).stdout.trim());
   assert.equal(typeof inspectBefore.summary.imports, "number", "profile inspect should summarize imports.");
   assert.equal(Array.isArray(inspectBefore.imports), true, "profile inspect should list imported skills.");
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(inspectBefore, "gates"),
+    false,
+    "profile inspect should not expose removed sync gate output."
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(inspectBefore.summary ?? {}, "trustViolations"),
+    false,
+    "profile inspect summary should not expose removed trustViolations metadata."
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(inspectBefore.summary ?? {}, "gateViolations"),
+    false,
+    "profile inspect summary should not expose removed gateViolations metadata."
+  );
+  const inspectText = runCli(["profile", "inspect", "personal"]).stdout;
+  assert.equal(inspectText.includes("Imports ("), true, "profile inspect text should include the imports section.");
+  assert.equal(inspectText.includes("STATE"), true, "profile inspect text should render a state column.");
+  assert.equal(inspectText.includes("\t"), false, "profile inspect text should not rely on tab separators.");
 
   const localSourceRoot = path.join(localOverridesPath, "fixtures", "local-source");
   const localSkillRoot = path.join(localSourceRoot, "native-skill");
@@ -571,19 +594,6 @@ export async function run({ localOverridesPath }) {
     "--build",
     "--no-sync"
   ]);
-  runCli([
-    "profile",
-    "add-skill",
-    "personal",
-    "--source",
-    localSourceRoot,
-    "--provider",
-    "local-path",
-    "--upstream-id",
-    "local-fixtures",
-    "--all",
-    "--no-sync"
-  ]);
 
   const upstreamsAfterLocalImport = JSON.parse(await fs.readFile(localUpstreamsPath, "utf8"));
   assert.equal(
@@ -611,6 +621,16 @@ export async function run({ localOverridesPath }) {
       localImportedSkill.capabilities.includes("frontmatter"),
     true,
     "Capability scanning should preserve optional skill capabilities."
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(localImportedSkill, "trustState"),
+    false,
+    "Imported inventory rows should not expose removed trustState metadata."
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(localImportedSkill, "policyStatus"),
+    false,
+    "Imported inventory rows should not expose removed policyStatus metadata."
   );
 
   const installedSearch = JSON.parse(
@@ -646,6 +666,11 @@ export async function run({ localOverridesPath }) {
     ]).stdout.trim()
   );
   assert.equal(typeof refreshDryRun.summary.unchanged, "number", "profile refresh should summarize unchanged imports.");
+  assert.equal(
+    refreshDryRun.results.every((row) => !Object.prototype.hasOwnProperty.call(row, "policyStatus")),
+    true,
+    "profile refresh rows should not expose removed policyStatus metadata."
+  );
   assert.equal(await fs.stat(lockPath).then(() => true).catch(() => false), true, "Build after import should write skills-sync.lock.json.");
 
   const inspectAfterLocalImport = JSON.parse(runCli(["profile", "inspect", "personal", "--format", "json"]).stdout.trim());
@@ -653,6 +678,16 @@ export async function run({ localOverridesPath }) {
     inspectAfterLocalImport.imports.some((item) => item.upstream === "local-fixtures"),
     true,
     "profile inspect should include locally imported skills."
+  );
+  assert.equal(
+    inspectAfterLocalImport.imports.every((item) => !Object.prototype.hasOwnProperty.call(item, "trustState")),
+    true,
+    "profile inspect imports should not expose removed trustState metadata."
+  );
+  assert.equal(
+    inspectAfterLocalImport.imports.every((item) => !Object.prototype.hasOwnProperty.call(item, "policyStatus")),
+    true,
+    "profile inspect imports should not expose removed policyStatus metadata."
   );
 
   runCli([
@@ -713,6 +748,10 @@ export async function run({ localOverridesPath }) {
     true,
     "upstream-content json should include mcpServers[]."
   );
+  const upstreamContentText = runCli(["list", "upstream-content", "--upstream", "anthropic"]).stdout;
+  assert.equal(upstreamContentText.includes("Skills ("), true, "upstream-content text should include the skills section.");
+  assert.equal(upstreamContentText.includes("MCP Servers"), true, "upstream-content text should include the MCP section.");
+  assert.equal(upstreamContentText.includes("\t"), false, "upstream-content text should not rely on tab separators.");
 
   // --- workspace export/diff/sync ---
   const missingManifestDiff = runCli(["workspace", "diff"], 1);
@@ -728,8 +767,26 @@ export async function run({ localOverridesPath }) {
     true,
     "workspace export should write a manifest file."
   );
+  const workspaceManifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+  assert.equal(workspaceManifest.schemaVersion, 2, "workspace export should write manifest schemaVersion 2.");
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(workspaceManifest.workspace ?? {}, "sourcePolicy"),
+    false,
+    "workspace export should not include removed sourcePolicy state."
+  );
+  assert.equal(typeof workspaceManifest.workspace?.lock, "object", "workspace export should include lock state.");
+  assert.equal(workspaceManifest.workspace.lock?.schemaVersion, 3, "workspace export should include lock schemaVersion 3.");
   const workspaceDiff = JSON.parse(runCli(["workspace", "diff", "--input", manifestPath, "--format", "json"]).stdout.trim());
   assert.deepEqual(workspaceDiff.profiles.onlyLeft, [], "workspace diff should be clean immediately after export.");
   assert.deepEqual(workspaceDiff.upstreams.onlyLeft, [], "workspace diff should report no upstream drift immediately after export.");
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(workspaceDiff, "sourcePolicyChanged"),
+    false,
+    "workspace diff should not expose removed sourcePolicyChanged output."
+  );
+  assert.equal(workspaceDiff.lockChanged, false, "workspace diff should compare lock state.");
+  const workspaceDiffText = runCli(["workspace", "diff", "--input", manifestPath]).stdout;
+  assert.equal(workspaceDiffText.includes("Workspace Diff"), true, "workspace diff text should render a section heading.");
+  assert.equal(workspaceDiffText.includes("Lock Changed"), true, "workspace diff text should render labeled rows.");
   runCli(["workspace", "sync", "--input", manifestPath, "--dry-run"]);
 }

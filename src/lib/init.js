@@ -12,6 +12,12 @@ import {
 
 const DEFAULT_PROFILE_NAME = "personal";
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 function resolveProfileName(rawProfile) {
   if (typeof rawProfile !== "string") {
     return DEFAULT_PROFILE_NAME;
@@ -178,6 +184,55 @@ async function previewDefaultProfile({ profileName, force }) {
   };
 }
 
+async function removePathRobust(targetPath) {
+  const maxAttempts = 6;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await fs.rm(targetPath, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 100
+      });
+      return;
+    } catch (error) {
+      const code = error?.code;
+      const retryable = code === "EPERM" || code === "ENOTEMPTY" || code === "EBUSY";
+      if (!retryable || attempt === maxAttempts) {
+        throw error;
+      }
+      await sleep(150 * attempt);
+    }
+  }
+}
+
+export async function movePathWithFallback(fromPath, toPath) {
+  if (!(await fs.pathExists(fromPath))) {
+    return false;
+  }
+  if (await fs.pathExists(toPath)) {
+    await removePathRobust(toPath);
+  }
+  try {
+    await fs.rename(fromPath, toPath);
+    return true;
+  } catch (error) {
+    const code = error?.code;
+    if (code !== "EPERM" && code !== "EXDEV" && code !== "EBUSY") {
+      throw error;
+    }
+  }
+
+  await fs.cp(fromPath, toPath, {
+    recursive: true,
+    dereference: true,
+    force: true,
+    errorOnExist: false
+  });
+  await removePathRobust(fromPath);
+  return true;
+}
+
 export async function cmdInit({ seed = false, dryRun = false, profile = null } = {}) {
   const selectedProfile = resolveProfileName(profile);
   const profileWasExplicit = typeof profile === "string" && profile.trim().length > 0;
@@ -219,11 +274,10 @@ export async function cmdInit({ seed = false, dryRun = false, profile = null } =
     if (await fs.pathExists(localRoot)) {
       const entries = await fs.readdir(localRoot);
       if (entries.length > 0) {
-        await fs.remove(backupPath);
-        await fs.move(localRoot, backupPath);
+        await movePathWithFallback(localRoot, backupPath);
         logWarn("Backed up existing workspace.");
       } else {
-        await fs.remove(localRoot);
+        await removePathRobust(localRoot);
       }
     }
     await fs.copy(seedRoot, localRoot, { overwrite: true, errorOnExist: false });

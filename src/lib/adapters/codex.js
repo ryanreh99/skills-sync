@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import path from "node:path";
 import { CODEX_MCP_BLOCK_END, CODEX_MCP_BLOCK_START, logWarn, readJsonFile } from "../core.js";
-import { linkDirectoryProjection } from "./common.js";
+import { discoverBundledSkills, projectSkillsForAgent } from "./common.js";
 
 function tomlString(value) {
   return JSON.stringify(String(value ?? ""));
@@ -29,33 +29,6 @@ function isTomlTableHeader(value) {
 
 function isCodexMcpTableHeader(value) {
   return /^\[mcp_servers\./.test(value);
-}
-
-export async function discoverBundledSkills(bundleSkillsPath, currentPath = "", entries = []) {
-  const absolutePath = currentPath
-    ? path.join(bundleSkillsPath, currentPath.split("/").join(path.sep))
-    : bundleSkillsPath;
-  const children = await fs.readdir(absolutePath, { withFileTypes: true });
-  let hasSkill = false;
-  for (const child of children) {
-    if (child.isFile() && child.name === "SKILL.md") {
-      hasSkill = true;
-      break;
-    }
-  }
-  if (hasSkill && currentPath.length > 0) {
-    entries.push(currentPath);
-  }
-
-  const dirs = children
-    .filter((child) => child.isDirectory())
-    .map((child) => child.name)
-    .sort((left, right) => left.localeCompare(right));
-  for (const directory of dirs) {
-    const next = currentPath.length > 0 ? `${currentPath}/${directory}` : directory;
-    await discoverBundledSkills(bundleSkillsPath, next, entries);
-  }
-  return entries;
 }
 
 export function renderCodexConfigToml(canonicalMcp, bundledSkills = []) {
@@ -201,18 +174,22 @@ export async function projectCodexFromBundle(options) {
     bundleMcpPath,
     packRoot,
     localConfigPath = null,
-    canOverride = false
+    hasNonMcpConfig = false
   } = options;
   const runtimeRoot = path.join(runtimeInternalRoot, ".codex");
   await fs.ensureDir(runtimeRoot);
 
-  const skillsMethod = await linkDirectoryProjection(bundleSkillsPath, path.join(runtimeRoot, "skills"));
-  await linkDirectoryProjection(bundleSkillsPath, path.join(runtimeRoot, "vendor_imports", "skills"));
+  const { skillsMethod, projectionPlan } = await projectSkillsForAgent(
+    bundleSkillsPath,
+    path.join(runtimeRoot, "skills"),
+    "codex"
+  );
+  await projectSkillsForAgent(bundleSkillsPath, path.join(runtimeRoot, "vendor_imports", "skills"), "codex");
 
   const canonicalMcp = await readJsonFile(bundleMcpPath);
   let codexToml = null;
 
-  if (!canOverride && localConfigPath && (await fs.pathExists(localConfigPath))) {
+  if (hasNonMcpConfig && localConfigPath && (await fs.pathExists(localConfigPath))) {
     try {
       const localContent = await fs.readFile(localConfigPath, "utf8");
       codexToml = renderCodexConfigTomlFromLocal(localContent, canonicalMcp);
@@ -235,5 +212,11 @@ export async function projectCodexFromBundle(options) {
     await fs.copy(overrideSource, path.join(runtimeRoot, "tool-overrides"));
   }
 
-  return { skillsMethod, mcpMethod };
+  return {
+    skillsMethod,
+    mcpMethod,
+    projectionPlan
+  };
 }
+
+export const projectFromBundle = projectCodexFromBundle;

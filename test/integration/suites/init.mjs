@@ -8,6 +8,7 @@ import { runCli, pathExists, listBackupDirs } from "../helpers.mjs";
  */
 export async function run({ localOverridesPath, distPath }) {
   const configPath = path.join(localOverridesPath, "config.json");
+  const sourcePolicyPath = path.join(localOverridesPath, "source-policy.json");
 
   // --- init --dry-run (non-mutating preview) ---
   const dryRunResult = runCli(["init", "--dry-run"]);
@@ -25,6 +26,11 @@ export async function run({ localOverridesPath, distPath }) {
     await pathExists(configPath),
     false,
     "init --dry-run should not create workspace/config.json"
+  );
+  assert.equal(
+    await pathExists(sourcePolicyPath),
+    false,
+    "init --dry-run should not create the removed workspace/source-policy.json file."
   );
   assert.equal(await pathExists(distPath), false, "init --dry-run must not create runtime artifacts.");
 
@@ -47,6 +53,11 @@ export async function run({ localOverridesPath, distPath }) {
   );
   const initialConfig = JSON.parse(await fs.readFile(configPath, "utf8"));
   assert.equal(initialConfig.defaultProfile, "personal", "init should set default profile to personal when missing.");
+  assert.equal(
+    await pathExists(sourcePolicyPath),
+    false,
+    "init should not create the removed workspace/source-policy.json file."
+  );
   assert.equal(await pathExists(distPath), false, "init must not create runtime artifacts.");
 
   // --- init is idempotent: running again must not fail ---
@@ -83,5 +94,10 @@ export async function run({ localOverridesPath, distPath }) {
   assert.equal(backupsAfterSecondSeed.size, 1, "Repeated init --seed must not create multiple backup directories.");
 
   // init --seed should not trigger a build
+  assert.equal(
+    await pathExists(sourcePolicyPath),
+    false,
+    "init --seed should not recreate the removed workspace/source-policy.json file."
+  );
   assert.equal(await pathExists(distPath), false, "init --seed must not create runtime artifacts.");
 }

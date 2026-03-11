@@ -2,13 +2,26 @@ import fs from "fs-extra";
 import path from "node:path";
 import { buildProfile } from "./build.js";
 import { cmdApply } from "./bindings.js";
-import { loadImportLock, saveImportLock } from "./import-lock.js";
+import { loadImportLock, saveImportLock, upsertImportRecord } from "./import-lock.js";
+import { getAgentRegistryById } from "./agent-registry.js";
 import { buildProfileInventory } from "./inventory.js";
 import { getProvider } from "./providers/index.js";
 import { loadEffectiveProfileState } from "./profile-runtime.js";
 import { collectSourcePlanning, loadUpstreamsConfig } from "./upstreams.js";
 import { LOCAL_OVERRIDES_ROOT, logInfo, writeJsonFile } from "./core.js";
 import { resolvePack, resolveProfile } from "./config.js";
+import { getNormalizedSourceDescriptor } from "./source-normalization.js";
+import {
+  accent,
+  formatBadge,
+  muted,
+  renderKeyValueRows,
+  renderSection,
+  renderSimpleList,
+  renderTable,
+  success,
+  warning
+} from "./terminal-ui.js";
 
 function normalizeRequiredText(value, label) {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -32,17 +45,65 @@ function summarizeRefreshRows(rows) {
   };
 }
 
+function toneForImportFlag(flag) {
+  switch (flag) {
+    case "imported":
+      return "success";
+    case "imported-local":
+      return "accent";
+    case "stale":
+      return "warning";
+    case "pinned":
+      return "accent";
+    case "floating":
+      return "muted";
+    default:
+      return "muted";
+  }
+}
+
+function formatImportState(flags, staleProjectionAgents) {
+  const badges = (Array.isArray(flags) ? flags : []).map((flag) =>
+    formatBadge(flag, toneForImportFlag(flag), process.stdout)
+  );
+  if (Array.isArray(staleProjectionAgents) && staleProjectionAgents.length > 0) {
+    badges.push(formatBadge(`projection:${staleProjectionAgents.join(",")}`, "warning", process.stdout));
+  }
+  return badges.length > 0 ? badges.join(" ") : muted("(none)", process.stdout);
+}
+
+function formatRefreshStatus(status) {
+  switch (status) {
+    case "changed":
+      return warning(status, process.stdout);
+    case "unchanged":
+      return success(status, process.stdout);
+    case "pinned":
+      return accent(status, process.stdout);
+    case "error":
+      return warning(status, process.stdout);
+    default:
+      return status;
+  }
+}
+
 export async function cmdProfileInspect({ profile, format = "text" }) {
   const profileName = normalizeRequiredText(profile, "Profile name");
   const inventory = await buildProfileInventory(profileName, { detail: "full" });
+  const agentRegistryById = await getAgentRegistryById();
   const imported = inventory.skills.items.filter((item) => item.sourceType === "imported");
   const summary = {
     imports: imported.length,
     stale: imported.filter((item) => item.flags.includes("stale")).length,
     pinned: imported.filter((item) => item.flags.includes("pinned")).length,
     floating: imported.filter((item) => item.flags.includes("floating")).length,
-    capabilityMismatches: imported.reduce(
-      (count, item) => count + item.materializedAgents.reduce((inner, agent) => inner + agent.capabilityMismatches.length, 0),
+    projectionStale: imported.filter((item) =>
+      Object.entries(item.projectionAdapters ?? {}).some(
+        ([agentId, adapter]) => (agentRegistryById.get(agentId)?.projectionVersion ?? 1) !== adapter.contractVersion
+      )
+    ).length,
+    featureWarnings: imported.reduce(
+      (count, item) => count + item.materializedAgents.reduce((inner, agent) => inner + agent.unsupportedFeatures.length, 0),
       0
     )
   };
@@ -58,14 +119,53 @@ export async function cmdProfileInspect({ profile, format = "text" }) {
     return;
   }
 
-  process.stdout.write(`Profile: ${inventory.profile.name}\n`);
-  process.stdout.write(
-    `Imported skills: ${summary.imports} | stale: ${summary.stale} | pinned: ${summary.pinned} | floating: ${summary.floating}\n`
+  const lines = [renderSection("Profile", { stream: process.stdout })];
+  lines.push(
+    renderKeyValueRows(
+      [
+        { key: "Name", value: accent(inventory.profile.name, process.stdout) },
+        { key: "Imported Skills", value: String(summary.imports) },
+        { key: "Stale Imports", value: summary.stale > 0 ? warning(String(summary.stale), process.stdout) : success("0", process.stdout) },
+        { key: "Pinned", value: String(summary.pinned) },
+        { key: "Floating", value: String(summary.floating) },
+        {
+          key: "Projection Stale",
+          value: summary.projectionStale > 0 ? warning(String(summary.projectionStale), process.stdout) : success("0", process.stdout)
+        },
+        {
+          key: "Feature Warnings",
+          value: summary.featureWarnings > 0
+            ? warning(String(summary.featureWarnings), process.stdout)
+            : success("0", process.stdout)
+        }
+      ],
+      { stream: process.stdout }
+    )
   );
-  process.stdout.write(`Capability mismatches: ${summary.capabilityMismatches}\n`);
-  for (const item of imported) {
-    process.stdout.write(`  ${item.name}\t${item.upstream}:${item.selectionPath}\t${item.flags.join(",")}\n`);
+  lines.push("");
+  lines.push(renderSection("Imports", { count: imported.length, stream: process.stdout }));
+  if (imported.length === 0) {
+    lines.push(renderSimpleList([], { empty: "(none)" }));
+  } else {
+    lines.push(
+      renderTable(
+        ["Name", "Source", "State"],
+        imported.map((item) => {
+          const staleProjectionAgents = Object.entries(item.projectionAdapters ?? {})
+            .filter(([agentId, adapter]) => (agentRegistryById.get(agentId)?.projectionVersion ?? 1) !== adapter.contractVersion)
+            .map(([agentId]) => agentId)
+            .sort((left, right) => left.localeCompare(right));
+          return [
+            item.name,
+            `${item.upstream}:${item.selectionPath}`,
+            formatImportState(item.flags, staleProjectionAgents)
+          ];
+        }),
+        { stream: process.stdout }
+      )
+    );
   }
+  process.stdout.write(`${lines.join("\n")}\n`);
 }
 
 export async function cmdProfileRefresh({
@@ -143,25 +243,54 @@ export async function cmdProfileRefresh({
       });
 
       if (!dryRun) {
-        const target = record ?? {
+        const installedAt = record?.installedAt ?? new Date().toISOString();
+        upsertImportRecord(lockState.lock, {
           profile: profileName,
           upstream: entry.upstreamId,
           provider: upstreamDoc.provider,
           originalInput: upstreamDoc.originalInput ?? (upstreamDoc.provider === "local-path" ? upstreamDoc.path : upstreamDoc.repo),
           selectionPath: entry.selectionPath,
           destRelative: entry.destRelative,
-          installedAt: new Date().toISOString()
-        };
-        target.ref = entry.ref ?? target.ref;
-        target.tracking = entry.tracking;
-        target.resolvedRevision = nextRevision;
-        target.latestRevision = nextRevision;
-        target.contentHash = nextHash;
-        target.refreshedAt = new Date().toISOString();
-        target.capabilities = materialized.capabilities;
-        if (!record) {
-          lockState.lock.imports.push(target);
-        }
+          ...(entry.ref ? { ref: entry.ref } : {}),
+          tracking: entry.tracking,
+          resolvedRevision: nextRevision,
+          latestRevision: nextRevision,
+          contentHash: nextHash,
+          installedAt,
+          refreshedAt: new Date().toISOString(),
+          capabilities: materialized.capabilities,
+          materializedAgents: record?.materializedAgents ?? [],
+          sourceIdentity: upstreamDoc.sourceIdentity,
+          source: {
+            provider: upstreamDoc.provider,
+            originalInput: upstreamDoc.originalInput ?? (upstreamDoc.provider === "local-path" ? upstreamDoc.path : upstreamDoc.repo),
+            identity: upstreamDoc.sourceIdentity,
+            descriptor: getNormalizedSourceDescriptor(upstreamDoc)
+          },
+          resolution: {
+            tracking: entry.tracking,
+            ...(entry.ref ? { ref: entry.ref } : {}),
+            resolvedRevision: nextRevision,
+            latestRevision: nextRevision
+          },
+          digests: {
+            contentSha256: nextHash
+          },
+          projection: {
+            adapters: record?.projection?.adapters ?? {},
+            materializedAgents: record?.materializedAgents ?? []
+          },
+          refresh: {
+            installedAt,
+            lastRefreshedAt: new Date().toISOString(),
+            lastOutcome: didChange ? "changed" : "unchanged",
+            changed: didChange
+          },
+          eval: {
+            status: record?.eval?.status ?? "pending",
+            updatedAt: record?.eval?.updatedAt ?? null
+          }
+        });
         changed = changed || didChange;
       }
     } catch (error) {
@@ -190,16 +319,40 @@ export async function cmdProfileRefresh({
     return;
   }
 
-  process.stdout.write(
-    `Profile refresh ${dryRun ? "(dry-run) " : ""}for '${profileName}': changed=${summary.changed} unchanged=${summary.unchanged} pinned=${summary.pinned} errors=${summary.errors}\n`
+  const lines = [renderSection("Profile Refresh", { stream: process.stdout })];
+  lines.push(
+    renderKeyValueRows(
+      [
+        { key: "Profile", value: accent(profileName, process.stdout) },
+        { key: "Mode", value: dryRun ? warning("dry-run", process.stdout) : success("apply", process.stdout) },
+        { key: "Changed", value: String(summary.changed) },
+        { key: "Unchanged", value: String(summary.unchanged) },
+        { key: "Pinned", value: String(summary.pinned) },
+        { key: "Errors", value: summary.errors > 0 ? warning(String(summary.errors), process.stdout) : success("0", process.stdout) }
+      ],
+      { stream: process.stdout }
+    )
   );
-  for (const row of rows) {
-    if (row.status === "error") {
-      process.stdout.write(`  ${row.upstream}:${row.path}\terror\t${row.error}\n`);
-      continue;
-    }
-    process.stdout.write(`  ${row.upstream}:${row.path}\t${row.status}\n`);
+  lines.push("");
+  lines.push(renderSection("Results", { count: rows.length, stream: process.stdout }));
+  if (rows.length === 0) {
+    lines.push(renderSimpleList([], { empty: "(none)" }));
+  } else {
+    lines.push(
+      renderTable(
+        ["Target", "Status", "Detail"],
+        rows.map((row) => [
+          `${row.upstream}:${row.path}`,
+          formatRefreshStatus(row.status),
+          row.status === "error"
+            ? warning(row.error, process.stdout)
+            : row.nextRevision ?? row.resolvedRevision ?? muted("-", process.stdout)
+        ]),
+        { stream: process.stdout }
+      )
+    );
   }
+  process.stdout.write(`${lines.join("\n")}\n`);
 }
 
 export async function cmdProfileNewSkill({
@@ -296,11 +449,39 @@ export async function cmdProfileDiff({ left, right, format = "text" }) {
     return;
   }
 
-  process.stdout.write(`Profile diff: ${leftProfile} vs ${rightProfile}\n`);
-  process.stdout.write(`  skills only in ${leftProfile}: ${skillDiff.onlyLeft.join(", ") || "(none)"}\n`);
-  process.stdout.write(`  skills only in ${rightProfile}: ${skillDiff.onlyRight.join(", ") || "(none)"}\n`);
-  process.stdout.write(`  mcps only in ${leftProfile}: ${mcpDiff.onlyLeft.join(", ") || "(none)"}\n`);
-  process.stdout.write(`  mcps only in ${rightProfile}: ${mcpDiff.onlyRight.join(", ") || "(none)"}\n`);
+  const lines = [renderSection("Profile Diff", { stream: process.stdout })];
+  lines.push(
+    renderKeyValueRows(
+      [
+        { key: "Left", value: accent(leftProfile, process.stdout) },
+        { key: "Right", value: accent(rightProfile, process.stdout) }
+      ],
+      { stream: process.stdout }
+    )
+  );
+  lines.push("");
+  lines.push(renderSection("Skills", { stream: process.stdout }));
+  lines.push(
+    renderKeyValueRows(
+      [
+        { key: `Only In ${leftProfile}`, value: skillDiff.onlyLeft.join(", ") || muted("(none)", process.stdout) },
+        { key: `Only In ${rightProfile}`, value: skillDiff.onlyRight.join(", ") || muted("(none)", process.stdout) }
+      ],
+      { stream: process.stdout }
+    )
+  );
+  lines.push("");
+  lines.push(renderSection("MCP Servers", { stream: process.stdout }));
+  lines.push(
+    renderKeyValueRows(
+      [
+        { key: `Only In ${leftProfile}`, value: mcpDiff.onlyLeft.join(", ") || muted("(none)", process.stdout) },
+        { key: `Only In ${rightProfile}`, value: mcpDiff.onlyRight.join(", ") || muted("(none)", process.stdout) }
+      ],
+      { stream: process.stdout }
+    )
+  );
+  process.stdout.write(`${lines.join("\n")}\n`);
 }
 
 export async function cmdProfileClone({ source, target }) {

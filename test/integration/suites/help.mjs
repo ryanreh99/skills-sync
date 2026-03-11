@@ -14,6 +14,7 @@ export async function run() {
   assert.equal(result.stdout.includes("detect"), true, "help output should mention the detect command.");
   assert.equal(result.stdout.includes("list"), true, "help output should mention the list command.");
   assert.equal(result.stdout.includes("search"), true, "help output should mention the search command.");
+  assert.equal(result.stdout.includes("trust"), false, "help output should not mention the removed trust command.");
   assert.equal(result.stdout.includes("Typical workflow:"), true, "help output should include the sync workflow guidance.");
 
   // --help exits 0 and should include command help text.

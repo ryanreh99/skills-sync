@@ -1,0 +1,72 @@
+{
+  "id": "copilot",
+  "name": "GitHub Copilot",
+  "config": {
+    "order": 40,
+    "adapter": "copilot",
+    "projectionVersion": 1
+  },
+  "skills": {
+    "internalDir": ".copilot/skills",
+    "bindMode": "root",
+    "targets": {
+      "windows": {
+        "dir": "%USERPROFILE%\\\\.copilot\\\\skills"
+      },
+      "macos": {
+        "dir": "$HOME/.copilot/skills"
+      },
+      "linux": {
+        "dir": "$HOME/.copilot/skills"
+      }
+    },
+    "support": {
+      "nestedDiscovery": false,
+      "instructions": true,
+      "frontmatter": true,
+      "scripts": false,
+      "assets": true,
+      "references": true,
+      "helpers": false
+    }
+  },
+  "mcp": {
+    "internalConfig": ".copilot/mcp-config.json",
+    "kind": "copilot-json-type",
+    "supportVersion": 1,
+    "hasNonMcpConfig": false,
+    "targets": {
+      "windows": {
+        "config": "%USERPROFILE%\\\\.copilot\\\\mcp-config.json"
+      },
+      "macos": {
+        "config": "$HOME/.copilot/mcp-config.json"
+      },
+      "linux": {
+        "config": "$HOME/.copilot/mcp-config.json"
+      }
+    },
+    "support": {
+      "transports": {
+        "stdio": true,
+        "streamableHttp": true,
+        "sse": true
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": false,
+        "prompts": false
+      },
+      "config": {
+        "command": true,
+        "args": true,
+        "env": true,
+        "url": true,
+        "enabled": true
+      }
+    }
+  },
+  "notes": [
+    "GitHub Copilot preserves imported skill directories and auxiliary files alongside its documented instruction and prompt-file features."
+  ]
+}

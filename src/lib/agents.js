@@ -1,6 +1,7 @@
 import fs from "fs-extra";
+import os from "node:os";
 import path from "node:path";
-import { loadAgentRegistry, parseAgentFilterOption as parseAgentFilterOptionFromRegistry, summarizeCapabilitySupport } from "./agent-registry.js";
+import { loadAgentRegistry, parseAgentFilterOption as parseAgentFilterOptionFromRegistry, summarizeSkillFeatureSupport } from "./agent-registry.js";
 import {
   MCP_MANAGED_PREFIX,
   SCHEMAS,
@@ -12,10 +13,30 @@ import {
   logWarn,
   writeJsonFile
 } from "./core.js";
+import { readInstalledMcpServersForAgent, resolveAgentMcpConfigKind } from "./mcp-config.js";
 import { applyBindings } from "./bindings.js";
+import { getStatePath } from "./bindings.js";
+import { loadAgentIntegrations } from "./agent-integrations.js";
 import { buildProfile } from "./build.js";
+import { collectImportedSkillEntries, collectLocalSkillEntries } from "./bundle.js";
 import { loadEffectiveTargets, readDefaultProfile, resolvePack, resolveProfile } from "./config.js";
+import { hashPathContent } from "./digest.js";
 import { buildProfileInventory } from "./inventory.js";
+import { materializeProjectedSkillDirectory } from "./adapters/common.js";
+import { loadEffectiveProfileState } from "./profile-runtime.js";
+import {
+  accent,
+  danger,
+  formatBadge,
+  muted,
+  renderKeyValueRows,
+  renderSection,
+  renderSimpleList,
+  renderTable,
+  success,
+  warning
+} from "./terminal-ui.js";
+import { collectSourcePlanning, loadLockfile, loadUpstreamsConfig, resolveReferences } from "./upstreams.js";
 
 function normalizeOptionalText(value) {
   if (typeof value !== "string") {
@@ -60,6 +81,38 @@ function normalizeDriftMcpNames(values) {
   return sortStrings(Array.from(names));
 }
 
+function normalizeManagedBindingNames(values) {
+  const names = new Set();
+  for (const value of Array.isArray(values) ? values : []) {
+    const normalized = normalizeDriftMcpName(value);
+    if (normalized.length > 0) {
+      names.add(normalized);
+    }
+  }
+  return names;
+}
+
+async function loadManagedMcpNamesByTool() {
+  const statePath = await getStatePath();
+  if (!(await fs.pathExists(statePath))) {
+    return new Map();
+  }
+  const state = await fs.readJson(statePath).catch(() => null);
+  const bindings = Array.isArray(state?.bindings) ? state.bindings : [];
+  const byTool = new Map();
+  for (const binding of bindings) {
+    if (binding?.kind !== "config" || typeof binding?.tool !== "string") {
+      continue;
+    }
+    const current = byTool.get(binding.tool) ?? new Set();
+    for (const name of normalizeManagedBindingNames(binding.managedNames)) {
+      current.add(name);
+    }
+    byTool.set(binding.tool, current);
+  }
+  return byTool;
+}
+
 function toPosixPath(value) {
   return value.split(path.sep).join("/");
 }
@@ -68,8 +121,57 @@ export async function parseAgentFilterOption(rawAgents) {
   return parseAgentFilterOptionFromRegistry(rawAgents);
 }
 
-async function detectSkillDirectories(skillsRoot, currentRelative = "", entries = []) {
+function normalizeCyclePath(value) {
+  const normalized = path.resolve(value);
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
+function runtimeHomeDir() {
+  return process.env.USERPROFILE || process.env.HOME || os.homedir();
+}
+
+function expandRuntimeMcpValue(value) {
+  const text = String(value ?? "");
+  const home = runtimeHomeDir();
+  if (text === "~") {
+    return home;
+  }
+  if (text.startsWith("~/") || text.startsWith("~\\")) {
+    return `${home}${text.slice(1)}`;
+  }
+  return text
+    .replace(/\$\{HOME\}/g, home)
+    .replace(/\$HOME/g, home)
+    .replace(/%USERPROFILE%/gi, home);
+}
+
+async function isDirectoryDirent(absoluteParentPath, entry) {
+  if (entry.isDirectory()) {
+    return true;
+  }
+  if (!entry.isSymbolicLink()) {
+    return false;
+  }
+  try {
+    return (await fs.stat(path.join(absoluteParentPath, entry.name))).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+async function detectSkillDirectories(skillsRoot, currentRelative = "", entries = [], ancestorRealpaths = new Set()) {
   const absolute = currentRelative.length > 0 ? path.join(skillsRoot, currentRelative) : skillsRoot;
+  let nextAncestors = ancestorRealpaths;
+  try {
+    const realAbsolute = normalizeCyclePath(await fs.realpath(absolute));
+    if (ancestorRealpaths.has(realAbsolute)) {
+      return entries;
+    }
+    nextAncestors = new Set(ancestorRealpaths);
+    nextAncestors.add(realAbsolute);
+  } catch {
+    nextAncestors = ancestorRealpaths;
+  }
   const children = await fs.readdir(absolute, { withFileTypes: true });
 
   let hasSkill = false;
@@ -84,243 +186,44 @@ async function detectSkillDirectories(skillsRoot, currentRelative = "", entries 
     entries.push(toPosixPath(currentRelative));
   }
 
-  const directories = children
-    .filter((child) => child.isDirectory())
-    .map((child) => child.name)
-    .sort((left, right) => left.localeCompare(right));
+  const directories = [];
+  for (const child of children) {
+    if (await isDirectoryDirent(absolute, child)) {
+      directories.push(child.name);
+    }
+  }
+  directories.sort((left, right) => left.localeCompare(right));
 
   for (const directory of directories) {
     const nextRelative = currentRelative.length > 0 ? path.join(currentRelative, directory) : directory;
-    await detectSkillDirectories(skillsRoot, nextRelative, entries);
+    await detectSkillDirectories(skillsRoot, nextRelative, entries, nextAncestors);
   }
 
   return entries;
 }
 
-function parseTomlTableKey(rawToken) {
-  const token = String(rawToken ?? "").trim();
-  if (token.length === 0) {
-    throw new Error("Empty MCP server table key.");
+async function collectInstalledSkillDetails(skillsRoot, skillPaths) {
+  const details = [];
+  for (const relativeSkillPath of Array.isArray(skillPaths) ? skillPaths : []) {
+    const absoluteSkillPath = path.join(skillsRoot, relativeSkillPath.split("/").join(path.sep));
+    const contentHash = await hashPathContent(absoluteSkillPath).catch(() => null);
+    details.push({
+      path: relativeSkillPath,
+      contentHash
+    });
   }
-  if (token.startsWith("\"")) {
-    try {
-      const parsed = JSON.parse(token);
-      if (typeof parsed !== "string" || parsed.trim().length === 0) {
-        throw new Error("Expected non-empty string.");
-      }
-      return parsed;
-    } catch (error) {
-      throw new Error(`Invalid quoted MCP server key '${token}': ${error.message}`);
-    }
-  }
-  if (!/^[A-Za-z0-9_.-]+$/.test(token)) {
-    throw new Error(`Invalid bare MCP server key '${token}'.`);
-  }
-  return token;
+  return details.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-function parseTomlStringValue(rawValue) {
-  const trimmed = String(rawValue ?? "").trim();
-  if (trimmed.length === 0) {
-    return null;
-  }
-  if (
-    (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
-        return trimmed.slice(1, -1);
-      }
-      return null;
-    }
-  }
-  return trimmed;
-}
-
-function parseTomlArrayValue(rawValue) {
-  const parsed = parseTomlStringValue(rawValue);
-  if (Array.isArray(parsed)) {
-    return parsed.map((item) => String(item));
-  }
-  if (typeof rawValue !== "string") {
-    return [];
-  }
-  const trimmed = rawValue.trim();
-  if (!(trimmed.startsWith("[") && trimmed.endsWith("]"))) {
-    return [];
-  }
-  try {
-    const jsonParsed = JSON.parse(trimmed);
-    return Array.isArray(jsonParsed) ? jsonParsed.map((item) => String(item)) : [];
-  } catch {
-    return [];
-  }
-}
-
-function parseTomlInlineTableValue(rawValue) {
-  const value = String(rawValue ?? "").trim();
-  if (!(value.startsWith("{") && value.endsWith("}"))) {
-    return {};
-  }
-  const body = value.slice(1, -1).trim();
-  if (body.length === 0) {
-    return {};
-  }
-
-  const env = {};
-  const pairPattern = /("[^"]+"|[A-Za-z0-9_.-]+)\s*=\s*("([^"\\]|\\.)*"|'([^'\\]|\\.)*'|[^,}]+)/g;
-  for (const match of body.matchAll(pairPattern)) {
-    const rawKey = match[1];
-    const rawVal = match[2];
-    const key = parseTomlTableKey(rawKey);
-    const parsedValue = parseTomlStringValue(rawVal);
-    env[key] = parsedValue === null ? String(rawVal).trim() : String(parsedValue);
-  }
-  return env;
-}
-
-function parseCodexMcpTableHeader(line) {
-  const trimmed = String(line ?? "").trim();
-  const match = trimmed.match(/^\[mcp_servers\.(.+)\]$/);
-  if (!match) {
-    return null;
-  }
-  return parseTomlTableKey(match[1]);
-}
-
-function parseCodexMcpServerBlock(name, blockLines) {
-  let command = null;
-  let url = null;
-  let transport = null;
-  let args = [];
-  let env = {};
-
-  for (const line of blockLines) {
-    const trimmed = line.trim();
-    if (trimmed.length === 0 || trimmed.startsWith("#")) {
-      continue;
-    }
-    const pairMatch = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/);
-    if (!pairMatch) {
-      continue;
-    }
-    const key = pairMatch[1];
-    const value = pairMatch[2];
-    switch (key) {
-      case "command":
-        command = parseTomlStringValue(value);
-        break;
-      case "url":
-        url = parseTomlStringValue(value);
-        break;
-      case "transport":
-        transport = parseTomlStringValue(value);
-        break;
-      case "args":
-        args = parseTomlArrayValue(value);
-        break;
-      case "env":
-        env = parseTomlInlineTableValue(value);
-        break;
-      default:
-        break;
-    }
-  }
-
-  return {
-    name,
-    command: typeof command === "string" && command.trim().length > 0 ? command.trim() : null,
-    url: typeof url === "string" && url.trim().length > 0 ? url.trim() : null,
-    transport: typeof transport === "string" && transport.trim().length > 0 ? transport.trim() : null,
-    args: Array.isArray(args) ? args : [],
-    env
-  };
-}
-
-async function readCodexInstalledMcpServers(configPath) {
-  const content = await fs.readFile(configPath, "utf8");
-  const lines = content.replace(/\r\n/g, "\n").split("\n");
-  const servers = [];
-
-  let index = 0;
-  while (index < lines.length) {
-    const tableName = parseCodexMcpTableHeader(lines[index]);
-    if (!tableName) {
-      index += 1;
-      continue;
-    }
-    index += 1;
-    const blockLines = [];
-    while (index < lines.length) {
-      const candidate = lines[index].trim();
-      if (/^\[.+\]$/.test(candidate)) {
-        break;
-      }
-      blockLines.push(lines[index]);
-      index += 1;
-    }
-    servers.push(parseCodexMcpServerBlock(tableName, blockLines));
-  }
-
-  return servers.sort((left, right) => left.name.localeCompare(right.name));
-}
-
-function normalizeJsonMcpServer(name, value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`mcpServers['${name}'] must be an object.`);
-  }
-  return {
-    name,
-    command: typeof value.command === "string" ? value.command : null,
-    url: typeof value.url === "string" ? value.url : null,
-    transport: typeof value.transport === "string" ? value.transport : null,
-    args: Array.isArray(value.args) ? value.args.map((item) => String(item)) : [],
-    env:
-      value.env && typeof value.env === "object" && !Array.isArray(value.env)
-        ? Object.fromEntries(
-            Object.entries(value.env)
-              .filter(([key]) => key.length > 0)
-              .sort(([left], [right]) => left.localeCompare(right))
-              .map(([key, envValue]) => [key, String(envValue)])
-          )
-        : {}
-  };
-}
-
-async function readJsonInstalledMcpServers(configPath) {
-  let doc;
-  try {
-    doc = await fs.readJson(configPath);
-  } catch (error) {
-    throw new Error(`Failed to parse JSON config: ${error.message}`);
-  }
-  if (!doc || typeof doc !== "object" || Array.isArray(doc)) {
-    throw new Error("Expected JSON object root.");
-  }
-  if (!doc.mcpServers || typeof doc.mcpServers !== "object" || Array.isArray(doc.mcpServers)) {
-    throw new Error("Expected object field 'mcpServers'.");
-  }
-
-  return sortStrings(Object.keys(doc.mcpServers)).map((name) => normalizeJsonMcpServer(name, doc.mcpServers[name]));
-}
-
-async function readInstalledMcpServers(tool, configPath) {
-  if (tool === "codex") {
-    return readCodexInstalledMcpServers(configPath);
-  }
-  return readJsonInstalledMcpServers(configPath);
-}
-
-function buildAgentRows(osName, targets, agents, registryById) {
-  return agents.map((tool) => {
+function buildAgentRows(osName, targets, integrations, selectedAgents) {
+  return integrations
+    .filter((integration) => !selectedAgents || selectedAgents.has(integration.id))
+    .map((integration) => {
+    const tool = integration.id;
     const target = targets?.[tool];
     if (!target) {
       throw new Error(`Missing target mapping for agent '${tool}'.`);
     }
-    const metadata = registryById.get(tool);
     const skillsRaw = typeof target.skillsDir === "string" && target.skillsDir.trim().length > 0 ? target.skillsDir : null;
     const mcpRaw = typeof target.mcpConfig === "string" && target.mcpConfig.trim().length > 0 ? target.mcpConfig : null;
     if (!mcpRaw) {
@@ -328,13 +231,15 @@ function buildAgentRows(osName, targets, agents, registryById) {
     }
     return {
       tool,
-      displayName: metadata?.displayName ?? tool,
-      support: skillsRaw ? "skills+mcp" : "mcp-only",
+      name: integration.name ?? tool,
+      metadata: integration,
+      managedSurface: skillsRaw ? "skills+mcp" : "mcp-only",
       skillsDir: skillsRaw ? expandTargetPath(skillsRaw, osName) : null,
       mcpConfig: expandTargetPath(mcpRaw, osName),
-      canOverride: Boolean(target?.canOverride),
-      notes: Array.isArray(metadata?.notes) ? [...metadata.notes] : [],
-      capabilities: metadata?.capabilities ?? {}
+      hasNonMcpConfig: Boolean(target?.hasNonMcpConfig),
+      notes: Array.isArray(integration?.notes) ? [...integration.notes] : [],
+      support: integration?.support ?? { skills: {}, mcp: {} },
+      mcpConfigKind: resolveAgentMcpConfigKind(integration)
     };
   });
 }
@@ -346,10 +251,10 @@ function formatErrorMessage(error) {
 export async function collectAgentInventories({ agents } = {}) {
   const osName = detectOsName();
   const targets = await loadEffectiveTargets(osName);
-  const selectedAgents = await parseAgentFilterOption(agents);
-  const registry = await loadAgentRegistry();
-  const registryById = new Map(registry.map((entry) => [entry.id, entry]));
-  const rows = buildAgentRows(osName, targets, selectedAgents, registryById);
+  const selectedAgentIds = await parseAgentFilterOption(agents);
+  const integrations = await loadAgentIntegrations();
+  const managedMcpNamesByTool = await loadManagedMcpNamesByTool();
+  const rows = buildAgentRows(osName, targets, integrations, new Set(selectedAgentIds));
 
   const detailedRows = [];
   for (const row of rows) {
@@ -358,9 +263,11 @@ export async function collectAgentInventories({ agents } = {}) {
 
     const parseErrors = [];
     let skills = [];
+    let skillDetails = [];
     if (row.skillsDir && hasSkillsPath) {
       try {
         skills = sortStrings(await detectSkillDirectories(row.skillsDir));
+        skillDetails = await collectInstalledSkillDetails(row.skillsDir, skills);
       } catch (error) {
         parseErrors.push({
           kind: "skills",
@@ -373,7 +280,18 @@ export async function collectAgentInventories({ agents } = {}) {
     let mcpServers = [];
     if (hasMcpPath) {
       try {
-        mcpServers = await readInstalledMcpServers(row.tool, row.mcpConfig);
+        mcpServers = await readInstalledMcpServersForAgent({
+          agent: row.metadata,
+          configKind: row.mcpConfigKind,
+          configPath: row.mcpConfig
+        });
+        const managedNames = managedMcpNamesByTool.get(row.tool) ?? new Set();
+        mcpServers = mcpServers.map((server) => ({
+          ...server,
+          managed:
+            managedNames.has(normalizeDriftMcpName(server.name)) ||
+            String(server.name ?? "").startsWith(MCP_MANAGED_PREFIX)
+        }));
       } catch (error) {
         parseErrors.push({
           kind: "mcp",
@@ -390,6 +308,7 @@ export async function collectAgentInventories({ agents } = {}) {
       installed: hasSkillsPath || hasMcpPath,
       inventory: {
         skills,
+        skillDetails,
         mcpServers
       },
       parseErrors
@@ -402,43 +321,120 @@ export async function collectAgentInventories({ agents } = {}) {
   };
 }
 
-function formatSkillsList(skills) {
-  if (skills.length === 0) {
-    return ["    (none)"];
+function normalizeDisplaySkillPath(skillPath) {
+  const value = String(skillPath ?? "").trim();
+  if (!value.startsWith("vendor__")) {
+    return value;
   }
-  return skills.map((item) => `    ${item}`);
+  const trimmed = value.slice("vendor__".length);
+  return trimmed.includes("__") ? trimmed.split("__").join("/") : value;
 }
 
-function formatMcpServersList(servers) {
-  if (servers.length === 0) {
-    return ["    (none)"];
+function buildDisplaySkills(skills) {
+  const canonical = new Set();
+  for (const skill of Array.isArray(skills) ? skills : []) {
+    const normalized = normalizeDisplaySkillPath(skill);
+    if (normalized.length > 0) {
+      canonical.add(normalized);
+    }
   }
-  return servers.map((server) => `    ${server.name}`);
+  return sortStrings(Array.from(canonical));
+}
+
+function buildDisplayMcpServers(servers) {
+  const names = new Set();
+  for (const server of Array.isArray(servers) ? servers : []) {
+    const normalized = normalizeDriftMcpName(server?.name);
+    if (normalized.length > 0) {
+      names.add(normalized);
+    }
+  }
+  return sortStrings(Array.from(names)).map((name) => ({ name }));
 }
 
 function formatParseErrors(parseErrors) {
   if (parseErrors.length === 0) {
-    return ["  parse errors : none"];
+    return renderSimpleList([success("none", process.stdout)], { indent: "  " });
   }
-  const lines = [`  parse errors : ${parseErrors.length}`];
-  for (const issue of parseErrors) {
-    lines.push(`    [${issue.kind}] ${redactPathDetails(issue.message)}`);
+  return renderSimpleList(
+    parseErrors.map((issue) => `[${danger(issue.kind, process.stdout)}] ${redactPathDetails(issue.message)}`),
+    { indent: "  " }
+  );
+}
+
+function formatSummaryCount(count) {
+  return count > 0 ? warning(String(count), process.stdout) : success("0", process.stdout);
+}
+
+function isAgentInSync(agent) {
+  return (
+    agent.summary.missingTotal === 0 &&
+    agent.summary.extraTotal === 0 &&
+    agent.summary.changedTotal === 0 &&
+    agent.summary.parseErrors === 0 &&
+    agent.summary.featureWarnings === 0 &&
+    agent.classes.length === 0
+  );
+}
+
+function formatInventoryStatus(agent) {
+  return agent.installed ? success("detected", process.stdout) : warning("not detected", process.stdout);
+}
+
+function formatDriftStatus(agent) {
+  if (isAgentInSync(agent)) {
+    return success("in sync", process.stdout);
   }
-  return lines;
+  if (!agent.installed) {
+    return warning("not detected", process.stdout);
+  }
+  return warning("attention", process.stdout);
 }
 
 function inventoryToText(payload) {
-  const lines = [`Detected host OS: ${payload.os}`, ""];
+  const lines = [
+    renderSection("Host", { stream: process.stdout }),
+    renderKeyValueRows([{ key: "OS", value: accent(payload.os, process.stdout) }], { stream: process.stdout })
+  ];
   for (const agent of payload.agents) {
-    lines.push(agent.tool);
-    lines.push(`  status       : ${agent.installed ? "detected" : "not detected"}`);
-    lines.push(`  support      : ${agent.support}`);
-    lines.push(`  skills       : ${agent.inventory.skills.length}`);
-    lines.push(...formatSkillsList(agent.inventory.skills));
-    lines.push(`  mcp servers  : ${agent.inventory.mcpServers.length}`);
-    lines.push(...formatMcpServersList(agent.inventory.mcpServers));
-    lines.push(...formatParseErrors(agent.parseErrors));
+    const displaySkills = buildDisplaySkills(agent.inventory.skills);
+    const displayMcpServers = buildDisplayMcpServers(agent.inventory.mcpServers);
     lines.push("");
+    lines.push(accent(agent.tool, process.stdout));
+    lines.push(
+      renderKeyValueRows(
+        [
+          { key: "Status", value: formatInventoryStatus(agent) },
+          { key: "Surface", value: agent.managedSurface },
+          { key: "Skills", value: String(displaySkills.length) },
+          { key: "MCP Servers", value: String(displayMcpServers.length) },
+          {
+            key: "Parse Errors",
+            value: agent.parseErrors.length === 0
+              ? success("none", process.stdout)
+              : warning(String(agent.parseErrors.length), process.stdout)
+          }
+        ],
+        { stream: process.stdout }
+      )
+    );
+    lines.push("");
+    lines.push(renderSection("Skills", { count: displaySkills.length, stream: process.stdout }));
+    lines.push(
+      displaySkills.length === 0
+        ? renderSimpleList([], { empty: "(none)" })
+        : renderTable(["Name"], displaySkills.map((item) => [item]), { stream: process.stdout })
+    );
+    lines.push("");
+    lines.push(renderSection("MCP Servers", { count: displayMcpServers.length, stream: process.stdout }));
+    lines.push(
+      displayMcpServers.length === 0
+        ? renderSimpleList([], { empty: "(none)" })
+        : renderTable(["Name"], displayMcpServers.map((server) => [server.name]), { stream: process.stdout })
+    );
+    lines.push("");
+    lines.push(renderSection("Parse Errors", { count: agent.parseErrors.length, stream: process.stdout }));
+    lines.push(formatParseErrors(agent.parseErrors));
   }
   return lines.join("\n").trimEnd();
 }
@@ -466,47 +462,227 @@ function computeDifference(expected, actual) {
   };
 }
 
-function driftToText(driftReport) {
-  const lines = [];
-  lines.push(`Profile: ${driftReport.profile}`);
-  lines.push(`Expected: skills=${driftReport.expected.skills.length} mcp=${driftReport.expected.mcpServers.length}`);
-  lines.push("");
+function indexSkillDetails(skillDetails) {
+  return new Map(
+    (Array.isArray(skillDetails) ? skillDetails : []).map((detail) => [detail.path, detail])
+  );
+}
 
-  for (const agent of driftReport.agents) {
-    if (
-      agent.summary.missingTotal === 0 &&
-      agent.summary.extraTotal === 0 &&
-      agent.summary.parseErrors === 0 &&
-      agent.summary.capabilityWarnings === 0
-    ) {
-      lines.push(`${agent.tool}: in sync`);
+async function computeExpectedProjectedSkillHash(sourceSkillPath, integration, projectionHashCache, tempRoot) {
+  if (!sourceSkillPath || !integration) {
+    return null;
+  }
+  const cacheKey = `${integration.id}::${sourceSkillPath}`;
+  if (projectionHashCache.has(cacheKey)) {
+    return projectionHashCache.get(cacheKey);
+  }
+
+  const targetPath = path.join(tempRoot, String(projectionHashCache.size + 1));
+  await materializeProjectedSkillDirectory(sourceSkillPath, targetPath, integration.support?.skills);
+  const contentHash = await hashPathContent(targetPath).catch(() => null);
+  projectionHashCache.set(cacheKey, contentHash);
+  return contentHash;
+}
+
+async function buildExpectedSkillMap(expectedInventory, integration, sourceSkillPathsByDestRelative, projectionHashCache, tempRoot) {
+  const tool = integration?.id;
+  const expectedByPath = new Map();
+  for (const item of expectedInventory.skills.items) {
+    const agentView = item.materializedAgents.find((entry) => entry.id === tool) ?? {
+      unsupportedFeatures: [],
+      compatibilityStatus: "ok"
+    };
+    const projectedPaths = Array.isArray(item.projectedPathsByAgent?.[tool]) && item.projectedPathsByAgent[tool].length > 0
+      ? item.projectedPathsByAgent[tool]
+      : [item.name];
+    const sourceSkillPath = sourceSkillPathsByDestRelative.get(item.name) ?? null;
+    const projectedContentHash = await computeExpectedProjectedSkillHash(
+      sourceSkillPath,
+      integration,
+      projectionHashCache,
+      tempRoot
+    );
+    for (const projectedPath of projectedPaths) {
+      expectedByPath.set(projectedPath, {
+        canonicalName: item.name,
+        projectedPath,
+        contentHash: projectedContentHash,
+        sourceType: item.sourceType,
+        upstream: item.upstream,
+        compatibilityStatus: agentView.compatibilityStatus ?? "ok",
+        unsupportedFeatures: Array.isArray(agentView.unsupportedFeatures) ? agentView.unsupportedFeatures : [],
+        projectionVersion: item.projectionAdapters?.[tool]?.contractVersion ?? null
+      });
+    }
+  }
+  return expectedByPath;
+}
+
+function buildExpectedMcpMap(expectedInventory) {
+  const expectedByName = new Map();
+  for (const server of expectedInventory.mcp.servers ?? []) {
+    const normalized = normalizeStoredProfileMcpSpec(server);
+    if (!normalized) {
       continue;
     }
+    expectedByName.set(server.name, normalized);
+  }
+  return expectedByName;
+}
 
-    const parts = [`status=${agent.installed ? "detected" : "not detected"}`];
+function buildActualMcpMap(agentInventory) {
+  const actualByName = new Map();
+  for (const server of agentInventory.inventory?.mcpServers ?? []) {
+    const logicalName = normalizeDriftMcpName(server.name);
+    const normalized = normalizeDiscoveredMcpServerSpec(server);
+    actualByName.set(logicalName, {
+      rawName: server.name,
+      logicalName,
+      managed: server?.managed === true || String(server.name ?? "").startsWith(MCP_MANAGED_PREFIX),
+      spec: normalized
+    });
+  }
+  return actualByName;
+}
+
+function countByClass(classes) {
+  const counts = {};
+  for (const entry of classes) {
+    counts[entry.code] = (counts[entry.code] ?? 0) + 1;
+  }
+  return Object.fromEntries(
+    Object.entries(counts).sort(([left], [right]) => left.localeCompare(right))
+  );
+}
+
+function sortDriftClasses(classes) {
+  return [...classes].sort((left, right) => {
+    const leftKey = [
+      left.severity,
+      left.code,
+      left.skillPath ?? "",
+      left.skillName ?? "",
+      left.mcpName ?? "",
+      left.agentId ?? ""
+    ].join("::");
+    const rightKey = [
+      right.severity,
+      right.code,
+      right.skillPath ?? "",
+      right.skillName ?? "",
+      right.mcpName ?? "",
+      right.agentId ?? ""
+    ].join("::");
+    return leftKey.localeCompare(rightKey);
+  });
+}
+
+function formatByClassSummary(byClass) {
+  const entries = Object.entries(byClass ?? {});
+  if (entries.length === 0) {
+    return "";
+  }
+  return entries.map(([code, count]) => `${code}=${count}`).join(", ");
+}
+
+function driftToText(driftReport) {
+  const lines = [
+    renderSection("Agent Drift", { stream: process.stdout }),
+    renderKeyValueRows(
+      [
+        { key: "Profile", value: accent(driftReport.profile, process.stdout) },
+        { key: "Expected Skills", value: String(driftReport.expected.skills.length) },
+        { key: "Expected MCP Servers", value: String(driftReport.expected.mcpServers.length) }
+      ],
+      { stream: process.stdout }
+    ),
+    "",
+    renderSection("Agents", { count: driftReport.agents.length, stream: process.stdout }),
+    renderTable(
+      ["Agent", "Status", "Missing", "Extra", "Changed", "Warnings", "Parse"],
+      driftReport.agents.map((agent) => [
+        accent(agent.tool, process.stdout),
+        formatDriftStatus(agent),
+        { text: formatSummaryCount(agent.summary.missingTotal), align: "right" },
+        { text: formatSummaryCount(agent.summary.extraTotal), align: "right" },
+        { text: formatSummaryCount(agent.summary.changedTotal), align: "right" },
+        { text: formatSummaryCount(agent.summary.featureWarnings), align: "right" },
+        { text: formatSummaryCount(agent.summary.parseErrors), align: "right" }
+      ]),
+      { stream: process.stdout }
+    )
+  ];
+
+  const detailedAgents = driftReport.agents.filter((agent) => !isAgentInSync(agent));
+  if (detailedAgents.length === 0) {
+    return lines.join("\n").trimEnd();
+  }
+
+  lines.push("");
+  lines.push(renderSection("Details", { count: detailedAgents.length, stream: process.stdout }));
+  for (const agent of detailedAgents) {
+    lines.push(accent(agent.tool, process.stdout));
+    lines.push(
+      renderKeyValueRows(
+        [
+          { key: "Surface", value: agent.managedSurface },
+          { key: "Installed", value: agent.installed ? success("yes", process.stdout) : warning("no", process.stdout) },
+          {
+            key: "Class Summary",
+            value: formatByClassSummary(agent.summary.byClass) || muted("(none)", process.stdout)
+          }
+        ],
+        { stream: process.stdout }
+      )
+    );
+
+    if (agent.parseErrors.length > 0) {
+      lines.push(renderSection("Parse Errors", { count: agent.parseErrors.length, stream: process.stdout }));
+      lines.push(formatParseErrors(agent.parseErrors));
+    }
+
+    if (agent.classes.length > 0) {
+      lines.push(renderSection("Issues", { count: agent.classes.length, stream: process.stdout }));
+      lines.push(
+        renderTable(
+          ["Class", "Severity", "Message"],
+          agent.classes.slice(0, 3).map((issue) => [
+            issue.code,
+            issue.severity === "error"
+              ? danger(issue.severity, process.stdout)
+              : warning(issue.severity, process.stdout),
+            issue.message
+          ]),
+          { stream: process.stdout }
+        )
+      );
+    }
+
+    const driftBadges = [];
     if (agent.drift.skills.missing.length > 0) {
-      parts.push(`skills missing=${agent.drift.skills.missing.length}`);
+      driftBadges.push(formatBadge(`skills-missing:${agent.drift.skills.missing.length}`, "warning", process.stdout));
     }
     if (agent.drift.skills.extra.length > 0) {
-      parts.push(`skills extra=${agent.drift.skills.extra.length}`);
+      driftBadges.push(formatBadge(`skills-extra:${agent.drift.skills.extra.length}`, "warning", process.stdout));
+    }
+    if ((agent.drift.skills.changed ?? []).length > 0) {
+      driftBadges.push(formatBadge(`skills-changed:${agent.drift.skills.changed.length}`, "warning", process.stdout));
     }
     if (agent.drift.mcpServers.missing.length > 0) {
-      parts.push(`mcp missing=${agent.drift.mcpServers.missing.length}`);
+      driftBadges.push(formatBadge(`mcp-missing:${agent.drift.mcpServers.missing.length}`, "warning", process.stdout));
     }
     if (agent.drift.mcpServers.extra.length > 0) {
-      parts.push(`mcp extra=${agent.drift.mcpServers.extra.length}`);
+      driftBadges.push(formatBadge(`mcp-extra:${agent.drift.mcpServers.extra.length}`, "warning", process.stdout));
     }
-    if (agent.summary.parseErrors > 0) {
-      parts.push(`parseErrors=${agent.summary.parseErrors}`);
+    if ((agent.drift.mcpServers.changed ?? []).length > 0) {
+      driftBadges.push(formatBadge(`mcp-changed:${agent.drift.mcpServers.changed.length}`, "warning", process.stdout));
     }
-    if (agent.summary.capabilityWarnings > 0) {
-      parts.push(`capabilityWarnings=${agent.summary.capabilityWarnings}`);
+    if (driftBadges.length > 0) {
+      lines.push(renderSection("Drift Summary", { stream: process.stdout }));
+      lines.push(`  ${driftBadges.join(" ")}`);
     }
 
-    lines.push(`${agent.tool}: ${parts.join(" | ")}`);
-    if (agent.summary.parseErrors > 0 && agent.parseErrors.length > 0) {
-      lines.push(`  parse: ${redactPathDetails(agent.parseErrors[0].message)}`);
-    }
+    lines.push("");
   }
 
   return lines.join("\n").trimEnd();
@@ -524,15 +700,15 @@ function toPublicInventoryPayload(payload) {
     os: payload.os,
     agents: payload.agents.map((agent) => ({
       tool: agent.tool,
-      displayName: agent.displayName,
-      support: agent.support,
-      canOverride: agent.canOverride,
+      name: agent.name,
+      managedSurface: agent.managedSurface,
+      hasNonMcpConfig: agent.hasNonMcpConfig,
       installed: agent.installed,
       hasSkillsPath: agent.hasSkillsPath,
       hasMcpPath: agent.hasMcpPath,
       inventory: agent.inventory,
       notes: agent.notes,
-      capabilities: agent.capabilities,
+      support: agent.support,
       parseErrors: toPublicParseErrors(agent.parseErrors)
     }))
   };
@@ -543,13 +719,15 @@ function toPublicDriftPayload(payload) {
     os: payload.os,
     profile: payload.profile,
     expected: payload.expected,
+    summary: payload.summary,
     agents: payload.agents.map((agent) => ({
       tool: agent.tool,
-      displayName: agent.displayName,
-      support: agent.support,
+      name: agent.name,
+      managedSurface: agent.managedSurface,
       installed: agent.installed,
       parseErrors: toPublicParseErrors(agent.parseErrors),
-      capabilityWarnings: agent.capabilityWarnings,
+      featureWarnings: agent.featureWarnings,
+      classes: agent.classes,
       drift: agent.drift,
       summary: agent.summary
     }))
@@ -599,7 +777,7 @@ function normalizeStoredProfileMcpSpec(server) {
   }
   if (typeof server.url === "string" && server.url.trim().length > 0) {
     return {
-      url: server.url.trim()
+      url: expandRuntimeMcpValue(server.url.trim())
     };
   }
   if (typeof server.command !== "string" || server.command.trim().length === 0) {
@@ -607,9 +785,15 @@ function normalizeStoredProfileMcpSpec(server) {
   }
   const normalized = {
     command: server.command.trim(),
-    args: Array.isArray(server.args) ? server.args.map((item) => String(item)) : []
+    args: Array.isArray(server.args) ? server.args.map((item) => expandRuntimeMcpValue(item)) : []
   };
-  const env = normalizeMcpEnv(server.env);
+  const env = normalizeMcpEnv(
+    server.env && typeof server.env === "object" && !Array.isArray(server.env)
+      ? Object.fromEntries(
+          Object.entries(server.env).map(([key, value]) => [key, expandRuntimeMcpValue(value)])
+        )
+      : {}
+  );
   if (Object.keys(env).length > 0) {
     normalized.env = env;
   }
@@ -782,55 +966,233 @@ export async function buildAgentDrift({ profile, agents } = {}) {
   }
 
   const expectedInventory = await buildProfileInventory(resolvedProfile, { detail: "full" });
+  const effectiveState = await loadEffectiveProfileState(resolvedProfile);
   const expectedSkills = sortStrings(expectedInventory.skills.items.map((item) => item.name));
   const expectedMcpServers = normalizeDriftMcpNames(
     expectedInventory.mcp.servers.map((item) => item.name)
   );
+  const expectedMcpByName = buildExpectedMcpMap(expectedInventory);
   const registry = await loadAgentRegistry();
   const registryById = new Map(registry.map((entry) => [entry.id, entry]));
+  const integrations = await loadAgentIntegrations();
+  const integrationsById = new Map(integrations.map((entry) => [entry.id, entry]));
+  const upstreams = await loadUpstreamsConfig();
+  const lockState = await loadLockfile();
+  const planning = collectSourcePlanning(effectiveState.effectiveSources, upstreams.byId);
+  const resolvedReferences = planning.references.length > 0
+    ? await resolveReferences({
+        references: planning.references,
+        upstreamById: upstreams.byId,
+        lockState,
+        preferPinned: true,
+        requirePinned: true,
+        updatePins: false,
+        allowLockUpdate: false
+      })
+    : new Map();
+  const localEntries = await collectLocalSkillEntries(effectiveState.packs.map((item) => item.packRoot));
+  const importedEntries = await collectImportedSkillEntries(planning.skillImports, upstreams.byId, resolvedReferences);
+  const sourceSkillPathsByDestRelative = new Map(
+    [...localEntries, ...importedEntries].map((entry) => [entry.destRelative, entry.sourcePath])
+  );
+  const projectionHashCache = new Map();
+  const projectionHashRoot = await fs.mkdtemp(path.join(os.tmpdir(), "skills-sync-expected-skill-"));
 
-  const detected = await collectAgentInventories({ agents });
-  const driftAgents = detected.agents.map((agent) => {
+  try {
+    const detected = await collectAgentInventories({ agents });
+    const driftAgents = detected.agents.map((agent) => ({
+      agent,
+      integration: integrationsById.get(agent.tool)
+    }));
+    const resolvedDriftAgents = [];
+    for (const candidate of driftAgents) {
+      const { agent, integration } = candidate;
+      const expectedSkillsByPath = await buildExpectedSkillMap(
+        expectedInventory,
+        integration,
+        sourceSkillPathsByDestRelative,
+        projectionHashCache,
+        projectionHashRoot
+      );
+    const expectedSkillPaths = sortStrings(Array.from(expectedSkillsByPath.keys()));
     const actualSkills = sortStrings(agent.inventory.skills);
+    const actualSkillDetailsByPath = indexSkillDetails(agent.inventory.skillDetails);
     const actualMcp = normalizeDriftMcpNames(
       agent.inventory.mcpServers.map((item) => item.name)
     );
-    const skillsDrift = computeDifference(expectedSkills, actualSkills);
+    const actualMcpByName = buildActualMcpMap(agent);
+    const skillsDrift = computeDifference(expectedSkillPaths, actualSkills);
     const mcpDrift = computeDifference(expectedMcpServers, actualMcp);
-    const capabilityWarnings = expectedInventory.skills.items.reduce((count, item) => {
-      const support = summarizeCapabilitySupport(item.capabilities, registryById.get(agent.tool));
-      return count + support.mismatches.length;
-    }, 0);
+    const changedSkills = [];
+    const changedMcpServers = [];
+    const classes = [];
 
-    return {
+    for (const skillPath of skillsDrift.missing) {
+      const expectedSkill = expectedSkillsByPath.get(skillPath);
+      classes.push({
+        code: "missing-skill",
+        severity: "error",
+        agentId: agent.tool,
+        skillName: expectedSkill?.canonicalName ?? skillPath,
+        skillPath,
+        message: `Expected skill '${skillPath}' is missing from agent '${agent.tool}'.`
+      });
+    }
+    for (const skillPath of skillsDrift.extra) {
+      classes.push({
+        code: "extra-skill",
+        severity: "warning",
+        agentId: agent.tool,
+        skillPath,
+        message: `Agent '${agent.tool}' has unexpected skill '${skillPath}'.`
+      });
+    }
+    for (const skillPath of expectedSkillPaths) {
+      const expectedSkill = expectedSkillsByPath.get(skillPath);
+      const actualSkill = actualSkillDetailsByPath.get(skillPath);
+      if (!expectedSkill || !actualSkill) {
+        continue;
+      }
+      if (
+        expectedSkill.contentHash &&
+        actualSkill.contentHash &&
+        expectedSkill.contentHash !== actualSkill.contentHash
+      ) {
+        changedSkills.push(skillPath);
+        classes.push({
+          code: "content-mismatch",
+          severity: "error",
+          agentId: agent.tool,
+          skillName: expectedSkill.canonicalName,
+          skillPath,
+          message: `Installed skill '${skillPath}' does not match expected content for '${expectedSkill.canonicalName}'.`
+        });
+      }
+    }
+
+    for (const mcpName of mcpDrift.missing) {
+      classes.push({
+        code: "missing-managed-mcp",
+        severity: "error",
+        agentId: agent.tool,
+        mcpName,
+        message: `Managed MCP '${mcpName}' is missing from agent '${agent.tool}'.`
+      });
+    }
+    for (const mcpName of expectedMcpServers) {
+      const expectedSpec = expectedMcpByName.get(mcpName);
+      const actualEntry = actualMcpByName.get(mcpName);
+      if (!expectedSpec || !actualEntry?.spec) {
+        continue;
+      }
+      if (mcpServerSignature(expectedSpec) !== mcpServerSignature(actualEntry.spec)) {
+        changedMcpServers.push(mcpName);
+        classes.push({
+          code: "changed-managed-mcp",
+          severity: "error",
+          agentId: agent.tool,
+          mcpName,
+          message: `Managed MCP '${mcpName}' differs from profile expectation on agent '${agent.tool}'.`
+        });
+      }
+    }
+    for (const mcpName of mcpDrift.extra) {
+      const actualEntry = actualMcpByName.get(mcpName);
+      if (!actualEntry?.managed) {
+        continue;
+      }
+      classes.push({
+        code: "extra-managed-mcp",
+        severity: "warning",
+        agentId: agent.tool,
+        mcpName,
+        message: `Agent '${agent.tool}' has extra managed MCP '${mcpName}'.`
+      });
+    }
+
+    let featureWarnings = 0;
+    for (const item of expectedInventory.skills.items) {
+      const support = summarizeSkillFeatureSupport(item.capabilities, registryById.get(agent.tool));
+      featureWarnings += support.unsupported.length;
+      if (support.unsupported.length > 0) {
+        classes.push({
+          code: "compatibility-degraded",
+          severity: "warning",
+          agentId: agent.tool,
+          skillName: item.name,
+          message: `Skill '${item.name}' has ${support.unsupported.length} unsupported feature warning(s) for agent '${agent.tool}'.`
+        });
+      }
+
+      if (item.sourceType === "imported") {
+        const expectedProjectionVersion = registryById.get(agent.tool)?.projectionVersion ?? 1;
+        const actualProjectionVersion = item.projectionAdapters?.[agent.tool]?.contractVersion ?? null;
+        if (actualProjectionVersion !== null && actualProjectionVersion !== expectedProjectionVersion) {
+          classes.push({
+            code: "projection-mismatch",
+            severity: "error",
+            agentId: agent.tool,
+            skillName: item.name,
+            message: `Projection metadata for '${item.name}' is stale for agent '${agent.tool}'.`
+          });
+        }
+      }
+    }
+
+    const sortedClasses = sortDriftClasses(classes);
+    const byClass = countByClass(sortedClasses);
+
+    resolvedDriftAgents.push({
       tool: agent.tool,
-      displayName: agent.displayName,
-      support: agent.support,
+      name: agent.name,
+      managedSurface: agent.managedSurface,
       installed: agent.installed,
       parseErrors: agent.parseErrors,
-      capabilityWarnings,
+      featureWarnings,
+      classes: sortedClasses,
       drift: {
-        skills: skillsDrift,
-        mcpServers: mcpDrift
+        skills: {
+          ...skillsDrift,
+          changed: sortStrings(changedSkills)
+        },
+        mcpServers: {
+          ...mcpDrift,
+          changed: sortStrings(changedMcpServers)
+        }
       },
       summary: {
         missingTotal: skillsDrift.missing.length + mcpDrift.missing.length,
         extraTotal: skillsDrift.extra.length + mcpDrift.extra.length,
+        changedTotal: changedSkills.length + changedMcpServers.length,
         parseErrors: agent.parseErrors.length,
-        capabilityWarnings
+        featureWarnings,
+        byClass
       }
-    };
-  });
+    });
+    }
 
-  return {
-    os: detected.os,
-    profile: resolvedProfile,
-    expected: {
-      skills: expectedSkills,
-      mcpServers: expectedMcpServers
-    },
-    agents: driftAgents
-  };
+    const summary = {
+      missingTotal: resolvedDriftAgents.reduce((count, agent) => count + agent.summary.missingTotal, 0),
+      extraTotal: resolvedDriftAgents.reduce((count, agent) => count + agent.summary.extraTotal, 0),
+      changedTotal: resolvedDriftAgents.reduce((count, agent) => count + agent.summary.changedTotal, 0),
+      parseErrors: resolvedDriftAgents.reduce((count, agent) => count + agent.summary.parseErrors, 0),
+      featureWarnings: resolvedDriftAgents.reduce((count, agent) => count + agent.summary.featureWarnings, 0),
+      byClass: countByClass(resolvedDriftAgents.flatMap((agent) => agent.classes))
+    };
+
+    return {
+      os: detected.os,
+      profile: resolvedProfile,
+      expected: {
+        skills: expectedSkills,
+        mcpServers: expectedMcpServers
+      },
+      summary,
+      agents: resolvedDriftAgents
+    };
+  } finally {
+    await fs.rm(projectionHashRoot, { recursive: true, force: true });
+  }
 }
 
 export async function cmdAgentInventory({ format = "text", agents } = {}) {

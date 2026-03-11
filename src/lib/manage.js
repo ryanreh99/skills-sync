@@ -187,13 +187,14 @@ export async function cmdUpstreamAdd({ id, repo, source, defaultRef, type, provi
   if (!locator) {
     throw new Error("A source locator is required. Use --source or --repo.");
   }
-  await ensureUpstreamRegistration({
+  const upstream = await ensureUpstreamRegistration({
     id,
     source: locator,
     provider: provider || (requestedType === "git" ? "git" : "auto"),
     root,
     defaultRef
   });
+  return upstream;
 }
 
 export async function cmdUpstreamRemove({ id }) {
@@ -272,6 +273,7 @@ export async function cmdProfileAddSkill({
       throw new Error(`Unknown upstream '${upstream}'.`);
     }
   }
+  const effectiveTracking = pin === true ? "pinned" : "floating";
 
   const paths = await discoverPathsIfRequested({
     upstreamDoc,
@@ -288,7 +290,6 @@ export async function cmdProfileAddSkill({
   const nextSources = cloneSourcesDocument(sources);
   const effectiveRef = upstreamDoc.provider === "git" ? normalizeOptionalText(ref) || upstreamDoc.defaultRef || "main" : null;
   const effectiveDestPrefix = normalizeDestPrefix(destPrefix, upstreamDoc.id, "Skill import");
-  const effectiveTracking = pin === true ? "pinned" : "floating";
 
   let addedCount = 0;
   for (const selectionPath of paths) {

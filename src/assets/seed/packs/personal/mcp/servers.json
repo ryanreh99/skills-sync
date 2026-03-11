@@ -4,17 +4,19 @@
       "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "$HOME"
-      ]
+        "@modelcontextprotocol/server-filesystem"
+      ],
+      "env": {
+        "ALLOWED_PATHS": "$HOME"
+      }
     },
-    "memory": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-memory"
-      ]
+    "aws-knowledge": {
+      "url": "https://knowledge-mcp.global.api.aws",
+      "transport": "http"
+    },
+    "notion": {
+      "url": "https://mcp.notion.com/sse",
+      "transport": "sse"
     }
   }
 }
-

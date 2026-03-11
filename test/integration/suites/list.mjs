@@ -21,11 +21,23 @@ export async function run() {
   for (const skill of detailedListed.skills) {
     assert.equal(typeof skill.sourceType, "string", "Detailed skill inventory should include sourceType.");
     assert.equal(Array.isArray(skill.flags), true, "Detailed skill inventory should include state flags.");
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(skill, "trustState"),
+      false,
+      "Detailed skill inventory should not expose removed trustState metadata."
+    );
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(skill, "policyStatus"),
+      false,
+      "Detailed skill inventory should not expose removed policyStatus metadata."
+    );
   }
 
   // --- list skills text format (default) ---
   const textResult = runCli(["list", "skills", "--profile", "personal"]);
   assert.equal(textResult.stdout.trim().length > 0, true, "list skills text output should be non-empty.");
+  assert.equal(textResult.stdout.includes("NAME"), true, "list skills text output should render a table header.");
+  assert.equal(textResult.stdout.includes("\t"), false, "list skills text output should not rely on tab separators.");
 
   // --- list mcps JSON format ---
   const mcpsJsonResult = runCli(["list", "mcps", "--profile", "personal", "--format", "json"]);
@@ -39,6 +51,8 @@ export async function run() {
   // --- list mcps text format (default) ---
   const mcpsTextResult = runCli(["list", "mcps", "--profile", "personal"]);
   assert.equal(mcpsTextResult.stdout.trim().length > 0, true, "list mcps text output should be non-empty.");
+  assert.equal(mcpsTextResult.stdout.includes("TARGET"), true, "list mcps text output should render a target column.");
+  assert.equal(mcpsTextResult.stdout.includes("\t"), false, "list mcps text output should not rely on tab separators.");
 
   // --- slash root alias should work ---
   const slashProfiles = runCli(["/list", "profiles"]);
@@ -47,6 +61,7 @@ export async function run() {
     true,
     "slash-style root command should resolve to list."
   );
+  assert.equal(slashProfiles.stdout.includes("PROFILE"), true, "list profiles text should render a profile column.");
 
   // --- windows-path-like root (from MSYS path conversion) should work ---
   const msysConvertedProfiles = runCli(["C:\\list", "profiles"]);
@@ -59,6 +74,8 @@ export async function run() {
   // --- list upstreams ---
   const listUpstreamsText = runCli(["list", "upstreams"]);
   assert.equal(listUpstreamsText.stdout.includes("anthropic"), true, "list upstreams should include anthropic.");
+  assert.equal(listUpstreamsText.stdout.includes("PROVIDER"), true, "list upstreams text should render table columns.");
+  assert.equal(listUpstreamsText.stdout.includes("\t"), false, "list upstreams text should not rely on tab separators.");
   const listUpstreamsJson = runCli(["list", "upstreams", "--format", "json"]);
   const upstreamsPayload = JSON.parse(listUpstreamsJson.stdout.trim());
   assert.equal(Array.isArray(upstreamsPayload.upstreams), true, "list upstreams json should return upstreams array.");

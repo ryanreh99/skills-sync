@@ -33,7 +33,7 @@ Running `skills-sync` with no command opens interactive shell mode.
 - `list agents [--agents <comma-list>] [--format text|json]`
 - `list upstream-content [--upstream <id>] [--source <locator>] [--provider auto|git|local-path] [--root <path>] [--ref <ref>] [--profile <name>] [--verbose] [--format text|json]`
 
-`list skills --detail full` shows profile ownership, source provenance, tracking mode, resolved revision, materialized agents, and capability-tolerance metadata.
+`list skills --detail full` shows profile ownership, source provenance, tracking mode, resolved revision, content digests, materialized agents, projection staleness, and feature-support metadata.
 
 ## Search
 
@@ -86,7 +86,7 @@ Supported native source locators:
 - `agents inventory [--agents <comma-list>] [--format text|json]`
 - `agents drift [--profile <name>] [--agents <comma-list>] [--dry-run] [--format text|json]`
 
-`agents drift` now includes capability warnings and MCP drift in addition to skill drift.
+`agents drift` includes structured classes such as `missing-skill`, `content-mismatch`, `projection-mismatch`, `compatibility-degraded`, `missing-managed-mcp`, `changed-managed-mcp`, and `extra-managed-mcp`.
 
 ## Workspace
 
@@ -103,7 +103,7 @@ Default manifest path: `workspace/skills-sync.manifest.json`
 - `use [name]` and `new [name]` default to `personal`
 - `sync` and `doctor` can omit `--profile` when a default profile is set
 - `workspace/skills-sync.lock.json` is the canonical imported-source lockfile
-- legacy `workspace/upstreams.lock.json` is read for migration but not written
+- `workspace/skills-sync.manifest.json` is the canonical whole-workspace manifest
 - unsupported optional skill capabilities are surfaced as warnings, not fatal import/sync errors
 - unknown commands fail with `Unknown command. See: help`
 

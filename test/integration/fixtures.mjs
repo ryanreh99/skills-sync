@@ -12,27 +12,27 @@ export async function writeTargetsOverride(localOverridesPath, runtimePath) {
     codex: {
       skillsDir: path.join(runtimePath, ".codex", "skills", "vendor_imports"),
       mcpConfig: path.join(runtimePath, ".codex", "config.toml"),
-      canOverride: false
+      hasNonMcpConfig: true
     },
     claude: {
       skillsDir: path.join(runtimePath, ".claude", "skills"),
       mcpConfig: path.join(runtimePath, ".claude.json"),
-      canOverride: true
+      hasNonMcpConfig: false
     },
     cursor: {
       skillsDir: path.join(runtimePath, ".cursor", "skills"),
       mcpConfig: path.join(runtimePath, ".cursor", "mcp.json"),
-      canOverride: true
+      hasNonMcpConfig: false
     },
     copilot: {
       skillsDir: path.join(runtimePath, ".copilot", "skills"),
       mcpConfig: path.join(runtimePath, ".copilot", "mcp-config.json"),
-      canOverride: true
+      hasNonMcpConfig: false
     },
     gemini: {
       skillsDir: path.join(runtimePath, ".gemini", "skills"),
       mcpConfig: path.join(runtimePath, ".gemini", "settings.json"),
-      canOverride: false
+      hasNonMcpConfig: true
     }
   };
   await fs.mkdir(path.dirname(overridePath), { recursive: true });
@@ -124,7 +124,7 @@ export function assertManagedJsonMerged(content, label) {
   const doc = JSON.parse(content);
   assert.equal(typeof doc.mcpServers, "object", `${label}: mcpServers should be an object.`);
   assert.equal("keep_me" in doc.mcpServers, true, `${label}: expected unmanaged key keep_me.`);
-  const managed = Object.keys(doc.mcpServers).filter((key) => key.startsWith("skills-sync__"));
+  const managed = Object.keys(doc.mcpServers).filter((key) => key !== "keep_me");
   assert.equal(managed.length > 0, true, `${label}: expected managed keys.`);
 }
 
@@ -133,7 +133,7 @@ export function assertManagedJsonMerged(content, label) {
  */
 export function assertManagedJsonRemoved(content, label) {
   const doc = JSON.parse(content);
-  const managed = Object.keys(doc.mcpServers ?? {}).filter((key) => key.startsWith("skills-sync__"));
+  const managed = Object.keys(doc.mcpServers ?? {}).filter((key) => key !== "keep_me");
   assert.equal(managed.length, 0, `${label}: managed keys should be removed by unlink.`);
   assert.equal("keep_me" in (doc.mcpServers ?? {}), true, `${label}: unmanaged key should remain.`);
 }

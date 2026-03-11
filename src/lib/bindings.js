@@ -15,10 +15,15 @@ import {
   resolveLinkTarget,
   writeJsonFile
 } from "./core.js";
+import { loadAgentIntegrations, resolveAgentRuntimePath } from "./agent-integrations.js";
 import { parseAgentFilterOption } from "./agent-registry.js";
 import { loadEffectiveTargets } from "./config.js";
 import { loadImportLock, saveImportLock } from "./import-lock.js";
-import { applyManagedMcpConfig, removeManagedMcpConfig } from "./mcp-config.js";
+import {
+  applyManagedMcpConfigForAgent,
+  removeManagedMcpConfig,
+  resolveAgentMcpConfigKind
+} from "./mcp-config.js";
 
 function redactPathDetails(message) {
   return String(message ?? "")
@@ -34,70 +39,32 @@ export async function getStatePath() {
   return path.join(stateDir, "active-profile.json");
 }
 
-function getDirectoryBindingSpecs(effectiveTargets, runtimeInternalRoot, selectedAgents = null) {
-  const specs = [
-    {
-      tool: "codex",
-      sourcePath: path.join(runtimeInternalRoot, ".codex", "skills"),
-      targetRawPath: effectiveTargets.codex.skillsDir
-    },
-    {
-      tool: "claude",
-      sourcePath: path.join(runtimeInternalRoot, ".claude", "skills"),
-      targetRawPath: effectiveTargets.claude.skillsDir
-    },
-    {
-      tool: "cursor",
-      sourcePath: path.join(runtimeInternalRoot, ".cursor", "skills"),
-      targetRawPath: effectiveTargets.cursor.skillsDir
-    },
-    {
-      tool: "copilot",
-      sourcePath: path.join(runtimeInternalRoot, ".copilot", "skills"),
-      targetRawPath: effectiveTargets.copilot.skillsDir
-    },
-    {
-      tool: "gemini",
-      sourcePath: path.join(runtimeInternalRoot, ".gemini", "skills"),
-      targetRawPath: effectiveTargets.gemini.skillsDir
-    }
-  ];
-  return specs.filter(
-    (spec) =>
-      typeof spec.targetRawPath === "string" &&
-      spec.targetRawPath.trim().length > 0 &&
-      (!selectedAgents || selectedAgents.has(spec.tool))
-  );
+function getDirectoryBindingSpecs(integrations, effectiveTargets, runtimeInternalRoot, selectedAgents = null) {
+  return integrations
+    .map((integration) => ({
+      tool: integration.id,
+      sourcePath: resolveAgentRuntimePath(runtimeInternalRoot, integration, "skills"),
+      targetRawPath: effectiveTargets[integration.id]?.skillsDir,
+      skillsBindMode: integration.internal.skillsBindMode
+    }))
+    .filter(
+      (spec) =>
+        typeof spec.targetRawPath === "string" &&
+        spec.targetRawPath.trim().length > 0 &&
+        (!selectedAgents || selectedAgents.has(spec.tool))
+    );
 }
 
-function getConfigSpecs(effectiveTargets, runtimeInternalRoot, selectedAgents = null) {
-  return [
-    {
-      tool: "codex",
-      sourcePath: path.join(runtimeInternalRoot, ".codex", "config.toml"),
-      targetRawPath: effectiveTargets.codex.mcpConfig
-    },
-    {
-      tool: "claude",
-      sourcePath: path.join(runtimeInternalRoot, ".claude", "mcp.json"),
-      targetRawPath: effectiveTargets.claude.mcpConfig
-    },
-    {
-      tool: "cursor",
-      sourcePath: path.join(runtimeInternalRoot, ".cursor", "mcp.json"),
-      targetRawPath: effectiveTargets.cursor.mcpConfig
-    },
-    {
-      tool: "copilot",
-      sourcePath: path.join(runtimeInternalRoot, ".copilot", "mcp-config.json"),
-      targetRawPath: effectiveTargets.copilot.mcpConfig
-    },
-    {
-      tool: "gemini",
-      sourcePath: path.join(runtimeInternalRoot, ".gemini", "settings.json"),
-      targetRawPath: effectiveTargets.gemini.mcpConfig
-    }
-  ].filter((spec) => !selectedAgents || selectedAgents.has(spec.tool));
+function getConfigSpecs(integrations, effectiveTargets, runtimeInternalRoot, selectedAgents = null) {
+  return integrations
+    .map((integration) => ({
+      tool: integration.id,
+      agent: integration,
+      sourcePath: resolveAgentRuntimePath(runtimeInternalRoot, integration, "config"),
+      targetRawPath: effectiveTargets[integration.id]?.mcpConfig,
+      configKind: resolveAgentMcpConfigKind(integration)
+    }))
+    .filter((spec) => !selectedAgents || selectedAgents.has(spec.tool));
 }
 
 function filterBindingsByAgents(bindings, selectedAgents) {
@@ -376,6 +343,7 @@ export async function applyBindings(profileName, options = {}) {
   }
   const canonicalMcp = await fs.readJson(bundleMcpPath);
   const selectedAgents = agents ? new Set(await parseAgentFilterOption(agents)) : null;
+  const integrations = await loadAgentIntegrations();
 
   const effectiveTargets = await loadEffectiveTargets(osName);
   const statePath = await getStatePath();
@@ -407,8 +375,8 @@ export async function applyBindings(profileName, options = {}) {
     }
   }
 
-  const directorySpecs = getDirectoryBindingSpecs(effectiveTargets, runtimeInternalRoot, selectedAgents);
-  const configSpecs = getConfigSpecs(effectiveTargets, runtimeInternalRoot, selectedAgents);
+  const directorySpecs = getDirectoryBindingSpecs(integrations, effectiveTargets, runtimeInternalRoot, selectedAgents);
+  const configSpecs = getConfigSpecs(integrations, effectiveTargets, runtimeInternalRoot, selectedAgents);
   const bindings = [];
   const createdTargets = [];
   const plannedActions = [];
@@ -449,8 +417,7 @@ export async function applyBindings(profileName, options = {}) {
           continue;
         }
 
-        // Codex skills target may already exist as a user-managed parent directory.
-        if (spec.tool === "codex") {
+        if (spec.skillsBindMode === "children") {
           const targetLstat = await fs.lstat(targetPath);
           if (targetLstat.isSymbolicLink()) {
             throw new Error(formatUnmanagedPathError(targetPath, effectiveProfile));
@@ -508,11 +475,12 @@ export async function applyBindings(profileName, options = {}) {
       }
 
       const targetPath = expandTargetPath(spec.targetRawPath, osName);
-      const result = await applyManagedMcpConfig({
-        tool: spec.tool,
+      const result = await applyManagedMcpConfigForAgent({
+        agent: spec.agent,
         targetPath,
         canonicalMcp,
-        dryRun
+        dryRun,
+        configKind: spec.configKind
       });
 
       plannedActions.push({
@@ -529,9 +497,13 @@ export async function applyBindings(profileName, options = {}) {
           kind: "config",
           targetPath,
           sourcePath,
+          configKind: spec.configKind,
           method: result.method,
           hash: result.hash,
           managedNames: result.managedNames,
+          ...(result.shadowedServers && Object.keys(result.shadowedServers).length > 0
+            ? { shadowedServers: result.shadowedServers }
+            : {}),
           managedBy: MANAGED_BY
         });
       }

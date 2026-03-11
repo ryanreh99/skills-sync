@@ -10,6 +10,10 @@ export async function run() {
     ["list-upstream-skills", "--upstream", "anthropic"],
     ["use-examples"],
     ["build", "--profile", "personal", "--no-lock-update"],
+    ["upstream", "add", "demo", "--source", "example/example", "--trust-state", "trusted"],
+    ["profile", "add-upstream", "demo", "--source", "example/example", "--trust-state", "trusted"],
+    ["profile", "add-skill", "personal", "--source", "example/example", "--path", "skills/demo", "--trust-state", "trusted"],
+    ["trust"],
     ["frobnicate"],
     ["list", "packs"],
     ["search", "packs"]

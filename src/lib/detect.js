@@ -1,6 +1,15 @@
 import { logInfo } from "./core.js";
 import { collectAgentInventories } from "./agents.js";
-import { accent, danger, muted, success, warning } from "./terminal-ui.js";
+import {
+  accent,
+  danger,
+  muted,
+  renderSection,
+  renderSimpleList,
+  renderTable,
+  success,
+  warning
+} from "./terminal-ui.js";
 
 function redactPathDetails(message) {
   return String(message ?? "")
@@ -21,8 +30,8 @@ export async function cmdDetect({ format = "text", agents } = {}) {
   const inventory = await collectAgentInventories({ agents });
   const detailedRows = inventory.agents.map((agent) => ({
     tool: agent.tool,
-    support: agent.support,
-    canOverride: agent.canOverride,
+    managedSurface: agent.managedSurface,
+    hasNonMcpConfig: agent.hasNonMcpConfig,
     hasSkills: agent.hasSkillsPath,
     hasMcp: agent.hasMcpPath,
     installed: agent.installed,
@@ -37,21 +46,38 @@ export async function cmdDetect({ format = "text", agents } = {}) {
   }
 
   logInfo(`Detected host OS: ${inventory.os}`);
-  process.stdout.write("\n");
-  for (const row of detailedRows) {
-    process.stdout.write(`${accent(row.tool, process.stdout)}\n`);
-    process.stdout.write(`  status      : ${row.installed ? success("detected", process.stdout) : warning("not detected", process.stdout)}\n`);
-    process.stdout.write(`  support     : ${row.support}\n`);
-    process.stdout.write(`  skills found: ${row.hasSkills ? success("yes", process.stdout) : muted("no", process.stdout)}\n`);
-    process.stdout.write(`  mcp found   : ${row.hasMcp ? success("yes", process.stdout) : muted("no", process.stdout)}\n`);
-    if (row.parseErrors.length === 0) {
-      process.stdout.write(`  parse errors: ${success("none", process.stdout)}\n`);
-    } else {
-      process.stdout.write(`  parse errors: ${warning(String(row.parseErrors.length), process.stdout)}\n`);
-      for (const issue of row.parseErrors) {
-        process.stdout.write(`    [${danger(issue.kind, process.stdout)}] ${issue.message}\n`);
-      }
+  const lines = [
+    "",
+    renderSection("Detected Agents", { stream: process.stdout }),
+    renderTable(
+      ["Agent", "Status", "Surface", "Skills", "MCP", "Parse Errors", "Non-MCP Config"],
+      detailedRows.map((row) => [
+        accent(row.tool, process.stdout),
+        row.installed ? success("detected", process.stdout) : warning("not detected", process.stdout),
+        row.managedSurface,
+        row.hasSkills ? success("yes", process.stdout) : muted("no", process.stdout),
+        row.hasMcp ? success("yes", process.stdout) : muted("no", process.stdout),
+        row.parseErrors.length === 0 ? success("none", process.stdout) : warning(String(row.parseErrors.length), process.stdout),
+        row.hasNonMcpConfig ? success("yes", process.stdout) : muted("no", process.stdout)
+      ]),
+      { stream: process.stdout }
+    )
+  ];
+
+  const issues = detailedRows.filter((row) => row.parseErrors.length > 0);
+  if (issues.length > 0) {
+    lines.push("");
+    lines.push(renderSection("Parse Issues", { count: issues.length, stream: process.stdout }));
+    for (const row of issues) {
+      lines.push(accent(row.tool, process.stdout));
+      lines.push(
+        renderSimpleList(
+          row.parseErrors.map((issue) => `[${danger(issue.kind, process.stdout)}] ${issue.message}`),
+          { indent: "  " }
+        )
+      );
     }
-    process.stdout.write(`  canOverride : ${row.canOverride}\n\n`);
   }
+
+  process.stdout.write(`${lines.join("\n")}\n`);
 }

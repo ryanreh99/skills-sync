@@ -5,6 +5,7 @@
       "ref": "main",
       "paths": [
         "skills/frontend-design",
+        "skills/pdf",
         "skills/skill-creator"
       ],
       "destPrefix": "anthropic"

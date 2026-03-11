@@ -53,34 +53,51 @@ Shape:
 
 Notes:
 - URL-based servers may omit `transport`; `skills-sync` treats them as HTTP by default for Copilot projection.
-- `transport` is agent-neutral metadata in the input manifest. Agent adapters project it into each tool's native config shape.
+- `transport` is agent-neutral input metadata. Adapters project it into each tool's native config shape.
 
 ### Upstreams + Lock
-- `workspace/upstreams.json` (fallback `internal/starter/upstreams.json`)
-- `workspace/upstreams.lock.json`
+- `workspace/upstreams.json`
+- `workspace/skills-sync.lock.json`
 
 Schemas:
-- `internal/contracts/inputs/upstreams.schema.json`
-- `internal/contracts/state/upstreams-lock.schema.json`
+- `src/assets/contracts/inputs/upstreams.schema.json`
+- `src/assets/contracts/state/upstreams-lock.schema.json`
 
-## Runtime Targets
+Notes:
+- `skills-sync.lock.json` is the canonical reproducibility state.
+- Lock schema version is `3`.
+
+## Agent Definitions
+
+Source of truth:
+- `src/assets/integrations/agents/*.json`
 
 Schema:
-- `internal/contracts/runtime/targets.schema.json`
+- `src/assets/contracts/runtime/agent-integration.schema.json`
 
-Required top-level keys:
-- `codex`
-- `claude`
-- `cursor`
-- `copilot`
-- `gemini`
+Notes:
+- Each agent has its own JSON file.
+- These files are authored in `config`, `skills`, and `mcp` sections.
+- Registry views and effective target maps are derived in code from these files. They are not separately authored contracts.
 
-Per-tool target fields:
-- `skillsDir`: runtime skills directory target
-- `mcpConfig`: runtime MCP config target
-- `canOverride` (boolean): runtime projection policy for MCP config
-  - `true`: dist MCP projection can be generated directly from canonical bundle
-  - `false`: runtime artifact generation reads existing local config (if present) and only replaces MCP sections
+Important fields:
+- `config.order`
+- `config.adapter`
+- `config.projectionVersion`
+- `skills.internalDir`
+- `skills.bindMode`
+- `skills.targets.<os>.dir`
+- `skills.support.*`
+- `mcp.internalConfig`
+- `mcp.targets.<os>.config`
+- `mcp.hasNonMcpConfig`
+- `mcp.supportVersion`
+- `mcp.kind`
+- `mcp.support.transports.*`
+- `mcp.support.auth.*`
+- `mcp.support.capabilities.*`
+- `mcp.support.advanced.*`
+- `mcp.support.config.*`
 
 ## Runtime Artifact Contract
 
@@ -89,26 +106,17 @@ Canonical artifact:
 - `~/.skills-sync/internal/common/skills/`
 - `~/.skills-sync/internal/common/mcp.json`
 
-`~/.skills-sync/internal/common` is authoritative.  
-All other `dist/*` paths are projections.
-
-## Projection Contract (Current)
-
-Primary projections:
-- `dist/common/*`
-- `dist/.codex/*`
-- `dist/.claude/*`
-- `dist/.cursor/*`
-- `dist/.copilot/*`
-- `dist/.gemini/*`
+`~/.skills-sync/internal/common` is authoritative.
+All `~/.skills-sync/internal/.<agent>/*` paths are projections.
 
 ## Runtime Mutation Contract
 
 `sync` behavior:
-- skills directories are linked where supported
-- MCP config is merged under `skills-sync__*` namespace
-- unmanaged user entries are preserved
+- Skills directories are linked where supported.
+- MCP config is written through the configured `mcp.kind`.
+- Managed MCP servers keep their canonical profile names in target configs.
+- Unmanaged local config is preserved only when `mcp.hasNonMcpConfig` is `true`.
 
 `unlink` behavior:
-- removes managed links
-- removes managed MCP namespace entries only
+- Removes managed links.
+- Removes managed MCP namespace entries only.

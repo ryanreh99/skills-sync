@@ -5,6 +5,7 @@ import { Command, Option } from "commander";
 import { buildProfile } from "./lib/build.js";
 import { applyBindings, cmdApply, cmdUnlink } from "./lib/bindings.js";
 import { cmdAgentDrift, cmdAgentInventory, cmdListAgents } from "./lib/agents.js";
+import { RUNTIME_INTERNAL_ROOT } from "./lib/core.js";
 import { cmdDetect } from "./lib/detect.js";
 import { cmdDoctor } from "./lib/doctor.js";
 import { cmdInit } from "./lib/init.js";
@@ -57,7 +58,7 @@ import {
 } from "./lib/upstreams.js";
 import { getProvider } from "./lib/providers/index.js";
 import { cmdShell } from "./lib/shell.js";
-import { danger, styleHelpOutput } from "./lib/terminal-ui.js";
+import { danger, renderSection, renderTable, styleHelpOutput } from "./lib/terminal-ui.js";
 import { cmdWorkspaceDiff, cmdWorkspaceExport, cmdWorkspaceImport, cmdWorkspaceSync } from "./lib/workspace-manifest.js";
 
 const VALID_BUILD_LOCK_MODES = new Set(["read", "write", "refresh"]);
@@ -384,10 +385,8 @@ async function resolveSelectedSkillPaths({
     return [];
   }
 
-  process.stdout.write("Discovered skills:\n");
-  for (const skillPath of skillPaths) {
-    process.stdout.write(`  ${skillPath}\n`);
-  }
+  process.stdout.write(`${renderSection("Discovered Skills", { stream: process.stdout })}\n`);
+  process.stdout.write(`${renderTable(["Path"], skillPaths.map((skillPath) => [skillPath]), { stream: process.stdout })}\n`);
   const rawSelection = await promptForText({
     message: "Skill path(s) (comma or space separated, or 'all')",
     placeholder: "frontend-design, spreadsheet",
@@ -488,10 +487,14 @@ async function resolveImportedRemovalGroups({
     if (interactive !== true) {
       throw new Error("Provide --upstream with at least one --path, or use --interactive/--all.");
     }
-    process.stdout.write("Imported skills:\n");
-    for (const item of importedItems) {
-      process.stdout.write(`  ${item.upstream}:${item.selectionPath}\t-> ${item.name}\n`);
-    }
+    process.stdout.write(`${renderSection("Imported Skills", { stream: process.stdout })}\n`);
+    process.stdout.write(
+      `${renderTable(
+        ["Selection", "Installed As"],
+        importedItems.map((item) => [`${item.upstream}:${item.selectionPath}`, item.name]),
+        { stream: process.stdout }
+      )}\n`
+    );
     const rawSelection = await promptForText({
       message: "Skill path selector(s)",
       placeholder: normalizedUpstream ? "skills/my-skill, prompts/review" : "my-upstream:skills/my-skill",
@@ -748,22 +751,22 @@ async function cmdBuild(profileName, lockModeRaw) {
   await buildProfile(resolvedProfile, { lockMode });
 }
 
-async function cmdSync(profileName, options = {}) {
-  const resolvedProfile = await resolveProfileForBuild(profileName);
-  await buildProfile(resolvedProfile, { lockMode: "write", suggestNextStep: false });
-  if (options.dryRun === true) {
-    return applyBindings(resolvedProfile, {
-      dryRun: true,
-      agents: options.agents
-    });
+async function readRuntimeBundleProfile() {
+  const bundlePath = path.join(RUNTIME_INTERNAL_ROOT, "common", "bundle.json");
+  if (!(await fs.pathExists(bundlePath))) {
+    return null;
   }
-  return cmdApply(resolvedProfile, { agents: options.agents });
+  try {
+    const bundle = JSON.parse(await fs.readFile(bundlePath, "utf8"));
+    return normalizeOptionalText(bundle?.profile);
+  } catch {
+    return null;
+  }
 }
 
-async function cmdApplyWithOptionalBuild(profileName, shouldBuild, options = {}) {
-  const normalizedProfile = normalizeOptionalText(profileName);
-  let resolvedProfile = normalizedProfile ?? await readDefaultProfile();
-  if (shouldBuild) {
+async function runSyncApplyFlow(profileName, { build = true, dryRun = false, agents = null } = {}) {
+  let resolvedProfile = normalizeOptionalText(profileName) ?? await readDefaultProfile();
+  if (build) {
     if (!resolvedProfile) {
       resolvedProfile = await resolveRequiredTextOption({
         value: null,
@@ -774,14 +777,41 @@ async function cmdApplyWithOptionalBuild(profileName, shouldBuild, options = {})
     }
     await buildProfile(resolvedProfile, { lockMode: "write", suggestNextStep: false });
   }
-  await cmdApply(resolvedProfile, { dryRun: options.dryRun === true, agents: options.agents });
+
+  const gateProfile = resolvedProfile ?? await readRuntimeBundleProfile();
+  const applyProfile = resolvedProfile ?? gateProfile;
+  if (dryRun) {
+    return applyBindings(applyProfile, {
+      dryRun: true,
+      agents
+    });
+  }
+  return cmdApply(applyProfile, { agents });
+}
+
+async function cmdSync(profileName, options = {}) {
+  const resolvedProfile = await resolveProfileForBuild(profileName);
+  return runSyncApplyFlow(resolvedProfile, {
+    build: true,
+    dryRun: options.dryRun === true,
+    agents: options.agents
+  });
+}
+
+async function cmdApplyWithOptionalBuild(profileName, shouldBuild, options = {}) {
+  const normalizedProfile = normalizeOptionalText(profileName);
+  await runSyncApplyFlow(normalizedProfile, {
+    build: shouldBuild,
+    dryRun: options.dryRun === true,
+    agents: options.agents
+  });
 }
 
 async function runPostMutationSync(profileName, options = {}) {
   const { noSync = false, build = false, apply = false } = options;
   if (noSync === true) {
     if (apply === true) {
-      await cmdSync(profileName);
+      await runSyncApplyFlow(profileName, { build: true });
       return;
     }
     if (build === true) {
@@ -789,7 +819,7 @@ async function runPostMutationSync(profileName, options = {}) {
     }
     return;
   }
-  await cmdSync(profileName);
+  await runSyncApplyFlow(profileName, { build: true });
 }
 
 function createProgram() {

@@ -12,7 +12,7 @@ If a field is not clearly documented in official docs, it is marked **UNVERIFIED
 
 ### Config and MCP
 - User config: `~/.codex/config.toml` (Windows equivalent: `%USERPROFILE%\\.codex\\config.toml`)
-- Project config: `.codex/config.toml` (trusted projects)
+- Project config: `.codex/config.toml` (project-scoped config)
 - MCP schema: TOML tables under `[mcp_servers.<name>]` with keys like:
   - `transport`
   - `command`, `args`, `env`, `env_vars`, `cwd` (stdio)
@@ -177,5 +177,5 @@ If a field is not clearly documented in official docs, it is marked **UNVERIFIED
 ## Conservative defaults used by this repo
 
 - `sync` manages **user-level targets only** by default.
-- Cursor adapter uses copy+aliases projection (same as Gemini) — skills are copied to `dist/.cursor/skills` with flat `vendor__*` aliases for any nested skill paths, then bound to `~/.cursor/skills` during runtime sync.
+- Cursor adapter uses copy+aliases projection (same as Gemini) — skills are projected to `~/.skills-sync/internal/.cursor/skills` with flat `vendor__*` aliases for any nested skill paths, then bound to `~/.cursor/skills` during runtime sync.
 - When schema/path behavior is ambiguous, docs are preserved in this file and implementation avoids destructive assumptions.

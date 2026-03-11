@@ -24,7 +24,7 @@ export async function run({ localOverridesPath }) {
   // --- ls: lists profiles, marking the active one ---
   const lsResult = runCli(["ls"]);
   assert.equal(lsResult.stdout.includes("personal"), true, "ls should list the personal profile.");
-  assert.equal(lsResult.stdout.includes("->"), true, "ls should mark the active profile with ->.");
+  assert.equal(lsResult.stdout.includes("current"), true, "ls should mark the active profile as current.");
 
   // --- new: scaffolds a fresh profile ---
   const testProfileName = "test-profile-tmp";

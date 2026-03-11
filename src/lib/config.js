@@ -7,13 +7,13 @@ import {
   LOCAL_OVERRIDES_ROOT,
   SCHEMAS,
   assertJsonFileMatchesSchema,
-  assertObjectMatchesSchema,
-  getTargetManifestPath,
   logInfo,
   logWarn,
   toAbsolutePath,
   writeJsonFile
 } from "./core.js";
+import { buildTargetsDocument, loadAgentIntegrations } from "./agent-integrations.js";
+import { accent, muted, renderTable, success } from "./terminal-ui.js";
 
 function normalizeProfileName(profileName) {
   if (typeof profileName !== "string") {
@@ -331,10 +331,17 @@ export async function cmdListProfiles({ format = "text" } = {}) {
     return;
   }
 
-  for (const { name, source } of profiles) {
-    const marker = name === current ? "->" : "  ";
-    process.stdout.write(`${marker} ${name}  (${source})\n`);
-  }
+  process.stdout.write(
+    `${renderTable(
+      ["Profile", "Source", "Status"],
+      profiles.map(({ name, source }) => [
+        name === current ? accent(name, process.stdout) : name,
+        source,
+        name === current ? success("current", process.stdout) : muted("-", process.stdout)
+      ]),
+      { stream: process.stdout }
+    )}\n`
+  );
 }
 
 export async function cmdNewProfile(name) {
@@ -373,8 +380,8 @@ export async function cmdRemoveProfile(name) {
 }
 
 export async function loadEffectiveTargets(osName) {
-  const basePath = getTargetManifestPath(osName);
-  const baseTargets = await assertJsonFileMatchesSchema(basePath, SCHEMAS.targets);
+  const integrations = await loadAgentIntegrations();
+  const baseTargets = buildTargetsDocument(integrations, osName);
 
   const overridePath = path.join(LOCAL_OVERRIDES_ROOT, "manifests", "targets.override.json");
   let effectiveTargets = baseTargets;
@@ -384,6 +391,5 @@ export async function loadEffectiveTargets(osName) {
       arrayMerge: (_destinationArray, sourceArray) => sourceArray
     });
   }
-  await assertObjectMatchesSchema(effectiveTargets, SCHEMAS.targets, "effective target mapping");
   return effectiveTargets;
 }

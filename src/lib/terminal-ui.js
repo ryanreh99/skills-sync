@@ -10,6 +10,8 @@ const ANSI = {
   gray: "\u001B[90m"
 };
 
+const ANSI_PATTERN = /\u001B\[[0-9;]*m/g;
+
 function readForceColor() {
   if (process.env.FORCE_COLOR === undefined) {
     return null;
@@ -51,6 +53,28 @@ function paint(text, code, stream = process.stdout) {
   return `${code}${normalizedText}${ANSI.reset}`;
 }
 
+function alignVisible(text, width, align = "left") {
+  const normalized = String(text ?? "");
+  const padding = Math.max(0, width - visibleLength(normalized));
+  if (align === "right") {
+    return `${" ".repeat(padding)}${normalized}`;
+  }
+  return `${normalized}${" ".repeat(padding)}`;
+}
+
+function normalizeTableCell(cell) {
+  if (cell && typeof cell === "object" && !Array.isArray(cell)) {
+    return {
+      text: String(cell.text ?? ""),
+      align: cell.align === "right" ? "right" : "left"
+    };
+  }
+  return {
+    text: String(cell ?? ""),
+    align: "left"
+  };
+}
+
 export function brand(text, stream = process.stdout) {
   return paint(text, ANSI.boldCyan, stream);
 }
@@ -81,6 +105,122 @@ export function dim(text, stream = process.stdout) {
 
 export function muted(text, stream = process.stdout) {
   return paint(text, ANSI.gray, stream);
+}
+
+export function stripAnsi(text) {
+  return String(text ?? "").replace(ANSI_PATTERN, "");
+}
+
+export function visibleLength(text) {
+  return stripAnsi(text).length;
+}
+
+export function padEndVisible(text, width) {
+  return alignVisible(text, width, "left");
+}
+
+export function toneText(text, tone = "muted", stream = process.stdout) {
+  switch (tone) {
+    case "brand":
+      return brand(text, stream);
+    case "heading":
+      return heading(text, stream);
+    case "success":
+      return success(text, stream);
+    case "warning":
+      return warning(text, stream);
+    case "danger":
+      return danger(text, stream);
+    case "accent":
+      return accent(text, stream);
+    case "dim":
+      return dim(text, stream);
+    case "muted":
+    default:
+      return muted(text, stream);
+  }
+}
+
+export function formatBadge(text, tone = "muted", stream = process.stdout) {
+  return toneText(`[${String(text ?? "")}]`, tone, stream);
+}
+
+export function renderSection(title, { count = null, stream = process.stdout } = {}) {
+  const suffix = count === null ? "" : ` (${count})`;
+  return heading(`${String(title ?? "")}${suffix}`, stream);
+}
+
+export function renderKeyValueRows(rows, {
+  indent = "  ",
+  stream = process.stdout,
+  gap = 2
+} = {}) {
+  const normalizedRows = (Array.isArray(rows) ? rows : [])
+    .filter((row) => row && typeof row === "object")
+    .map((row) => ({
+      key: String(row.key ?? ""),
+      value: String(row.value ?? "")
+    }));
+  if (normalizedRows.length === 0) {
+    return "";
+  }
+
+  const keyWidth = normalizedRows.reduce(
+    (width, row) => Math.max(width, visibleLength(row.key)),
+    0
+  );
+  const separator = " ".repeat(Math.max(1, gap));
+  return normalizedRows
+    .map((row) => `${indent}${muted(alignVisible(row.key, keyWidth), stream)}${separator}${row.value}`)
+    .join("\n");
+}
+
+export function renderTable(headers, rows, {
+  indent = "  ",
+  gap = 2,
+  uppercaseHeaders = true,
+  stream = process.stdout
+} = {}) {
+  const normalizedHeaders = (Array.isArray(headers) ? headers : []).map((header) => String(header ?? ""));
+  const normalizedRows = (Array.isArray(rows) ? rows : []).map((row) =>
+    normalizedHeaders.map((_, index) => normalizeTableCell(Array.isArray(row) ? row[index] : ""))
+  );
+
+  if (normalizedHeaders.length === 0) {
+    return "";
+  }
+
+  const widths = normalizedHeaders.map((header, index) => {
+    const rowWidth = normalizedRows.reduce(
+      (width, row) => Math.max(width, visibleLength(row[index]?.text ?? "")),
+      0
+    );
+    return Math.max(visibleLength(header), rowWidth);
+  });
+
+  const separator = " ".repeat(Math.max(1, gap));
+  const headerLine = `${indent}${normalizedHeaders.map((header, index) =>
+    muted(
+      alignVisible(uppercaseHeaders ? header.toUpperCase() : header, widths[index]),
+      stream
+    )
+  ).join(separator)}`;
+  const bodyLines = normalizedRows.map((row) =>
+    `${indent}${row.map((cell, index) => alignVisible(cell.text, widths[index], cell.align)).join(separator)}`
+  );
+
+  return [headerLine, ...bodyLines].join("\n");
+}
+
+export function renderSimpleList(items, {
+  indent = "  ",
+  empty = "(none)"
+} = {}) {
+  const normalizedItems = Array.isArray(items) ? items.map((item) => String(item ?? "")) : [];
+  if (normalizedItems.length === 0) {
+    return `${indent}${empty}`;
+  }
+  return normalizedItems.map((item) => `${indent}${item}`).join("\n");
 }
 
 export function formatSkillsSyncTag(stream = process.stdout) {

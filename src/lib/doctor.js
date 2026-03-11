@@ -2,30 +2,26 @@ import fs from "fs-extra";
 import path from "node:path";
 import {
   CACHE_ROOT,
-  CODEX_MCP_BLOCK_END,
-  CODEX_MCP_BLOCK_START,
-  MCP_MANAGED_PREFIX,
   RUNTIME_INTERNAL_ROOT,
   SCHEMAS,
   assertJsonFileMatchesSchema,
   bindingMatches,
   existsOrLink,
   expandTargetPath,
-  fileSha256,
-  getTargetManifestPath,
   isInsidePath,
   logInfo,
   logWarn,
   pathsEqual,
   toFileSystemRelativePath
 } from "./core.js";
+import { getAgentIntegrationsById, loadAgentIntegrations, resolveAgentRuntimePath } from "./agent-integrations.js";
 import { getStatePath } from "./bindings.js";
 import { collectImportedSkillEntries, collectLocalSkillEntries } from "./bundle.js";
 import { loadEffectiveTargets, resolvePack, resolveProfile } from "./config.js";
-import { buildToolJsonMcpServers } from "./mcp-config.js";
+import { validateManagedMcpBindingTargetForAgent, validateProjectedMcpConfigForAgent } from "./mcp-config.js";
 import { loadEffectiveProfileState } from "./profile-runtime.js";
 import { collectSourcePlanning, getCommitObjectType, getLockKey, loadLockfile, loadUpstreamsConfig, resolveReferences, validateAllLockPins } from "./upstreams.js";
-import { extractCodexMcpTables, renderCodexMcpTables } from "./adapters/codex.js";
+import { renderSection, renderSimpleList } from "./terminal-ui.js";
 
 function redactPathDetails(message) {
   return String(message ?? "")
@@ -36,54 +32,22 @@ function redactPathDetails(message) {
 }
 
 function getExpectedTargetRaw(binding, targets) {
-  const key = `${binding.tool}:${binding.kind}`;
-  switch (key) {
-    case "codex:dir":
-      return targets.codex.skillsDir;
-    case "claude:dir":
-      return targets.claude.skillsDir;
-    case "cursor:dir":
-      return targets.cursor.skillsDir;
-    case "copilot:dir":
-      return targets.copilot.skillsDir;
-    case "gemini:dir":
-      return targets.gemini.skillsDir;
-    case "codex:config":
-      return targets.codex.mcpConfig;
-    case "claude:config":
-      return targets.claude.mcpConfig;
-    case "cursor:config":
-      return targets.cursor.mcpConfig;
-    case "copilot:config":
-      return targets.copilot.mcpConfig;
-    case "gemini:config":
-      return targets.gemini.mcpConfig;
-    default:
-      return null;
+  const target = targets?.[binding.tool];
+  if (!target) {
+    return null;
   }
+  if (binding.kind === "dir") {
+    return target.skillsDir ?? null;
+  }
+  if (binding.kind === "config") {
+    return target.mcpConfig ?? null;
+  }
+  return null;
 }
 
 function getManagedServerNames(canonicalMcp) {
   const names = Object.keys(canonicalMcp?.mcpServers ?? {}).sort((left, right) => left.localeCompare(right));
-  return names.map((name) => `${MCP_MANAGED_PREFIX}${name}`);
-}
-
-function sortObjectDeep(value) {
-  if (Array.isArray(value)) {
-    return value.map((item) => sortObjectDeep(item));
-  }
-  if (!value || typeof value !== "object") {
-    return value;
-  }
-  const sorted = {};
-  for (const key of Object.keys(value).sort((left, right) => left.localeCompare(right))) {
-    sorted[key] = sortObjectDeep(value[key]);
-  }
-  return sorted;
-}
-
-function normalizedMcpServersString(value) {
-  return JSON.stringify(sortObjectDeep(value ?? {}));
+  return names;
 }
 
 async function validateBundleMcp(bundleMcpPath, errors) {
@@ -189,6 +153,7 @@ async function validateRuntimeArtifacts({
   if (!canonicalMcp) {
     return;
   }
+  const integrations = await loadAgentIntegrations();
 
   const localEntries = await collectLocalSkillEntries(packRoots);
   const importedEntries = await collectImportedSkillEntries(skillImports, upstreamById, resolvedReferences);
@@ -200,78 +165,40 @@ async function validateRuntimeArtifacts({
     }
   }
 
-  const requiredProjectionPaths = [
-    path.join(runtimeInternalRoot, ".codex", "skills"),
-    path.join(runtimeInternalRoot, ".codex", "config.toml"),
-    path.join(runtimeInternalRoot, ".claude", "skills"),
-    path.join(runtimeInternalRoot, ".claude", "mcp.json"),
-    path.join(runtimeInternalRoot, ".cursor", "skills"),
-    path.join(runtimeInternalRoot, ".cursor", "mcp.json"),
-    path.join(runtimeInternalRoot, ".copilot", "skills"),
-    path.join(runtimeInternalRoot, ".copilot", "mcp-config.json"),
-    path.join(runtimeInternalRoot, ".gemini", "skills"),
-    path.join(runtimeInternalRoot, ".gemini", "settings.json")
-  ];
+  const requiredProjectionPaths = integrations.flatMap((integration) => [
+    resolveAgentRuntimePath(runtimeInternalRoot, integration, "skills"),
+    resolveAgentRuntimePath(runtimeInternalRoot, integration, "config")
+  ]);
   for (const projectionPath of requiredProjectionPaths) {
     if (!(await fs.pathExists(projectionPath))) {
       errors.push(`Missing projection artifact: ${projectionPath}`);
     }
   }
 
-  for (const tool of ["codex", "claude", "cursor", "copilot", "gemini"]) {
+  for (const integration of integrations) {
     for (const entry of allEntries) {
-      const target = path.join(runtimeInternalRoot, `.${tool}`, "skills", toFileSystemRelativePath(entry.destRelative));
+      const target = path.join(
+        resolveAgentRuntimePath(runtimeInternalRoot, integration, "skills"),
+        toFileSystemRelativePath(entry.destRelative)
+      );
       if (!(await fs.pathExists(target))) {
-        errors.push(`Expected ${tool} projected skill missing: ${target}`);
+        errors.push(`Expected ${integration.id} projected skill missing: ${target}`);
       }
     }
   }
 
-  const bundleMcpHash = await fileSha256(bundleMcpPath);
-  for (const projectionPath of [path.join(runtimeInternalRoot, ".cursor", "mcp.json")]) {
-    if (await fs.pathExists(projectionPath)) {
-      const hash = await fileSha256(projectionPath);
-      if (hash !== bundleMcpHash) {
-        errors.push(`MCP projection does not match canonical bundle: ${projectionPath}`);
-      }
-    }
-  }
-
-  const expectedJsonMcpByPath = new Map([
-    [path.join(runtimeInternalRoot, ".claude", "mcp.json"), canonicalMcp?.mcpServers ?? {}],
-    [path.join(runtimeInternalRoot, ".copilot", "mcp-config.json"), buildToolJsonMcpServers(canonicalMcp, "copilot")],
-    [path.join(runtimeInternalRoot, ".gemini", "settings.json"), canonicalMcp?.mcpServers ?? {}]
-  ]);
-  for (const [projectionPath, expectedMcpServers] of expectedJsonMcpByPath.entries()) {
+  for (const integration of integrations) {
+    const projectionPath = resolveAgentRuntimePath(runtimeInternalRoot, integration, "config");
     if (!(await fs.pathExists(projectionPath))) {
       continue;
     }
-    try {
-      const doc = await fs.readJson(projectionPath);
-      if (!doc || typeof doc !== "object" || Array.isArray(doc)) {
-        errors.push(`Projection is not a JSON object: ${projectionPath}`);
-        continue;
-      }
-      const actualMcpServers = doc.mcpServers;
-      if (!actualMcpServers || typeof actualMcpServers !== "object" || Array.isArray(actualMcpServers)) {
-        errors.push(`Projection is missing mcpServers object: ${projectionPath}`);
-        continue;
-      }
-      if (normalizedMcpServersString(actualMcpServers) !== normalizedMcpServersString(expectedMcpServers)) {
-        errors.push(`Projection mcpServers does not match canonical bundle: ${projectionPath}`);
-      }
-    } catch (error) {
-      errors.push(`Failed to parse projection '${projectionPath}': ${error.message}`);
-    }
-  }
-
-  const codexConfigPath = path.join(runtimeInternalRoot, ".codex", "config.toml");
-  if (await fs.pathExists(codexConfigPath)) {
-    const actual = await fs.readFile(codexConfigPath, "utf8");
-    const actualMcpTables = extractCodexMcpTables(actual);
-    const expectedMcpTables = renderCodexMcpTables(canonicalMcp);
-    if (actualMcpTables !== expectedMcpTables) {
-      errors.push(`Codex MCP tables in projection do not match canonical bundle: ${codexConfigPath}`);
+    const validationError = await validateProjectedMcpConfigForAgent({
+      agent: integration,
+      projectionPath,
+      canonicalMcp
+    });
+    if (validationError) {
+      errors.push(validationError);
     }
   }
 
@@ -305,6 +232,13 @@ async function validateStateAndBindings({ state, errors, warnings }) {
   if (!targets) {
     return;
   }
+  const integrationsById = await getAgentIntegrationsById().catch((error) => {
+    errors.push(error.message);
+    return null;
+  });
+  if (!integrationsById) {
+    return;
+  }
 
   const runtimeInternalRoot = RUNTIME_INTERNAL_ROOT;
   const bundleMcpPath = path.join(runtimeInternalRoot, "common", "mcp.json");
@@ -318,9 +252,12 @@ async function validateStateAndBindings({ state, errors, warnings }) {
       continue;
     }
     const expectedTargetPath = expandTargetPath(expectedRaw, state.os);
-    const codexNestedDirBinding =
-      binding.kind === "dir" && binding.tool === "codex" && isInsidePath(expectedTargetPath, binding.targetPath);
-    if (!pathsEqual(binding.targetPath, expectedTargetPath) && !codexNestedDirBinding) {
+    const integration = integrationsById.get(binding.tool);
+    const nestedDirBinding =
+      binding.kind === "dir" &&
+      integration?.internal?.skillsBindMode === "children" &&
+      isInsidePath(expectedTargetPath, binding.targetPath);
+    if (!pathsEqual(binding.targetPath, expectedTargetPath) && !nestedDirBinding) {
       errors.push(
         `Binding target mismatch for ${binding.tool}:${binding.kind}. Expected '${expectedTargetPath}', found '${binding.targetPath}'.`
       );
@@ -332,28 +269,15 @@ async function validateStateAndBindings({ state, errors, warnings }) {
         continue;
       }
 
-      if (binding.tool === "codex") {
-        const content = await fs.readFile(binding.targetPath, "utf8");
-        if (!content.includes(CODEX_MCP_BLOCK_START) || !content.includes(CODEX_MCP_BLOCK_END)) {
-          errors.push(`Codex managed MCP block missing in ${binding.targetPath}`);
-        }
-      } else {
-        let doc;
-        try {
-          doc = await fs.readJson(binding.targetPath);
-        } catch (error) {
-          errors.push(`Failed to parse JSON config '${binding.targetPath}': ${error.message}`);
-          continue;
-        }
-        if (!doc.mcpServers || typeof doc.mcpServers !== "object" || Array.isArray(doc.mcpServers)) {
-          errors.push(`JSON config missing mcpServers object: ${binding.targetPath}`);
-          continue;
-        }
-        for (const managedName of expectedManagedNames) {
-          if (!(managedName in doc.mcpServers)) {
-            errors.push(`Missing managed MCP entry '${managedName}' in ${binding.targetPath}`);
-          }
-        }
+      const validationError = await validateManagedMcpBindingTargetForAgent({
+        agent: integration ?? { id: binding.tool, mcpKind: binding.configKind ?? null },
+        configKind: binding.configKind ?? integration?.mcpKind ?? null,
+        bindingMethod: binding.method,
+        targetPath: binding.targetPath,
+        expectedManagedNames
+      });
+      if (validationError) {
+        errors.push(validationError);
       }
       continue;
     }
@@ -380,14 +304,11 @@ export async function cmdDoctor(profileOverride) {
   const warnings = [];
 
   const requiredFiles = [
-    getTargetManifestPath("windows"),
-    getTargetManifestPath("macos"),
-    getTargetManifestPath("linux"),
     SCHEMAS.profile,
     SCHEMAS.packManifest,
     SCHEMAS.mcpServers,
     SCHEMAS.bundle,
-    SCHEMAS.targets,
+    SCHEMAS.agentIntegration,
     SCHEMAS.upstreams,
     SCHEMAS.upstreamsLock,
     SCHEMAS.packSources
@@ -404,9 +325,7 @@ export async function cmdDoctor(profileOverride) {
   let upstreams = null;
   let lockState = null;
   try {
-    await assertJsonFileMatchesSchema(getTargetManifestPath("windows"), SCHEMAS.targets);
-    await assertJsonFileMatchesSchema(getTargetManifestPath("macos"), SCHEMAS.targets);
-    await assertJsonFileMatchesSchema(getTargetManifestPath("linux"), SCHEMAS.targets);
+    await loadAgentIntegrations();
     upstreams = await loadUpstreamsConfig();
     lockState = await loadLockfile();
     if (lockState.exists) {
@@ -499,16 +418,10 @@ export async function cmdDoctor(profileOverride) {
   }
 
   if (errors.length > 0) {
-    process.stdout.write("[skills-sync] Doctor found issues:\n");
-    for (const error of errors) {
-      process.stdout.write(` - ${redactPathDetails(error)}\n`);
-    }
-    process.stdout.write("\n");
-    process.stdout.write("Remediation steps:\n");
-    process.stdout.write("  1) Run init\n");
-    process.stdout.write("  2) Run use <name>\n");
-    process.stdout.write("  3) Run sync\n");
-    process.stdout.write("  4) Re-run doctor\n");
+    process.stdout.write(`${renderSection("Doctor Issues", { count: errors.length, stream: process.stdout })}\n`);
+    process.stdout.write(`${renderSimpleList(errors.map((error) => `- ${redactPathDetails(error)}`), { indent: "" })}\n\n`);
+    process.stdout.write(`${renderSection("Remediation", { stream: process.stdout })}\n`);
+    process.stdout.write(`${renderSimpleList(["1. Run init", "2. Run use <name>", "3. Run sync", "4. Re-run doctor"])}\n`);
     process.exitCode = 1;
     return;
   }

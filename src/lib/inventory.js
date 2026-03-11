@@ -1,12 +1,25 @@
 import fs from "fs-extra";
 import path from "node:path";
+import { buildSkillProjectionPlan } from "./adapters/common.js";
 import { collectLocalSkillEntries } from "./bundle.js";
-import { getAgentRegistryById, parseAgentFilterOption, summarizeCapabilitySupport } from "./agent-registry.js";
+import { getAgentRegistryById, parseAgentFilterOption, summarizeSkillFeatureSupport } from "./agent-registry.js";
 import { LOCAL_OVERRIDES_ROOT, isInsidePath } from "./core.js";
 import { listAvailableProfiles, readDefaultProfile, resolveProfile } from "./config.js";
+import { hashPathContent } from "./digest.js";
 import { loadImportLock, listProfileImportRecords } from "./import-lock.js";
 import { loadEffectiveProfileState } from "./profile-runtime.js";
 import { scanSkillDirectory } from "./skill-capabilities.js";
+import {
+  accent,
+  formatBadge,
+  muted,
+  renderKeyValueRows,
+  renderSection,
+  renderSimpleList,
+  renderTable,
+  success,
+  warning
+} from "./terminal-ui.js";
 import { collectSourcePlanning, loadUpstreamsConfig } from "./upstreams.js";
 import { getStatePath } from "./bindings.js";
 
@@ -59,20 +72,20 @@ function mapMaterializedAgents(state, profileName) {
 
 async function collectLocalSkillInventory(packRoots, activeAgents, agentRegistryById, selectedAgents = null) {
   const localEntries = await collectLocalSkillEntries(packRoots);
+  const targetAgentIds = selectedAgents ? Array.from(selectedAgents.values()) : Array.from(agentRegistryById.keys());
   const scanned = [];
   for (const entry of localEntries) {
     const metadata = await scanSkillDirectory(entry.sourcePath);
     const materializedAgents = [];
-    for (const [agentId, applied] of activeAgents.entries()) {
-      if (selectedAgents && !selectedAgents.has(agentId)) {
-        continue;
-      }
-      const support = summarizeCapabilitySupport(metadata.capabilities, agentRegistryById.get(agentId));
+    for (const agentId of targetAgentIds) {
+      const applied = activeAgents.get(agentId) ?? { mode: "unapplied" };
+      const support = summarizeSkillFeatureSupport(metadata.capabilities, agentRegistryById.get(agentId));
       materializedAgents.push({
         id: agentId,
         installMode: applied.mode,
-        capabilitySupport: support.rows,
-        capabilityMismatches: support.mismatches
+        featureChecks: support.checks,
+        unsupportedFeatures: support.unsupported,
+        compatibilityStatus: support.unsupported.length > 0 ? "degraded" : "ok"
       });
     }
     scanned.push({
@@ -84,19 +97,33 @@ async function collectLocalSkillInventory(packRoots, activeAgents, agentRegistry
       provider: "local",
       source: entry.sourcePath,
       upstream: null,
+      ref: null,
       selectionPath: entry.destRelative,
       tracking: null,
       resolvedRevision: null,
+      latestRevision: null,
       flags: ["local"],
       capabilities: metadata.capabilities,
-      materializedAgents
+      materializedAgents,
+      contentHash: await hashPathContent(entry.sourcePath),
+      sourceIdentity: null,
+      projectionAdapters: {},
+      projectedPathsByAgent: {}
     });
   }
   return scanned.sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function mergeImportRecords(importRecords, planningImports, upstreamById, activeAgents, agentRegistryById, selectedAgents = null) {
+function mergeImportRecords(
+  importRecords,
+  planningImports,
+  upstreamById,
+  activeAgents,
+  agentRegistryById,
+  selectedAgents = null
+) {
   const byKey = new Map();
+  const targetAgentIds = selectedAgents ? Array.from(selectedAgents.values()) : Array.from(agentRegistryById.keys());
   for (const record of importRecords) {
     byKey.set(`${record.upstream}::${record.selectionPath}::${record.destRelative}`, record);
   }
@@ -113,16 +140,16 @@ function mergeImportRecords(importRecords, planningImports, upstreamById, active
     }
 
     const materializedAgents = [];
-    for (const [agentId, applied] of activeAgents.entries()) {
-      if (selectedAgents && !selectedAgents.has(agentId)) {
-        continue;
-      }
-      const support = summarizeCapabilitySupport(capabilities, agentRegistryById.get(agentId));
+    for (const agentId of targetAgentIds) {
+      const applied = activeAgents.get(agentId) ?? { mode: "unapplied" };
+      const support = summarizeSkillFeatureSupport(capabilities, agentRegistryById.get(agentId));
       materializedAgents.push({
         id: agentId,
         installMode: applied.mode,
-        capabilitySupport: support.rows,
-        capabilityMismatches: support.mismatches
+        featureChecks: support.checks,
+        unsupportedFeatures: support.unsupported,
+        compatibilityStatus: support.unsupported.length > 0 ? "degraded" : "ok",
+        projectionVersion: record?.projection?.adapters?.[agentId]?.contractVersion ?? null
       });
     }
 
@@ -136,38 +163,169 @@ function mergeImportRecords(importRecords, planningImports, upstreamById, active
       source: upstream.provider === "local-path" ? upstream.path : upstream.repo,
       originalInput: upstream.originalInput ?? (upstream.provider === "local-path" ? upstream.path : upstream.repo),
       upstream: upstream.id,
+      ref: entry.ref ?? record?.ref ?? record?.resolution?.ref ?? null,
       selectionPath: entry.selectionPath,
       tracking: entry.tracking,
       resolvedRevision: record?.resolvedRevision ?? null,
       latestRevision: record?.latestRevision ?? null,
       flags,
       capabilities,
-      materializedAgents
+      materializedAgents,
+      contentHash: record?.contentHash ?? record?.digests?.contentSha256 ?? null,
+      sourceIdentity: record?.sourceIdentity ?? record?.source?.identity ?? upstream.sourceIdentity ?? null,
+      projectionAdapters: record?.projection?.adapters ?? {},
+      projectedPathsByAgent: {}
     };
   }).sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function formatSkillsBlock(inventory, detail) {
-  const lines = [];
-  lines.push(`Skills (${inventory.skills.total})`);
-  if (inventory.skills.items.length === 0) {
-    lines.push("  (none)");
-    return lines;
+function applyProjectionPlans(items, agentRegistryById, selectedAgents = null) {
+  const agentIds = selectedAgents ? Array.from(selectedAgents.values()) : Array.from(agentRegistryById.keys());
+  for (const agentId of agentIds) {
+      const metadata = agentRegistryById.get(agentId);
+      const projectionPlan = buildSkillProjectionPlan(
+      items.map((item) => item.name),
+      metadata?.support?.skills?.nestedDiscovery !== false
+    );
+    for (const item of items) {
+      item.projectedPathsByAgent[agentId] = projectionPlan.get(item.name) ?? [item.name];
+    }
+  }
+  return items;
+}
+
+function formatAgentStatus(agent) {
+  const unsupportedCount = Array.isArray(agent.unsupportedFeatures) ? agent.unsupportedFeatures.length : 0;
+  const compatibilityLabel = agent.compatibilityStatus === "degraded"
+    ? `degraded${unsupportedCount > 0 ? `:${unsupportedCount}` : ""}`
+    : "ok";
+  const compatibilityTone = agent.compatibilityStatus === "degraded" ? "warning" : "success";
+  return [
+    accent(agent.id, process.stdout),
+    formatBadge(agent.installMode, "accent", process.stdout),
+    formatBadge(compatibilityLabel, compatibilityTone, process.stdout)
+  ].join(" ");
+}
+
+function findProjectionStaleAgents(item, agentRegistryById) {
+  const stale = [];
+  for (const agent of item.materializedAgents ?? []) {
+    const expectedVersion = agentRegistryById.get(agent.id)?.projectionVersion ?? 1;
+    if (Number.isInteger(agent.projectionVersion) && agent.projectionVersion !== expectedVersion) {
+      stale.push(agent.id);
+    }
+  }
+  return stale.sort((left, right) => left.localeCompare(right));
+}
+
+function toneForFlag(flag) {
+  switch (flag) {
+    case "imported":
+      return "success";
+    case "imported-local":
+    case "local":
+      return "accent";
+    case "pinned":
+      return "accent";
+    case "floating":
+      return "muted";
+    case "stale":
+      return "warning";
+    default:
+      return "muted";
+  }
+}
+
+function formatFlags(flags) {
+  if (!Array.isArray(flags) || flags.length === 0) {
+    return muted("(none)", process.stdout);
+  }
+  return flags.map((flag) => formatBadge(flag, toneForFlag(flag), process.stdout)).join(" ");
+}
+
+function formatCapabilities(capabilities) {
+  if (!Array.isArray(capabilities) || capabilities.length === 0) {
+    return muted("(none)", process.stdout);
+  }
+  return capabilities.join(", ");
+}
+
+function formatSkillSource(item) {
+  return item.upstream ? `${item.upstream}:${item.selectionPath}` : item.source;
+}
+
+function formatSkillRows(items, detail, agentRegistryById) {
+  if (detail !== "full") {
+    return {
+      headers: ["Name"],
+      rows: items.map((item) => [item.name])
+    };
   }
 
-  for (const item of inventory.skills.items) {
-    if (detail !== "full") {
-      lines.push(`  ${item.name}`);
-      continue;
+  const includeRevision = items.some((item) => typeof item.resolvedRevision === "string" && item.resolvedRevision.length > 0);
+  const includeProjection = items.some((item) => findProjectionStaleAgents(item, agentRegistryById).length > 0);
+  const headers = ["Name", "Type", "Source", "State", "Capabilities"];
+  if (includeRevision) {
+    headers.push("Revision");
+  }
+  if (includeProjection) {
+    headers.push("Projection");
+  }
+
+  const rows = items.map((item) => {
+    const row = [
+      item.name,
+      item.sourceType,
+      formatSkillSource(item),
+      formatFlags(item.flags),
+      formatCapabilities(item.capabilities)
+    ];
+    if (includeRevision) {
+      row.push(item.resolvedRevision ? item.resolvedRevision.slice(0, 12) : muted("-", process.stdout));
     }
-    const sourceLabel = item.upstream ? `${item.upstream}:${item.selectionPath}` : item.source;
-    const flags = item.flags.length > 0 ? ` [${item.flags.join(", ")}]` : "";
-    lines.push(`  ${item.name}\t${sourceLabel}${flags}`);
-    if (item.materializedAgents.length > 0) {
-      lines.push(`    agents: ${item.materializedAgents.map((agent) => `${agent.id}:${agent.installMode}`).join(", ")}`);
+    if (includeProjection) {
+      const staleAgents = findProjectionStaleAgents(item, agentRegistryById);
+      row.push(staleAgents.length > 0 ? warning(staleAgents.join(", "), process.stdout) : success("current", process.stdout));
     }
-    if (item.capabilities.length > 1) {
-      lines.push(`    capabilities: ${item.capabilities.join(", ")}`);
+    return row;
+  });
+
+  return { headers, rows };
+}
+
+function formatMcpTarget(server) {
+  if (typeof server.url === "string" && server.url.length > 0) {
+    return server.url;
+  }
+
+  const args = Array.isArray(server.args) && server.args.length > 0 ? ` ${server.args.join(" ")}` : "";
+  const envEntries = sortStrings(Object.keys(server.env ?? {})).map((key) =>
+    formatEnvAssignment(key, server.env[key])
+  );
+  const env = envEntries.length > 0 ? ` [env: ${envEntries.join(", ")}]` : "";
+  return `${server.command}${args}${env}`;
+}
+
+function formatSkillsBlock(inventory, detail, agentRegistryById) {
+  const lines = [];
+  lines.push(renderSection("Skills", { count: inventory.skills.total, stream: process.stdout }));
+  if (inventory.skills.items.length === 0) {
+    lines.push(renderSimpleList([], { empty: "(none)" }));
+    return lines;
+  }
+  const { headers, rows } = formatSkillRows(inventory.skills.items, detail, agentRegistryById);
+  lines.push(renderTable(headers, rows, { stream: process.stdout }));
+  if (detail === "full") {
+    const agentRows = inventory.skills.items
+      .filter((item) => (item.materializedAgents ?? []).length > 0)
+      .map((item) => ({
+        key: item.name,
+        value: item.materializedAgents.map((agent) => formatAgentStatus(agent)).join("  ")
+      }));
+    if (agentRows.length > 0) {
+      lines.push("");
+      lines.push(renderSection("Agent Materialization", { stream: process.stdout }));
+      lines.push(renderKeyValueRows(agentRows, { indent: "  ", stream: process.stdout }));
     }
   }
   return lines;
@@ -175,32 +333,36 @@ function formatSkillsBlock(inventory, detail) {
 
 function formatMcpBlock(inventory) {
   const lines = [];
-  lines.push(`MCP Servers (${inventory.mcp.total})`);
+  lines.push(renderSection("MCP Servers", { count: inventory.mcp.total, stream: process.stdout }));
   if (inventory.mcp.servers.length === 0) {
-    lines.push("  (none)");
+    lines.push(renderSimpleList([], { empty: "(none)" }));
     return lines;
   }
-  for (const server of inventory.mcp.servers) {
-    if (typeof server.url === "string" && server.url.length > 0) {
-      lines.push(`  ${server.name}\t${server.url}`);
-      continue;
-    }
-    const args = server.args.length > 0 ? ` ${server.args.join(" ")}` : "";
-    const envEntries = sortStrings(Object.keys(server.env ?? {})).map((key) =>
-      formatEnvAssignment(key, server.env[key])
-    );
-    const env = envEntries.length > 0 ? ` [env:${envEntries.join(", ")}]` : "";
-    lines.push(`  ${server.name}\t${server.command}${args}${env}`);
-  }
+  lines.push(
+    renderTable(
+      ["Name", "Target"],
+      inventory.mcp.servers.map((server) => [server.name, formatMcpTarget(server)]),
+      { stream: process.stdout }
+    )
+  );
   return lines;
 }
 
-function profileText(inventory, detail) {
-  const lines = [`Profile: ${inventory.profile.name}`];
-  if (inventory.profile.extends) {
-    lines.push(`Extends: ${inventory.profile.extends}`);
-  }
-  lines.push(...formatSkillsBlock(inventory, detail));
+function profileText(inventory, detail, agentRegistryById) {
+  const lines = [renderSection("Profile", { stream: process.stdout })];
+  lines.push(
+    renderKeyValueRows(
+      [
+        { key: "Name", value: accent(inventory.profile.name, process.stdout) },
+        { key: "Source", value: inventory.profile.source },
+        ...(inventory.profile.extends ? [{ key: "Extends", value: inventory.profile.extends }] : [])
+      ],
+      { stream: process.stdout }
+    )
+  );
+  lines.push("");
+  lines.push(...formatSkillsBlock(inventory, detail, agentRegistryById));
+  lines.push("");
   lines.push(...formatMcpBlock(inventory));
   return lines.join("\n");
 }
@@ -235,7 +397,11 @@ export async function buildProfileInventory(profileName, { detail = "concise", a
     agentRegistryById,
     selectedAgents
   );
-  const items = [...localItems, ...importedItems].sort((left, right) => left.name.localeCompare(right.name));
+  const items = applyProjectionPlans(
+    [...localItems, ...importedItems].sort((left, right) => left.name.localeCompare(right.name)),
+    agentRegistryById,
+    selectedAgents
+  );
 
   const { profilePath, profile } = await resolveProfile(normalizedProfile);
   const mcpServers = Object.keys(effectiveState.effectiveMcpDocument.servers ?? {})
@@ -293,7 +459,8 @@ export async function cmdShowProfileInventory({ profile, format, detail = "conci
     process.stdout.write(`${JSON.stringify(inventory, null, 2)}\n`);
     return;
   }
-  process.stdout.write(`${profileText(inventory, detail)}\n`);
+  const agentRegistryById = await getAgentRegistryById();
+  process.stdout.write(`${profileText(inventory, detail, agentRegistryById)}\n`);
 }
 
 export async function cmdListLocalSkills({ profile, format, detail = "concise", agents = null }) {
@@ -323,13 +490,19 @@ export async function cmdListLocalSkills({ profile, format, detail = "concise", 
     process.stdout.write("(no skills)\n");
     return;
   }
-  for (const item of inventory.skills.items) {
-    if (detail === "full") {
-      process.stdout.write(`${item.name}\t${item.sourceType}\t${item.upstream ?? item.source}\n`);
-    } else {
-      process.stdout.write(`${item.name}\n`);
-    }
-  }
+  const headers = detail === "full"
+    ? ["Name", "Type", "Source", "State", "Capabilities"]
+    : ["Name"];
+  const rows = detail === "full"
+    ? inventory.skills.items.map((item) => [
+      item.name,
+      item.sourceType,
+      item.upstream ?? item.source,
+      formatFlags(item.flags),
+      formatCapabilities(item.capabilities)
+    ])
+    : inventory.skills.items.map((item) => [item.name]);
+  process.stdout.write(`${renderTable(headers, rows, { stream: process.stdout })}\n`);
 }
 
 export async function cmdListMcps({ profile, format }) {
@@ -351,13 +524,16 @@ export async function cmdListMcps({ profile, format }) {
     process.stdout.write("(no mcps)\n");
     return;
   }
-  for (const server of mcps) {
-    if (server.url) {
-      process.stdout.write(`${server.name}\t${server.url}\n`);
-    } else {
-      process.stdout.write(`${server.name}\t${server.command}${server.args.length > 0 ? ` ${server.args.join(" ")}` : ""}\n`);
-    }
-  }
+  process.stdout.write(
+    `${renderTable(
+      ["Name", "Target"],
+      mcps.map((server) => [
+        server.name,
+        formatMcpTarget(server)
+      ]),
+      { stream: process.stdout }
+    )}\n`
+  );
 }
 
 export async function cmdListEverything({ format, detail = "concise" }) {
@@ -397,8 +573,16 @@ export async function cmdListEverything({ format, detail = "concise" }) {
   for (let index = 0; index < results.length; index += 1) {
     const item = results[index];
     if (item.error) {
-      process.stdout.write(`Profile: ${item.profile}\n`);
-      process.stdout.write(`Error: ${item.error}\n`);
+      process.stdout.write(`${renderSection("Profile", { stream: process.stdout })}\n`);
+      process.stdout.write(
+        `${renderKeyValueRows(
+          [
+            { key: "Name", value: item.profile },
+            { key: "Error", value: warning(item.error, process.stdout) }
+          ],
+          { stream: process.stdout }
+        )}\n`
+      );
     } else {
       process.stdout.write(profileText(item.inventory, detail));
     }

@@ -1,34 +1,36 @@
 import fs from "fs-extra";
 import path from "node:path";
 import { logWarn, readJsonFile } from "../core.js";
-import { buildToolJsonMcpServers } from "../mcp-config.js";
-import { projectTopLevelSkills } from "./common.js";
+import { buildAgentRuntimeMcpServers } from "../mcp-config.js";
+import { projectSkillsForAgent } from "./common.js";
 
 export async function projectCopilotFromBundle(options) {
   const {
+    agent = null,
     runtimeInternalRoot,
     bundleSkillsPath,
     bundleMcpPath,
     packRoot,
     localConfigPath = null,
-    canOverride = false
+    hasNonMcpConfig = false
   } = options;
   const runtimeRoot = path.join(runtimeInternalRoot, ".copilot");
   await fs.ensureDir(runtimeRoot);
 
   const runtimeSkillsPath = path.join(runtimeRoot, "skills");
-  await fs.remove(runtimeSkillsPath);
-  await projectTopLevelSkills(bundleSkillsPath, runtimeSkillsPath);
-  const skillsMethod = "copy+aliases";
+  const { skillsMethod, projectionPlan } = await projectSkillsForAgent(bundleSkillsPath, runtimeSkillsPath, agent ?? "copilot");
 
   const canonicalMcp = await readJsonFile(bundleMcpPath);
-  const projectedMcpServers = buildToolJsonMcpServers(canonicalMcp, "copilot");
+  const projectedMcpServers = buildAgentRuntimeMcpServers(canonicalMcp, agent ?? {
+    id: "copilot",
+    mcpKind: "copilot-json-type"
+  });
   let projected = {
     ...canonicalMcp,
     mcpServers: projectedMcpServers
   };
 
-  if (!canOverride && localConfigPath && (await fs.pathExists(localConfigPath))) {
+  if (hasNonMcpConfig && localConfigPath && (await fs.pathExists(localConfigPath))) {
     try {
       const existing = await readJsonFile(localConfigPath);
       if (!existing || typeof existing !== "object" || Array.isArray(existing)) {
@@ -53,6 +55,9 @@ export async function projectCopilotFromBundle(options) {
 
   return {
     skillsMethod,
-    mcpMethod: "generated"
+    mcpMethod: "generated",
+    projectionPlan
   };
 }
+
+export const projectFromBundle = projectCopilotFromBundle;

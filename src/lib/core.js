@@ -51,10 +51,6 @@ export const MCP_MANAGED_PREFIX = "skills-sync__";
 export const CODEX_MCP_BLOCK_START = "# skills-sync managed mcp start";
 export const CODEX_MCP_BLOCK_END = "# skills-sync managed mcp end";
 
-export function getTargetManifestPath(osName) {
-  return path.join(ASSETS_ROOT, "manifests", `targets.${osName}.json`);
-}
-
 export const SCHEMAS = {
   profile: path.join(ASSETS_ROOT, "contracts", "inputs", "profile.schema.json"),
   packManifest: path.join(ASSETS_ROOT, "contracts", "inputs", "pack-manifest.schema.json"),
@@ -62,11 +58,10 @@ export const SCHEMAS = {
   packSources: path.join(ASSETS_ROOT, "contracts", "inputs", "pack-sources.schema.json"),
   upstreams: path.join(ASSETS_ROOT, "contracts", "inputs", "upstreams.schema.json"),
   config: path.join(ASSETS_ROOT, "contracts", "inputs", "config.schema.json"),
-  targets: path.join(ASSETS_ROOT, "contracts", "runtime", "targets.schema.json"),
+  agentIntegration: path.join(ASSETS_ROOT, "contracts", "runtime", "agent-integration.schema.json"),
   upstreamsLock: path.join(ASSETS_ROOT, "contracts", "state", "upstreams-lock.schema.json"),
   bundle: path.join(ASSETS_ROOT, "contracts", "build", "bundle.schema.json"),
-  workspaceManifest: path.join(ASSETS_ROOT, "contracts", "inputs", "workspace-manifest.schema.json"),
-  agentRegistry: path.join(ASSETS_ROOT, "contracts", "runtime", "agents.schema.json")
+  workspaceManifest: path.join(ASSETS_ROOT, "contracts", "inputs", "workspace-manifest.schema.json")
 };
 
 export const CONFIG_PATH = path.join(LOCAL_OVERRIDES_ROOT, "config.json");
@@ -77,7 +72,6 @@ export const UPSTREAMS_CONFIG_PATHS = {
   seed: path.join(ASSETS_ROOT, "seed", "upstreams.json")
 };
 
-export const LEGACY_LOCKFILE_PATH = path.join(LOCAL_OVERRIDES_ROOT, "upstreams.lock.json");
 export const LOCKFILE_PATH = path.join(LOCAL_OVERRIDES_ROOT, "skills-sync.lock.json");
 
 const ajv = new Ajv({ allErrors: true, strict: false });
@@ -344,6 +338,28 @@ export async function existsOrLink(targetPath) {
 export async function fileSha256(filePath) {
   const content = await fs.readFile(filePath);
   return crypto.createHash("sha256").update(content).digest("hex");
+}
+
+export function sha256Text(value) {
+  return crypto.createHash("sha256").update(String(value ?? ""), "utf8").digest("hex");
+}
+
+export function sortObjectDeep(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortObjectDeep(item));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+  const sorted = {};
+  for (const key of Object.keys(value).sort((left, right) => left.localeCompare(right))) {
+    sorted[key] = sortObjectDeep(value[key]);
+  }
+  return sorted;
+}
+
+export function stableJsonStringify(value) {
+  return JSON.stringify(sortObjectDeep(value));
 }
 
 export async function resolveLinkTarget(targetPath) {

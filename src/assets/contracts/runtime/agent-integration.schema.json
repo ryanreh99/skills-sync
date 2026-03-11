@@ -1,0 +1,356 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "skills-sync Agent Definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "config",
+    "skills",
+    "mcp"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order",
+        "adapter",
+        "projectionVersion"
+      ],
+      "properties": {
+        "order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "adapter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "projectionVersion": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "internalDir",
+        "bindMode",
+        "targets",
+        "support"
+      ],
+      "properties": {
+        "internalDir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bindMode": {
+          "type": "string",
+          "enum": [
+            "root",
+            "children"
+          ]
+        },
+        "targets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "windows",
+            "macos",
+            "linux"
+          ],
+          "properties": {
+            "windows": {
+              "$ref": "#/definitions/skillTargetEntry"
+            },
+            "macos": {
+              "$ref": "#/definitions/skillTargetEntry"
+            },
+            "linux": {
+              "$ref": "#/definitions/skillTargetEntry"
+            }
+          }
+        },
+        "support": {
+          "$ref": "#/definitions/skillSupport"
+        }
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "internalConfig",
+        "targets",
+        "kind",
+        "hasNonMcpConfig",
+        "support"
+      ],
+      "properties": {
+        "internalConfig": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "windows",
+            "macos",
+            "linux"
+          ],
+          "properties": {
+            "windows": {
+              "$ref": "#/definitions/mcpTargetEntry"
+            },
+            "macos": {
+              "$ref": "#/definitions/mcpTargetEntry"
+            },
+            "linux": {
+              "$ref": "#/definitions/mcpTargetEntry"
+            }
+          }
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "json-mcpServers",
+            "json-command-url",
+            "copilot-json-type",
+            "toml-managed-block"
+          ]
+        },
+        "supportVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "hasNonMcpConfig": {
+          "type": "boolean"
+        },
+        "support": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "transports": {
+              "$ref": "#/definitions/mcpTransportSupport"
+            },
+            "auth": {
+              "$ref": "#/definitions/mcpAuthSupport"
+            },
+            "capabilities": {
+              "$ref": "#/definitions/mcpCapabilitySupport"
+            },
+            "advanced": {
+              "$ref": "#/definitions/mcpAdvancedSupport"
+            },
+            "config": {
+              "$ref": "#/definitions/mcpConfigSupport"
+            }
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "skillTargetEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dir": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "mcpTargetEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config"
+      ],
+      "properties": {
+        "config": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "skillSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nestedDiscovery",
+        "instructions",
+        "frontmatter",
+        "scripts",
+        "assets",
+        "references",
+        "helpers"
+      ],
+      "properties": {
+        "nestedDiscovery": {
+          "type": "boolean"
+        },
+        "instructions": {
+          "type": "boolean"
+        },
+        "frontmatter": {
+          "type": "boolean"
+        },
+        "scripts": {
+          "type": "boolean"
+        },
+        "assets": {
+          "type": "boolean"
+        },
+        "references": {
+          "type": "boolean"
+        },
+        "helpers": {
+          "type": "boolean"
+        }
+      }
+    },
+    "mcpTransportSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stdio": {
+          "type": "boolean"
+        },
+        "streamableHttp": {
+          "type": "boolean"
+        },
+        "sse": {
+          "type": "boolean"
+        }
+      }
+    },
+    "mcpAuthSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "oauth": {
+          "type": "boolean"
+        },
+        "bearerToken": {
+          "type": "boolean"
+        },
+        "staticHeaders": {
+          "type": "boolean"
+        },
+        "envHeaders": {
+          "type": "boolean"
+        },
+        "providerAuth": {
+          "type": "boolean"
+        }
+      }
+    },
+    "mcpCapabilitySupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tools": {
+          "type": "boolean"
+        },
+        "resources": {
+          "type": "boolean"
+        },
+        "prompts": {
+          "type": "boolean"
+        }
+      }
+    },
+    "mcpAdvancedSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sampling": {
+          "type": "boolean"
+        },
+        "roots": {
+          "type": "boolean"
+        },
+        "elicitation": {
+          "type": "boolean"
+        }
+      }
+    },
+    "mcpConfigSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "boolean"
+        },
+        "args": {
+          "type": "boolean"
+        },
+        "env": {
+          "type": "boolean"
+        },
+        "cwd": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": "boolean"
+        },
+        "envFile": {
+          "type": "boolean"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "startupTimeout": {
+          "type": "boolean"
+        },
+        "toolTimeout": {
+          "type": "boolean"
+        },
+        "enabledTools": {
+          "type": "boolean"
+        },
+        "disabledTools": {
+          "type": "boolean"
+        },
+        "scopes": {
+          "type": "boolean"
+        },
+        "managedBlock": {
+          "type": "boolean"
+        },
+        "mergeStrategy": {
+          "type": "string",
+          "enum": [
+            "replace",
+            "merge",
+            "managed-block",
+            "cli-managed"
+          ]
+        }
+      }
+    }
+  }
+}

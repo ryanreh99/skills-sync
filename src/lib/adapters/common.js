@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import path from "node:path";
-import { createDirectoryBinding, createFileBinding, detectOsName } from "../core.js";
+import { createDirectoryBinding, createFileBinding, detectOsName, parseSimpleFrontmatter } from "../core.js";
+import { getAgentRegistryById } from "../agent-registry.js";
 
 export async function linkDirectoryProjection(sourcePath, targetPath) {
   await fs.ensureDir(path.dirname(targetPath));
@@ -61,6 +62,95 @@ export async function discoverBundledSkills(bundleSkillsPath, currentPath = "", 
   return entries;
 }
 
+function normalizeSkillSupport(skillSupport) {
+  const support = skillSupport && typeof skillSupport === "object" && !Array.isArray(skillSupport) ? skillSupport : {};
+  return {
+    nestedDiscovery: support.nestedDiscovery !== false,
+    frontmatter: support.frontmatter !== false,
+    scripts: support.scripts !== false,
+    assets: support.assets !== false,
+    references: support.references !== false,
+    helpers: support.helpers !== false
+  };
+}
+
+async function resolveAgentSkillSupport(agent) {
+  if (agent && typeof agent === "object" && !Array.isArray(agent)) {
+    return normalizeSkillSupport(agent.support?.skills);
+  }
+  if (typeof agent === "string" && agent.trim().length > 0) {
+    const registryById = await getAgentRegistryById();
+    return normalizeSkillSupport(registryById.get(agent.trim())?.support?.skills);
+  }
+  return normalizeSkillSupport(null);
+}
+
+function shouldProjectSkillEntry(entryName, skillSupport) {
+  const normalizedName = String(entryName ?? "").trim().toLowerCase();
+  if (normalizedName === "scripts") {
+    return skillSupport.scripts;
+  }
+  if (normalizedName === "assets") {
+    return skillSupport.assets;
+  }
+  if (normalizedName === "references") {
+    return skillSupport.references;
+  }
+  if (normalizedName === "helpers" || normalizedName === "helper") {
+    return skillSupport.helpers;
+  }
+  return true;
+}
+
+export function stripSkillFrontmatter(markdown) {
+  const { frontmatter, bodyLines } = parseSimpleFrontmatter(String(markdown ?? ""));
+  if (Object.keys(frontmatter).length === 0) {
+    return String(markdown ?? "");
+  }
+
+  const trimmedBodyLines = [...bodyLines];
+  while (trimmedBodyLines.length > 0 && trimmedBodyLines[0].trim().length === 0) {
+    trimmedBodyLines.shift();
+  }
+
+  const body = trimmedBodyLines.join("\n").trimEnd();
+  return body.length > 0 ? `${body}\n` : "";
+}
+
+export function renderProjectedSkillMarkdown(markdown, skillSupport) {
+  const normalizedSupport = normalizeSkillSupport(skillSupport);
+  if (normalizedSupport.frontmatter) {
+    return String(markdown ?? "");
+  }
+  return stripSkillFrontmatter(markdown);
+}
+
+export async function materializeProjectedSkillDirectory(sourceSkillPath, targetSkillPath, skillSupport) {
+  const normalizedSupport = normalizeSkillSupport(skillSupport);
+  await fs.remove(targetSkillPath);
+  await fs.ensureDir(targetSkillPath);
+
+  const entries = (await fs.readdir(sourceSkillPath, { withFileTypes: true }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  for (const entry of entries) {
+    if (!shouldProjectSkillEntry(entry.name, normalizedSupport)) {
+      continue;
+    }
+
+    const sourceEntryPath = path.join(sourceSkillPath, entry.name);
+    const targetEntryPath = path.join(targetSkillPath, entry.name);
+
+    if (entry.isFile() && entry.name === "SKILL.md") {
+      const markdown = await fs.readFile(sourceEntryPath, "utf8");
+      await fs.writeFile(targetEntryPath, renderProjectedSkillMarkdown(markdown, normalizedSupport), "utf8");
+      continue;
+    }
+
+    await fs.copy(sourceEntryPath, targetEntryPath);
+  }
+}
+
 function nextVendorAliasName(relativeSkillPath, usedNames) {
   const flattened = relativeSkillPath.split("/").join("__");
   const base = `vendor__${flattened}`;
@@ -73,21 +163,63 @@ function nextVendorAliasName(relativeSkillPath, usedNames) {
   return candidate;
 }
 
-export async function projectTopLevelSkills(bundleSkillsPath, runtimeSkillsPath) {
-  await fs.copy(bundleSkillsPath, runtimeSkillsPath);
-  const discovered = await discoverBundledSkills(bundleSkillsPath);
-  const topLevelEntries = await fs.readdir(runtimeSkillsPath, { withFileTypes: true });
-  const usedNames = new Set(topLevelEntries.filter((entry) => entry.isDirectory()).map((entry) => entry.name));
+export function buildSkillProjectionPlan(discoveredSkillPaths, nestedSkillDiscoverySupported = true) {
+  const sortedPaths = [...new Set(Array.isArray(discoveredSkillPaths) ? discoveredSkillPaths : [])].sort((left, right) =>
+    left.localeCompare(right)
+  );
+  const plan = new Map(sortedPaths.map((relativeSkillPath) => [relativeSkillPath, [relativeSkillPath]]));
+  if (nestedSkillDiscoverySupported) {
+    return plan;
+  }
 
-  for (const relativeSkillPath of discovered) {
+  const usedNames = new Set(
+    sortedPaths
+      .map((relativeSkillPath) => relativeSkillPath.split("/")[0])
+      .filter((item) => item.length > 0)
+  );
+  for (const relativeSkillPath of sortedPaths) {
     if (!relativeSkillPath.includes("/")) {
       continue;
     }
-    const sourceSkillPath = path.join(bundleSkillsPath, relativeSkillPath.split("/").join(path.sep));
     const aliasName = nextVendorAliasName(relativeSkillPath, usedNames);
-    await linkDirectoryProjection(sourceSkillPath, path.join(runtimeSkillsPath, aliasName));
     usedNames.add(aliasName);
+    plan.get(relativeSkillPath).push(aliasName);
   }
+  return plan;
+}
+
+export async function planBundledSkillProjection(bundleSkillsPath, agent) {
+  const skillSupport = await resolveAgentSkillSupport(agent);
+  const discovered = await discoverBundledSkills(bundleSkillsPath);
+  return buildSkillProjectionPlan(discovered, skillSupport.nestedDiscovery);
+}
+
+export async function projectSkillsForAgent(bundleSkillsPath, runtimeSkillsPath, agent) {
+  const skillSupport = await resolveAgentSkillSupport(agent);
+  const projectionPlan = buildSkillProjectionPlan(
+    await discoverBundledSkills(bundleSkillsPath),
+    skillSupport.nestedDiscovery
+  );
+
+  await fs.remove(runtimeSkillsPath);
+  await fs.ensureDir(runtimeSkillsPath);
+
+  for (const [relativeSkillPath, projectedPaths] of projectionPlan.entries()) {
+    const sourceSkillPath = path.join(bundleSkillsPath, relativeSkillPath.split("/").join(path.sep));
+    const canonicalTargetPath = path.join(runtimeSkillsPath, relativeSkillPath.split("/").join(path.sep));
+    await materializeProjectedSkillDirectory(sourceSkillPath, canonicalTargetPath, skillSupport);
+
+    for (const aliasName of projectedPaths.slice(1)) {
+      await fs.copy(canonicalTargetPath, path.join(runtimeSkillsPath, aliasName));
+    }
+  }
+
+  return {
+    skillsMethod: Array.from(projectionPlan.values()).some((projectedPaths) => projectedPaths.length > 1)
+      ? "copy+aliases"
+      : "generated-copy",
+    projectionPlan
+  };
 }
 
 export async function projectCommonFromBundle({ runtimeInternalRoot, bundleSkillsPath, bundleMcpPath }) {

@@ -14,9 +14,9 @@ It manages:
 - profiles, packs, and profile-scoped MCP server and skills configuration
 - local skills plus imported skills from git repos, repo subdirectories, or local paths
 - sources and upstreams for discovery, attachment, refresh, and provenance tracking
-- lock state, revision tracking, and inventory views for installed and imported content
+- lock state, revision tracking, content digests, projection metadata, and inventory views for installed and imported content
 - profile inspection and upstream skills refresh so you can review what a profile contains, where imported skills came from, and pull in upstream updates
-- drift checks across local agents so you can compare expected state with what is installed locally and spot missing or changed skills and MCP config
+- drift checks across local agents so you can compare expected state with what is installed locally and spot missing, changed, stale, or incompatible skills and MCP config
 - workspace manifest export, diff, import, and reconcile workflows
 
 In practice, this means you define an environment once and sync it to multiple agents.
@@ -58,6 +58,13 @@ skills-sync sync
 - `Profile`: a named environment containing skills, imported sources, and MCP configuration.
 - `Inventory`: the managed view of skills, provenance, revisions, install state, and agent materialization.
 - `Sync`: the recommended workflow that prepares runtime artifacts and updates supported agents.
+
+## Reproducibility
+
+- imported sources are accepted without a separate review step
+- `sync` builds and applies directly; there is no separate sync-gate phase
+- `workspace/skills-sync.lock.json` is the canonical imported-source lockfile and records source identity, normalized descriptors, resolved revisions, content digests, projection metadata, refresh state, and eval state
+- `workspace/skills-sync.manifest.json` is the canonical whole-workspace manifest
 
 ## Common Workflows
 
@@ -128,6 +135,7 @@ skills-sync profile import personal_copy --input personal-export.json
 
 - [docs/commands.md](docs/commands.md)
 - [docs/user-guide.md](docs/user-guide.md)
+- [docs/agent-integrations.md](docs/agent-integrations.md)
 
 ## License
 

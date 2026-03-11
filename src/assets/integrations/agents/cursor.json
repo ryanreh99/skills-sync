@@ -1,0 +1,78 @@
+{
+  "id": "cursor",
+  "name": "Cursor",
+  "config": {
+    "order": 30,
+    "adapter": "cursor",
+    "projectionVersion": 1
+  },
+  "skills": {
+    "internalDir": ".cursor/skills",
+    "bindMode": "root",
+    "targets": {
+      "windows": {
+        "dir": "%USERPROFILE%\\\\.cursor\\\\skills"
+      },
+      "macos": {
+        "dir": "$HOME/.cursor/skills"
+      },
+      "linux": {
+        "dir": "$HOME/.cursor/skills"
+      }
+    },
+    "support": {
+      "nestedDiscovery": false,
+      "instructions": true,
+      "frontmatter": true,
+      "scripts": false,
+      "assets": true,
+      "references": true,
+      "helpers": false
+    }
+  },
+  "mcp": {
+    "internalConfig": ".cursor/mcp.json",
+    "kind": "json-mcpServers",
+    "supportVersion": 1,
+    "hasNonMcpConfig": false,
+    "targets": {
+      "windows": {
+        "config": "%USERPROFILE%\\\\.cursor\\\\mcp.json"
+      },
+      "macos": {
+        "config": "$HOME/.cursor/mcp.json"
+      },
+      "linux": {
+        "config": "$HOME/.cursor/mcp.json"
+      }
+    },
+    "support": {
+      "transports": {
+        "stdio": true,
+        "streamableHttp": true,
+        "sse": true
+      },
+      "auth": {
+        "oauth": true,
+        "bearerToken": true,
+        "staticHeaders": true,
+        "envHeaders": true
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": false,
+        "prompts": false
+      },
+      "config": {
+        "command": true,
+        "args": true,
+        "env": true,
+        "url": true,
+        "envFile": true
+      }
+    }
+  },
+  "notes": [
+    "Top-level vendor aliases are retained for discoverability, and imported auxiliary files remain available as regular files."
+  ]
+}

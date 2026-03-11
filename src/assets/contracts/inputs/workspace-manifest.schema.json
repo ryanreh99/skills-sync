@@ -10,7 +10,7 @@
   "properties": {
     "schemaVersion": {
       "type": "integer",
-      "const": 1
+      "const": 2
     },
     "workspace": {
       "type": "object",
@@ -23,6 +23,9 @@
         "defaultProfile": {
           "type": "string",
           "minLength": 1
+        },
+        "lock": {
+          "type": "object"
         },
         "profiles": {
           "type": "array",

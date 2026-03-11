@@ -88,6 +88,7 @@ async function runTests() {
 
     // Phase 10: sync UX and mutation auto-sync behaviour
     await runSuite("sync", () => suiteSync.run(ctx));
+
   } finally {
     await fs.rm(localOverridesPath, { recursive: true, force: true });
     await fs.rm(distPath, { recursive: true, force: true });

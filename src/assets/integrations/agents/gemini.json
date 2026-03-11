@@ -1,0 +1,78 @@
+{
+  "id": "gemini",
+  "name": "Gemini CLI",
+  "config": {
+    "order": 50,
+    "adapter": "gemini",
+    "projectionVersion": 1
+  },
+  "skills": {
+    "internalDir": ".gemini/skills",
+    "bindMode": "root",
+    "targets": {
+      "windows": {
+        "dir": "%USERPROFILE%\\\\.gemini\\\\skills"
+      },
+      "macos": {
+        "dir": "$HOME/.gemini/skills"
+      },
+      "linux": {
+        "dir": "$HOME/.gemini/skills"
+      }
+    },
+    "support": {
+      "nestedDiscovery": false,
+      "instructions": true,
+      "frontmatter": true,
+      "scripts": false,
+      "assets": true,
+      "references": true,
+      "helpers": false
+    }
+  },
+  "mcp": {
+    "internalConfig": ".gemini/settings.json",
+    "kind": "json-command-url",
+    "supportVersion": 1,
+    "hasNonMcpConfig": true,
+    "targets": {
+      "windows": {
+        "config": "%USERPROFILE%\\\\.gemini\\\\settings.json"
+      },
+      "macos": {
+        "config": "$HOME/.gemini/settings.json"
+      },
+      "linux": {
+        "config": "$HOME/.gemini/settings.json"
+      }
+    },
+    "support": {
+      "transports": {
+        "stdio": true,
+        "streamableHttp": true,
+        "sse": true
+      },
+      "auth": {
+        "oauth": true,
+        "bearerToken": true,
+        "staticHeaders": true,
+        "envHeaders": true,
+        "providerAuth": true
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": true,
+        "prompts": true
+      },
+      "config": {
+        "command": true,
+        "args": true,
+        "env": true,
+        "url": true
+      }
+    }
+  },
+  "notes": [
+    "Gemini CLI documents Agent Skills with SKILL.md frontmatter, while projected auxiliary files are preserved conservatively."
+  ]
+}

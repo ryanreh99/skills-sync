@@ -18,9 +18,7 @@
   "properties": {
     "schemaVersion": {
       "type": "integer",
-      "enum": [
-        1
-      ]
+      "const": 3
     },
     "pins": {
       "type": "array",
@@ -30,7 +28,7 @@
         "required": [
           "upstream",
           "ref",
-          "commit"
+          "resolvedRevision"
         ],
         "properties": {
           "upstream": {
@@ -41,9 +39,20 @@
             "type": "string",
             "minLength": 1
           },
-          "commit": {
+          "resolvedRevision": {
             "type": "string",
             "pattern": "^[a-fA-F0-9]{7,40}$"
+          },
+          "sourceIdentity": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceDescriptor": {
+            "type": "object"
+          },
+          "updatedAt": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }
@@ -57,9 +66,25 @@
           "profile",
           "upstream",
           "selectionPath",
-          "destRelative",
-          "contentHash",
-          "installedAt"
+          "destRelative"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "contentHash",
+              "installedAt"
+            ]
+          },
+          {
+            "required": [
+              "source",
+              "resolution",
+              "digests",
+              "projection",
+              "refresh",
+              "eval"
+            ]
+          }
         ],
         "properties": {
           "profile": {
@@ -152,6 +177,191 @@
                   "type": "string",
                   "minLength": 1
                 }
+              }
+            }
+          },
+          "sourceIdentity": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "provider",
+              "originalInput",
+              "descriptor"
+            ],
+            "properties": {
+              "provider": {
+                "type": "string",
+                "minLength": 1
+              },
+              "originalInput": {
+                "type": "string",
+                "minLength": 1
+              },
+              "identity": {
+                "type": "string",
+                "minLength": 1
+              },
+              "descriptor": {
+                "type": "object"
+              }
+            }
+          },
+          "resolution": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tracking"
+            ],
+            "properties": {
+              "tracking": {
+                "type": "string",
+                "enum": [
+                  "floating",
+                  "pinned"
+                ]
+              },
+              "ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "resolvedRevision": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1
+              },
+              "latestRevision": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1
+              }
+            }
+          },
+          "digests": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "contentSha256"
+            ],
+            "properties": {
+              "contentSha256": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "projection": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "adapters",
+              "materializedAgents"
+            ],
+            "properties": {
+              "adapters": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "contractVersion"
+                  ],
+                  "properties": {
+                    "contractVersion": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "skillsMethod": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "mcpMethod": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "materializedAgents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "mode"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "mode": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "appliedAt": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "refresh": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "installedAt"
+            ],
+            "properties": {
+              "installedAt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lastRefreshedAt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lastOutcome": {
+                "type": "string",
+                "enum": [
+                  "changed",
+                  "unchanged",
+                  "pinned",
+                  "error"
+                ]
+              },
+              "changed": {
+                "type": "boolean"
+              }
+            }
+          },
+          "eval": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "minLength": 1
+              },
+              "updatedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1
               }
             }
           }

@@ -1,27 +1,40 @@
 import fs from "fs-extra";
 import path from "node:path";
 import { logWarn, readJsonFile } from "../core.js";
-import { linkDirectoryProjection } from "./common.js";
+import { buildAgentRuntimeMcpServers } from "../mcp-config.js";
+import { projectSkillsForAgent } from "./common.js";
 
 export async function projectClaudeFromBundle(options) {
   const {
+    agent = null,
     runtimeInternalRoot,
     bundleSkillsPath,
     bundleMcpPath,
     packRoot,
     localConfigPath = null,
-    canOverride = false
+    hasNonMcpConfig = false
   } = options;
   const runtimeRoot = path.join(runtimeInternalRoot, ".claude");
   await fs.ensureDir(runtimeRoot);
 
-  const skillsMethod = await linkDirectoryProjection(bundleSkillsPath, path.join(runtimeRoot, "skills"));
-  await linkDirectoryProjection(bundleSkillsPath, path.join(runtimeRoot, "vendor_imports", "skills"));
+  const { skillsMethod, projectionPlan } = await projectSkillsForAgent(
+    bundleSkillsPath,
+    path.join(runtimeRoot, "skills"),
+    agent ?? "claude"
+  );
+  await projectSkillsForAgent(bundleSkillsPath, path.join(runtimeRoot, "vendor_imports", "skills"), agent ?? "claude");
 
   const canonicalMcp = await readJsonFile(bundleMcpPath);
-  let projected = canonicalMcp;
+  const projectedMcpServers = buildAgentRuntimeMcpServers(canonicalMcp, agent ?? {
+    id: "claude",
+    mcpKind: "json-mcpServers"
+  });
+  let projected = {
+    ...canonicalMcp,
+    mcpServers: projectedMcpServers
+  };
 
-  if (!canOverride && localConfigPath && (await fs.pathExists(localConfigPath))) {
+  if (hasNonMcpConfig && localConfigPath && (await fs.pathExists(localConfigPath))) {
     try {
       const existing = await readJsonFile(localConfigPath);
       if (!existing || typeof existing !== "object" || Array.isArray(existing)) {
@@ -29,7 +42,7 @@ export async function projectClaudeFromBundle(options) {
       }
       projected = {
         ...existing,
-        mcpServers: canonicalMcp?.mcpServers ?? {}
+        mcpServers: projectedMcpServers
       };
     } catch (error) {
       logWarn(`Failed to seed Claude runtime config from local settings: ${error.message}`);
@@ -45,5 +58,11 @@ export async function projectClaudeFromBundle(options) {
     await fs.copy(overrideSource, path.join(runtimeRoot, "tool-overrides"));
   }
 
-  return { skillsMethod, mcpMethod };
+  return {
+    skillsMethod,
+    mcpMethod,
+    projectionPlan
+  };
 }
+
+export const projectFromBundle = projectClaudeFromBundle;

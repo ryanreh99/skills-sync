@@ -1,23 +1,32 @@
 import fs from "fs-extra";
 import path from "node:path";
-import { CACHE_ROOT, RUNTIME_INTERNAL_ROOT, SCHEMAS, detectOsName, expandTargetPath, logInfo, logWarn } from "./core.js";
+import {
+  CACHE_ROOT,
+  RUNTIME_INTERNAL_ROOT,
+  SCHEMAS,
+  detectOsName,
+  expandTargetPath,
+  logInfo,
+  logWarn,
+  writeJsonFile
+} from "./core.js";
 import { loadEffectiveTargets, resolvePack, resolveProfile } from "./config.js";
 import {
   collectSourcePlanning,
   loadLockfile,
   loadUpstreamsConfig,
   resolveReferences,
+  setPin,
   saveLockfile
 } from "./upstreams.js";
 import { removeImportRecords, upsertImportRecord } from "./import-lock.js";
 import { assertJsonFileMatchesSchema } from "./core.js";
 import { buildBundle } from "./bundle.js";
 import { loadEffectiveProfileState } from "./profile-runtime.js";
-import { projectCodexFromBundle } from "./adapters/codex.js";
-import { projectClaudeFromBundle } from "./adapters/claude.js";
-import { projectCursorFromBundle } from "./adapters/cursor.js";
-import { projectCopilotFromBundle } from "./adapters/copilot.js";
-import { projectGeminiFromBundle } from "./adapters/gemini.js";
+import { importAgentProjector, loadAgentIntegrations } from "./agent-integrations.js";
+import { getAgentRegistryById } from "./agent-registry.js";
+import { assertAgentSupportsMcp } from "./mcp-config.js";
+import { getNormalizedSourceDescriptor } from "./source-normalization.js";
 
 export { collectImportedSkillEntries, collectLocalSkillEntries } from "./bundle.js";
 
@@ -63,6 +72,7 @@ export async function buildProfile(profileName, options = {}) {
   const sources = effectiveState.effectiveSources;
   const upstreams = await loadUpstreamsConfig();
   const lockState = await loadLockfile();
+  const agentRegistryById = await getAgentRegistryById();
   const cacheExistsBeforeBuild = await fs.pathExists(CACHE_ROOT);
 
   const { references, skillImports } = collectSourcePlanning(sources, upstreams.byId);
@@ -112,27 +122,17 @@ export async function buildProfile(profileName, options = {}) {
   try {
     const osName = detectOsName();
     const targets = await loadEffectiveTargets(osName);
+    const integrations = await loadAgentIntegrations();
     localConfigPolicy = {
-      codex: {
-        path: expandTargetPath(targets.codex.mcpConfig, osName),
-        canOverride: Boolean(targets.codex?.canOverride)
-      },
-      claude: {
-        path: expandTargetPath(targets.claude.mcpConfig, osName),
-        canOverride: Boolean(targets.claude?.canOverride)
-      },
-      cursor: {
-        path: expandTargetPath(targets.cursor.mcpConfig, osName),
-        canOverride: Boolean(targets.cursor?.canOverride)
-      },
-      copilot: {
-        path: expandTargetPath(targets.copilot.mcpConfig, osName),
-        canOverride: Boolean(targets.copilot?.canOverride)
-      },
-      gemini: {
-        path: expandTargetPath(targets.gemini.mcpConfig, osName),
-        canOverride: Boolean(targets.gemini?.canOverride)
-      }
+      ...Object.fromEntries(
+        integrations.map((integration) => [
+            integration.id,
+          {
+            path: expandTargetPath(targets[integration.id].mcpConfig, osName),
+            hasNonMcpConfig: Boolean(targets[integration.id]?.hasNonMcpConfig)
+          }
+        ])
+      )
     };
   } catch {
     if (!quiet) {
@@ -152,8 +152,61 @@ export async function buildProfile(profileName, options = {}) {
   });
 
   const buildTimestamp = new Date().toISOString();
+  const previousImports = new Map(
+    (Array.isArray(lockState.lock.imports) ? lockState.lock.imports : [])
+      .filter((entry) => entry.profile === profile.name)
+      .map((entry) => [
+        [entry.profile, entry.upstream, entry.selectionPath, entry.destRelative].join("::"),
+        entry
+      ])
+  );
+
+  const integrations = await loadAgentIntegrations();
+  const projectionContracts = {};
+  for (const integration of integrations) {
+    const tool = integration.id;
+    assertAgentSupportsMcp(integration, {
+      canonicalMcp: normalizedMcp,
+      configKind: integration.mcpKind
+    });
+    const projector = await importAgentProjector(integration);
+    const projectionResult = await projector({
+      agent: integration,
+      runtimeInternalRoot,
+      bundleSkillsPath: bundle.bundleSkillsPath,
+      bundleMcpPath: bundle.bundleMcpPath,
+      packRoot,
+      localConfigPath: localConfigPolicy[tool]?.path ?? null,
+      hasNonMcpConfig: localConfigPolicy[tool]?.hasNonMcpConfig ?? false
+    });
+    projectionContracts[tool] = {
+      contractVersion: agentRegistryById.get(tool)?.projectionVersion ?? 1,
+      ...(projectionResult?.skillsMethod ? { skillsMethod: projectionResult.skillsMethod } : {}),
+      ...(projectionResult?.mcpMethod ? { mcpMethod: projectionResult.mcpMethod } : {})
+    };
+  }
+
+  const bundleDoc = await fs.readJson(bundle.bundleMetadataPath);
+  bundleDoc.projectionContracts = projectionContracts;
+  await writeJsonFile(bundle.bundleMetadataPath, bundleDoc);
+
+  for (const reference of references) {
+    const resolved = resolvedReferences.get(`${reference.upstreamId}::${reference.ref}`);
+    const upstream = upstreams.byId.get(reference.upstreamId);
+    if (!resolved || !upstream) {
+      continue;
+    }
+    if (setPin(lockState.lock, upstream, reference.ref, resolved.commit)) {
+      lockState.changed = true;
+    }
+  }
+
   removeImportRecords(lockState.lock, (entry) => entry.profile === profile.name);
   for (const entry of bundle.importedSkillEntries) {
+    const previous = previousImports.get([profile.name, entry.upstreamId, entry.selectionPath, entry.destRelative].join("::"));
+    const upstream = upstreams.byId.get(entry.upstreamId);
+    const didChange =
+      (previous?.contentHash ?? null) !== entry.contentHash || (previous?.resolvedRevision ?? null) !== (entry.commit ?? null);
     upsertImportRecord(lockState.lock, {
       profile: profile.name,
       upstream: entry.upstreamId,
@@ -165,33 +218,44 @@ export async function buildProfile(profileName, options = {}) {
       tracking: entry.tracking,
       ...(entry.commit ? { resolvedRevision: entry.commit, latestRevision: entry.commit } : {}),
       contentHash: entry.contentHash,
-      installedAt: buildTimestamp,
+      installedAt: previous?.installedAt ?? buildTimestamp,
       refreshedAt: buildTimestamp,
       capabilities: entry.capabilities,
-      materializedAgents: []
+      materializedAgents: previous?.materializedAgents ?? [],
+      sourceIdentity: upstream?.sourceIdentity,
+      source: {
+        provider: entry.provider,
+        originalInput: entry.originalInput,
+        identity: upstream?.sourceIdentity,
+        descriptor: upstream ? getNormalizedSourceDescriptor(upstream) : {}
+      },
+      resolution: {
+        tracking: entry.tracking,
+        ...(entry.ref ? { ref: entry.ref } : {}),
+        ...(entry.commit ? { resolvedRevision: entry.commit, latestRevision: entry.commit } : {})
+      },
+      digests: {
+        contentSha256: entry.contentHash
+      },
+      projection: {
+        adapters: projectionContracts,
+        materializedAgents: previous?.materializedAgents ?? []
+      },
+      refresh: {
+        installedAt: previous?.installedAt ?? buildTimestamp,
+        lastRefreshedAt: buildTimestamp,
+        lastOutcome: didChange ? "changed" : "unchanged",
+        changed: didChange
+      },
+      eval: {
+        status: previous?.eval?.status ?? "pending",
+        updatedAt: previous?.eval?.updatedAt ?? null
+      }
     });
   }
   lockState.changed = true;
   if (lockState.changed && lockConfig.allowLockUpdate) {
     await saveLockfile(lockState);
-  }
-
-  const toolProjectors = [
-    { tool: "codex", projector: projectCodexFromBundle },
-    { tool: "claude", projector: projectClaudeFromBundle },
-    { tool: "cursor", projector: projectCursorFromBundle },
-    { tool: "copilot", projector: projectCopilotFromBundle },
-    { tool: "gemini", projector: projectGeminiFromBundle }
-  ];
-  for (const { tool, projector } of toolProjectors) {
-    await projector({
-      runtimeInternalRoot,
-      bundleSkillsPath: bundle.bundleSkillsPath,
-      bundleMcpPath: bundle.bundleMcpPath,
-      packRoot,
-      localConfigPath: localConfigPolicy[tool]?.path ?? null,
-      canOverride: localConfigPolicy[tool]?.canOverride ?? false
-    });
   }
 
   if (!quiet) {
@@ -213,6 +277,7 @@ export async function buildProfile(profileName, options = {}) {
     sources,
     skillEntries: bundle.skillEntries,
     importedSkillEntries: bundle.importedSkillEntries,
+    projectionContracts,
     references,
     resolvedReferences
   };

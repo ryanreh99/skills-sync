@@ -7,6 +7,7 @@ import {
   toFileSystemRelativePath,
   writeJsonFile
 } from "./core.js";
+import { getNormalizedSourceDescriptor } from "./source-normalization.js";
 import { resolveImportedMaterialization } from "./upstreams.js";
 
 export async function collectLocalSkillEntries(packRoots) {
@@ -50,6 +51,8 @@ export async function collectImportedSkillEntries(skillImports, upstreamById, re
       sourceType: item.sourceType,
       provider: upstream.provider,
       upstreamId: item.upstreamId,
+      sourceIdentity: upstream.sourceIdentity,
+      sourceDescriptor: getNormalizedSourceDescriptor(upstream),
       ref: item.ref,
       tracking: item.tracking,
       commit: materialized.resolvedRevision,
@@ -116,10 +119,12 @@ function buildBundleImports(importedSkillEntries) {
       provider: item.provider,
       ...(item.ref ? { ref: item.ref } : {}),
       ...(item.commit ? { commit: item.commit } : {}),
+      ...(item.sourceIdentity ? { sourceIdentity: item.sourceIdentity } : {}),
       tracking: item.tracking,
       originalInput: item.originalInput,
       path: item.selectionPath,
       destPrefix: path.posix.dirname(item.destRelative),
+      contentHash: item.contentHash,
       capabilities: Array.isArray(item.capabilities) ? [...item.capabilities] : []
     });
   }

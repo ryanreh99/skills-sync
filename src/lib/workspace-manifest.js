@@ -12,6 +12,15 @@ import {
 } from "./core.js";
 import { listAvailableProfiles, readDefaultProfile, resolvePack, resolveProfile } from "./config.js";
 import { loadUpstreamsConfig } from "./upstreams.js";
+import { createEmptyImportLock, loadImportLock } from "./import-lock.js";
+import {
+  accent,
+  muted,
+  renderKeyValueRows,
+  renderSection,
+  success,
+  warning
+} from "./terminal-ui.js";
 
 function normalizeOptionalText(value) {
   if (typeof value !== "string") {
@@ -83,10 +92,12 @@ async function collectWorkspaceProfiles() {
 
 async function buildWorkspaceManifest() {
   const upstreams = await loadUpstreamsConfig();
+  const lockState = await loadImportLock();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     workspace: {
       defaultProfile: await readDefaultProfile(),
+      lock: lockState.lock,
       upstreams: upstreams.config.upstreams,
       profiles: await collectWorkspaceProfiles()
     }
@@ -166,9 +177,10 @@ export async function cmdWorkspaceImport({ input, replace = false } = {}) {
   const { inputPath, manifest } = await loadWorkspaceManifestInput(input);
 
   await writeJsonFile(path.join(LOCAL_OVERRIDES_ROOT, "upstreams.json"), {
-    schemaVersion: 2,
+    schemaVersion: 3,
     upstreams: manifest.workspace.upstreams ?? []
   });
+  await writeJsonFile(path.join(LOCAL_OVERRIDES_ROOT, "skills-sync.lock.json"), manifest.workspace.lock ?? createEmptyImportLock());
 
   for (const entry of manifest.workspace.profiles ?? []) {
     await writeProfileFromManifest(entry, replace);
@@ -195,9 +207,12 @@ export async function cmdWorkspaceDiff({ input, format = "text" } = {}) {
     (manifest.workspace.upstreams ?? []).map((item) => item.id).filter(Boolean),
     (live.workspace.upstreams ?? []).map((item) => item.id).filter(Boolean)
   );
+  const lockDiff = JSON.stringify(manifest.workspace.lock ?? createEmptyImportLock()) !==
+    JSON.stringify(live.workspace.lock ?? createEmptyImportLock());
   const payload = {
     manifestDefaultProfile: manifest.workspace.defaultProfile ?? null,
     liveDefaultProfile: live.workspace.defaultProfile ?? null,
+    lockChanged: lockDiff,
     profiles: profileDiff,
     upstreams: upstreamDiff
   };
@@ -206,12 +221,26 @@ export async function cmdWorkspaceDiff({ input, format = "text" } = {}) {
     process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
     return;
   }
-  process.stdout.write(`Workspace diff (${inputPath})\n`);
-  process.stdout.write(`  default profile manifest/live: ${payload.manifestDefaultProfile ?? "(none)"} / ${payload.liveDefaultProfile ?? "(none)"}\n`);
-  process.stdout.write(`  profiles only in manifest: ${payload.profiles.onlyLeft.join(", ") || "(none)"}\n`);
-  process.stdout.write(`  profiles only in live: ${payload.profiles.onlyRight.join(", ") || "(none)"}\n`);
-  process.stdout.write(`  upstreams only in manifest: ${payload.upstreams.onlyLeft.join(", ") || "(none)"}\n`);
-  process.stdout.write(`  upstreams only in live: ${payload.upstreams.onlyRight.join(", ") || "(none)"}\n`);
+  process.stdout.write(
+    `${[
+      renderSection("Workspace Diff", { stream: process.stdout }),
+      renderKeyValueRows(
+        [
+          { key: "Input", value: inputPath },
+          {
+            key: "Default Profile",
+            value: `${accent(payload.manifestDefaultProfile ?? "(none)", process.stdout)} / ${accent(payload.liveDefaultProfile ?? "(none)", process.stdout)}`
+          },
+          { key: "Profiles In Manifest", value: payload.profiles.onlyLeft.join(", ") || muted("(none)", process.stdout) },
+          { key: "Profiles In Live", value: payload.profiles.onlyRight.join(", ") || muted("(none)", process.stdout) },
+          { key: "Upstreams In Manifest", value: payload.upstreams.onlyLeft.join(", ") || muted("(none)", process.stdout) },
+          { key: "Upstreams In Live", value: payload.upstreams.onlyRight.join(", ") || muted("(none)", process.stdout) },
+          { key: "Lock Changed", value: payload.lockChanged ? warning("yes", process.stdout) : success("no", process.stdout) }
+        ],
+        { stream: process.stdout }
+      )
+    ].join("\n")}\n`
+  );
 }
 
 export async function cmdWorkspaceSync({ input, dryRun = false } = {}) {

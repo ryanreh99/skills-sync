@@ -22,7 +22,7 @@ export async function run({ distPath, runtimePath }) {
 
   // --- Pre-apply dist assertions: verify build output correctness ---
 
-  // Codex (canOverride:false): build merges pre-existing non-MCP user settings into dist
+  // Codex (hasNonMcpConfig:true): build merges pre-existing non-MCP user settings into dist
   const distCodexToml = await fs.readFile(path.join(distPath, ".codex", "config.toml"), "utf8");
   assert.equal(
     distCodexToml.includes('model = "gpt-5-codex"'),
@@ -40,7 +40,7 @@ export async function run({ distPath, runtimePath }) {
     "Dist Codex config should replace (not merge) local MCP tables."
   );
 
-  // Claude (canOverride:true): build produces a clean config — no user settings bleed through
+  // Claude (hasNonMcpConfig:false): build produces a clean config — no user settings bleed through
   const distClaudeDoc = JSON.parse(await fs.readFile(path.join(distPath, ".claude", "mcp.json"), "utf8"));
   assert.equal(
     distClaudeDoc.settings?.verbose,
@@ -53,7 +53,7 @@ export async function run({ distPath, runtimePath }) {
     "Dist Claude config should replace local MCP servers."
   );
 
-  // Cursor (canOverride:true): clean config, no user keys
+  // Cursor (hasNonMcpConfig:false): clean config, no user keys
   const distCursorDoc = JSON.parse(await fs.readFile(path.join(distPath, ".cursor", "mcp.json"), "utf8"));
   assert.equal(
     "keep_me" in (distCursorDoc.mcpServers ?? {}),
@@ -61,7 +61,7 @@ export async function run({ distPath, runtimePath }) {
     "Dist Cursor config should replace local MCP servers."
   );
 
-  // Copilot (canOverride:true): clean config, no user keys
+  // Copilot (hasNonMcpConfig:false): clean config, no user keys
   const distCopilotDoc = JSON.parse(await fs.readFile(path.join(distPath, ".copilot", "mcp-config.json"), "utf8"));
   assert.equal(
     "keep_me" in (distCopilotDoc.mcpServers ?? {}),
@@ -89,7 +89,7 @@ export async function run({ distPath, runtimePath }) {
     "Dist Copilot stdio servers should not include the legacy transport field."
   );
 
-  // Gemini (canOverride:false): build merges pre-existing non-MCP user settings
+  // Gemini (hasNonMcpConfig:true): build merges pre-existing non-MCP user settings
   const distGeminiDoc = JSON.parse(await fs.readFile(path.join(distPath, ".gemini", "settings.json"), "utf8"));
   assert.equal(distGeminiDoc.ui?.theme, "dark", "Dist Gemini config should preserve local non-MCP settings.");
   assert.equal(
@@ -114,7 +114,7 @@ export async function run({ distPath, runtimePath }) {
   assert.equal(codexToml.includes("skills-sync managed mcp start"), true, "Codex should inject managed block.");
   assert.equal(codexToml.includes("$HOME"), false, "Codex managed MCP args should resolve $HOME to a runtime path.");
   assert.equal(
-    codexToml.includes('[mcp_servers."skills-sync__unit_test_env_server"]'),
+    codexToml.includes('[mcp_servers."unit_test_env_server"]'),
     true,
     "Codex should include managed env-bearing server."
   );
@@ -132,17 +132,17 @@ export async function run({ distPath, runtimePath }) {
   assertManagedJsonMerged(JSON.stringify(cursorRuntimeDoc), "cursor");
   assertManagedJsonMerged(JSON.stringify(copilotRuntimeDoc), "copilot");
   assert.equal(
-    copilotRuntimeDoc.mcpServers?.["skills-sync__filesystem"]?.type,
+    copilotRuntimeDoc.mcpServers?.filesystem?.type,
     "stdio",
     "Copilot managed stdio servers should use the 'type' field."
   );
   assert.deepEqual(
-    copilotRuntimeDoc.mcpServers?.["skills-sync__filesystem"]?.tools,
+    copilotRuntimeDoc.mcpServers?.filesystem?.tools,
     ["*"],
     "Copilot managed stdio servers should include a permissive tools allowlist."
   );
   assert.equal(
-    "transport" in (copilotRuntimeDoc.mcpServers?.["skills-sync__filesystem"] ?? {}),
+    "transport" in (copilotRuntimeDoc.mcpServers?.filesystem ?? {}),
     false,
     "Copilot managed stdio servers should not include the legacy transport field."
   );
@@ -158,14 +158,14 @@ export async function run({ distPath, runtimePath }) {
     ["copilot", copilotRuntimeDoc],
     ["gemini", geminiRuntimeDoc]
   ]) {
-    const envValue = doc.mcpServers?.["skills-sync__unit_test_env_server"]?.env?.MCP_TEST_HOME;
+    const envValue = doc.mcpServers?.unit_test_env_server?.env?.MCP_TEST_HOME;
     assert.equal(typeof envValue, "string", `${label}: env-bearing managed server should include MCP_TEST_HOME.`);
     assert.equal(envValue === "$HOME", false, `${label}: MCP_TEST_HOME should be expanded at apply time.`);
   }
 
   // Gemini managed entries must not include a transport field
   for (const [name, server] of Object.entries(geminiRuntimeDoc.mcpServers ?? {})) {
-    if (name.startsWith("skills-sync__")) {
+    if (name !== "keep_me") {
       assert.equal(
         "transport" in server,
         false,

@@ -1,5 +1,6 @@
 import fs from "fs-extra";
 import path from "node:path";
+import { sha256Text, stableJsonStringify } from "./core.js";
 
 function sanitizeIdFragment(value) {
   const normalized = String(value ?? "")
@@ -187,6 +188,32 @@ export function inferUpstreamIdFromSourceDescriptor(descriptor) {
   return sanitizeIdFragment(segments[segments.length - 1] || "upstream");
 }
 
+export function getNormalizedSourceDescriptor(descriptor) {
+  const provider = descriptor?.provider === "local-path" ? "local-path" : "git";
+  const normalized = {
+    provider,
+    ...(provider === "git"
+      ? {
+          repo: String(descriptor?.repo ?? "").trim(),
+          host: descriptor?.host ? String(descriptor.host).trim() : null,
+          repoPath: descriptor?.repoPath ? String(descriptor.repoPath).trim() : null
+        }
+      : {
+          path: String(descriptor?.path ?? "").trim()
+        }),
+    root: descriptor?.root ? normalizeSelectionPath(descriptor.root, "root") : null
+  };
+
+  if (provider === "git" && descriptor?.defaultRef) {
+    normalized.defaultRef = String(descriptor.defaultRef).trim();
+  }
+  return normalized;
+}
+
+export function createSourceIdentity(descriptor) {
+  return `sha256:${sha256Text(stableJsonStringify(getNormalizedSourceDescriptor(descriptor)))}`;
+}
+
 export async function normalizeSourceInput(source, options = {}) {
   const originalInput = String(source ?? "").trim();
   if (originalInput.length === 0) {
@@ -203,7 +230,7 @@ export async function normalizeSourceInput(source, options = {}) {
   const absolutePath = path.resolve(expandUserPath(originalInput));
   const pathExists = await fs.pathExists(absolutePath);
   if (requestedProvider === "git" && pathExists) {
-    return {
+    const descriptor = {
       provider: "git",
       type: "git",
       originalInput,
@@ -214,12 +241,16 @@ export async function normalizeSourceInput(source, options = {}) {
       displayName: path.basename(absolutePath),
       host: "local"
     };
+    return {
+      ...descriptor,
+      sourceIdentity: createSourceIdentity(descriptor)
+    };
   }
   if (requestedProvider === "local-path" || (requestedProvider === "auto" && (looksLikeFilesystemPath(originalInput) || pathExists))) {
     if (!pathExists) {
       throw new Error(`Local source path '${originalInput}' was not found.`);
     }
-    return {
+    const descriptor = {
       provider: "local-path",
       type: "local-path",
       originalInput,
@@ -230,6 +261,10 @@ export async function normalizeSourceInput(source, options = {}) {
       host: null,
       repoPath: null
     };
+    return {
+      ...descriptor,
+      sourceIdentity: createSourceIdentity(descriptor)
+    };
   }
 
   const parsedGit = parseGitSource(originalInput);
@@ -237,7 +272,7 @@ export async function normalizeSourceInput(source, options = {}) {
     throw new Error(`Could not normalize source '${originalInput}'.`);
   }
 
-  return {
+  const descriptor = {
     provider: "git",
     type: "git",
     originalInput,
@@ -247,5 +282,9 @@ export async function normalizeSourceInput(source, options = {}) {
     defaultRef: options.defaultRef ?? parsedGit.defaultRef ?? null,
     displayName: parsedGit.repoPath?.split("/").filter(Boolean).at(-1) ?? originalInput,
     host: parsedGit.host
+  };
+  return {
+    ...descriptor,
+    sourceIdentity: createSourceIdentity(descriptor)
   };
 }
