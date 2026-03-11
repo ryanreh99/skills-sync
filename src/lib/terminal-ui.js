@@ -10,8 +10,6 @@ const ANSI = {
   gray: "\u001B[90m"
 };
 
-const ANSI_PATTERN = /\u001B\[[0-9;]*m/g;
-
 function readForceColor() {
   if (process.env.FORCE_COLOR === undefined) {
     return null;
@@ -108,7 +106,29 @@ export function muted(text, stream = process.stdout) {
 }
 
 export function stripAnsi(text) {
-  return String(text ?? "").replace(ANSI_PATTERN, "");
+  const input = String(text ?? "");
+  let output = "";
+
+  for (let index = 0; index < input.length; index += 1) {
+    if (input.charCodeAt(index) === 27 && input[index + 1] === "[") {
+      let cursor = index + 2;
+      while (cursor < input.length) {
+        const code = input.charCodeAt(cursor);
+        if ((code >= 48 && code <= 57) || code === 59) {
+          cursor += 1;
+          continue;
+        }
+        break;
+      }
+      if (cursor < input.length && input[cursor] === "m") {
+        index = cursor;
+        continue;
+      }
+    }
+    output += input[index];
+  }
+
+  return output;
 }
 
 export function visibleLength(text) {

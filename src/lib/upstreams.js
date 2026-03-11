@@ -42,7 +42,6 @@ import {
   renderSection,
   renderSimpleList,
   renderTable,
-  success,
   warning
 } from "./terminal-ui.js";
 
