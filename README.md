@@ -21,6 +21,8 @@ It manages:
 
 In practice, this means you define an environment once and sync it to multiple agents.
 
+Run `skills-sync` with no arguments to open the interactive shell. It uses an explorer-first full-screen TTY layout with `Explorer` and `Transcript` panes; the explorer is organized around `Profiles`, `Skills`, `MCPs`, `Upstreams`, and `Agents`, `:` opens a raw command prompt, `/` filters or searches, `Tab` switches panes, and `y` copies transcript text. Shell mode is TTY-only, so in non-interactive environments you should run normal commands directly.
+
 ## Supported Agents
 
 ![Codex](https://img.shields.io/badge/Codex-supported-412991?logo=openaigym&logoColor=white)

@@ -3,6 +3,9 @@ import { select, text, isCancel } from "@clack/prompts";
 export const PROMPT_CANCELLED_CODE = "skills-sync.promptCancelled";
 
 function canUseClackPrompts() {
+  if (process.env.SKILLS_SYNC_DISABLE_PROMPTS === "1") {
+    return false;
+  }
   return process.stdin.isTTY === true && process.stdout.isTTY === true;
 }
 

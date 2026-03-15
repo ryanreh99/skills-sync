@@ -1,3 +1,18 @@
+## 1.2.1
+
+Interactive shell polish and demo refresh.
+
+Features
+- Rebuilt the interactive shell into an explorer-first full-screen TTY experience using `neo-blessed`
+- Simplified the shell explorer so `Skills`, `MCPs`, and `Upstreams` each keep related list and manage actions together, with upstream content browsing included directly in the explorer
+- Removed the old shell fallback mode and standardized on the new TTY shell plus normal non-interactive CLI commands
+- Added a persistent transcript with cursor navigation, search, selection, and clipboard copy support
+- Improved transcript readability by adding clearer section emphasis for list-style output inside interactive mode
+- Tightened shell behavior around focus, prompt opening, command-state clearing, and modal dismissal
+- Added a real PTY-based interactive test suite and expanded shell unit coverage
+- Reworked demo recording to capture the live interactive shell with color instead of a mocked frame renderer
+- Regenerated README demo GIFs to reflect the new explorer-first shell and navigation flows
+
 ## 1.1.1
 
 Major UX and workflow update.

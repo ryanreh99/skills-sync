@@ -11,3 +11,4 @@ docs/demo/_sandbox/
 **/credentials*
 .tmp*
 *.tgz
+.tui-test/

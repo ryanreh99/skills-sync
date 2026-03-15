@@ -166,8 +166,18 @@ export function formatBadge(text, tone = "muted", stream = process.stdout) {
 }
 
 export function renderSection(title, { count = null, stream = process.stdout } = {}) {
+  const normalizedTitle = String(title ?? "");
   const suffix = count === null ? "" : ` (${count})`;
-  return heading(`${String(title ?? "")}${suffix}`, stream);
+
+  if (!supportsColor(stream)) {
+    return `${normalizedTitle}${suffix}`;
+  }
+
+  return [
+    heading(normalizedTitle, stream),
+    count === null ? "" : accent(suffix, stream),
+    dim(" ─", stream)
+  ].join("");
 }
 
 export function renderKeyValueRows(rows, {

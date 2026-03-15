@@ -7,6 +7,9 @@
 - built local binary: `node ./dist/index.js <command> [options]`
 
 Running `skills-sync` with no command opens interactive shell mode.
+Shell mode is a TTY-only explorer-first full-screen shell UI with `Explorer` and `Transcript` panes plus an on-demand prompt.
+The `Explorer` exposes the main interactive catalog for profiles, skills, MCPs, upstreams, and agents, and parameterized commands open the prompt with a prefilled command line.
+When TTY features are unavailable, use normal CLI commands directly instead of shell mode.
 
 ## Root Commands
 
@@ -113,7 +116,18 @@ Default manifest path: `workspace/skills-sync.manifest.json`
 - `agents`
 - `profile`
 - `search`
-- `workspace`
 - `:profile <name>`
 - `:profile default`
 - `:profile none`
+
+TTY shell notes:
+
+- typed commands still use the normal CLI syntax and quoting rules
+- the shell launches with `Explorer` focused and the command prompt hidden
+- `Explorer` is a nested tree for `Setup`, `Profiles`, `Skills`, `MCPs`, `Upstreams`, and `Agents`
+- `Transcript` keeps the running session output instead of replacing it with only the latest result
+- `Tab` switches between `Explorer` and `Transcript`
+- `:` opens the raw command prompt, `/` filters the `Explorer` or searches the `Transcript`
+- `Space` starts or clears transcript selection, `y` copies the current selection or block, and `Ctrl+Y` copies the full transcript
+- `workspace` commands still run from the raw prompt, but they do not appear in the explorer tree
+- prompt-heavy flows such as `profile add-skill --interactive` temporarily hand control back to the normal terminal, then restore the TUI shell

@@ -21,17 +21,20 @@ export async function run() {
   const flagResult = runCli(["--help"]);
   assert.equal(flagResult.stdout.includes("sync"), true, "--help stdout should mention the sync command.");
 
-  // Running without arguments opens shell mode.
-  const shellResult = runCliWithInput([], { input: "exit\n" });
+  // Running without arguments requires the full TTY shell.
+  const shellResult = runCliWithInput([], {
+    expectedStatus: 1,
+    input: "exit\n"
+  });
   assert.equal(
-    shellResult.stdout.includes("interactive shell"),
+    shellResult.stderr.includes("Interactive shell requires a TTY terminal of at least 80x18."),
     true,
-    "no-arg invocation should open interactive shell mode."
+    "no-arg invocation should explain the TTY-only shell requirement."
   );
   assert.equal(
-    shellResult.stdout.includes("sync | sync --dry-run"),
+    shellResult.stderr.includes("Use normal CLI commands in non-interactive mode."),
     true,
-    "shell banner should advertise sync as the primary workflow."
+    "no-arg invocation should point non-interactive usage back to normal commands."
   );
   assert.equal(shellResult.stdout.includes("build"), false, "shell help should not mention the hidden build command.");
   assert.equal(shellResult.stdout.includes("apply"), false, "shell help should not mention the hidden apply command.");

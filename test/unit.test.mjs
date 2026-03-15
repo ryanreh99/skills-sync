@@ -27,7 +27,28 @@ import {
   buildToolJsonMcpServers,
   summarizeRequiredMcpSupport
 } from "../src/lib/mcp-config.js";
-import { resolveShortcutCommands } from "../src/lib/shell.js";
+import {
+  advanceGuidedFlowSession,
+  buildShellTranscriptLineMap,
+  clearShellEntryState,
+  createGuidedFlowSession,
+  createInitialShellTuiState,
+  createShellOutputRecord,
+  createShellExplorerTree,
+  createShellTuiViewModel,
+  extractShellTranscriptSelectionText,
+  findShellTranscriptMatches,
+  flattenShellExplorerTree,
+  getShellExplorerDefaultExpandedIds,
+  getShellLayoutMode,
+  getCompletionSuggestions,
+  handleShellAlias,
+  injectProfileIfNeeded,
+  resolveShortcutCommands,
+  setCommandInput,
+  shouldHandoffShellCommand,
+  tokenizeCommandLine
+} from "../src/lib/shell.js";
 import { fetchRefAndResolveCommit } from "../src/lib/git-runtime.js";
 import {
   materializeProjectedSkillDirectory,
@@ -769,17 +790,324 @@ test("profile shell shortcuts route skill mutations through interactive selectio
   const profileShortcut = resolveShortcutCommands("profile");
   assert.equal(Boolean(profileShortcut), true, "profile shortcut config should exist.");
 
-  const addSkillShortcut = profileShortcut.commands.find((item) => item.label === "add-skill");
-  const removeSkillShortcut = profileShortcut.commands.find((item) => item.label === "remove-skill");
-
   assert.equal(
-    addSkillShortcut?.value,
-    "profile add-skill --interactive",
+    profileShortcut.commands.some((item) => item.value === "profile add-skill --interactive"),
+    true,
     "profile add-skill shortcut should opt into interactive skill selection."
   );
   assert.equal(
-    removeSkillShortcut?.value,
-    "profile remove-skill --interactive",
-    "profile remove-skill shortcut should opt into interactive removal selection."
+    profileShortcut.commands.some((item) => item.value === "profile remove-skill "),
+    true,
+    "profile remove-skill shortcut should offer the prefilled removal flow."
   );
+});
+
+test("tokenizeCommandLine preserves quoted arguments for shell input", () => {
+  const tokens = tokenizeCommandLine(`profile new-skill "demo skill" --path "skills/demo skill"`);
+  assert.deepEqual(tokens, [
+    "profile",
+    "new-skill",
+    "demo skill",
+    "--path",
+    "skills/demo skill"
+  ]);
+});
+
+test("handleShellAlias updates shell profile context aliases", () => {
+  const alias = handleShellAlias(":profile work", "personal");
+  assert.deepEqual(alias, {
+    type: "set-profile",
+    nextProfile: "work"
+  });
+
+  const clearProfileAlias = handleShellAlias(":profile none", "personal");
+  assert.deepEqual(clearProfileAlias, {
+    type: "set-profile",
+    nextProfile: null
+  });
+});
+
+test("injectProfileIfNeeded only decorates profile-aware commands", () => {
+  assert.deepEqual(
+    injectProfileIfNeeded(["sync", "--dry-run"], "personal"),
+    ["sync", "--dry-run", "--profile", "personal"]
+  );
+  assert.deepEqual(
+    injectProfileIfNeeded(["list", "skills"], "personal"),
+    ["list", "skills"]
+  );
+});
+
+test("getCompletionSuggestions includes subcommand expansions and option completions", () => {
+  assert.deepEqual(
+    getCompletionSuggestions("profile").slice(0, 3),
+    ["profile show", "profile inspect", "profile refresh"]
+  );
+  assert.deepEqual(getCompletionSuggestions("list skills --f"), ["--format"]);
+});
+
+test("shouldHandoffShellCommand isolates prompt-heavy shell flows", () => {
+  assert.equal(shouldHandoffShellCommand(["profile", "add-skill", "--interactive"]), true);
+  assert.equal(shouldHandoffShellCommand(["profile", "remove-skill", "--upstream", "demo"]), true);
+  assert.equal(shouldHandoffShellCommand(["profile", "remove-skill", "--upstream", "demo", "--yes"]), false);
+  assert.equal(shouldHandoffShellCommand(["sync", "--dry-run"]), false);
+});
+
+test("getShellLayoutMode selects wide, compact, and fallback breakpoints", () => {
+  assert.equal(getShellLayoutMode(120, 40), "wide");
+  assert.equal(getShellLayoutMode(90, 22), "compact");
+  assert.equal(getShellLayoutMode(70, 17), "fallback");
+});
+
+test("flattenShellExplorerTree auto-expands ancestor paths for filtered matches", () => {
+  const tree = createShellExplorerTree();
+  const flattened = flattenShellExplorerTree(tree, {
+    expandedIds: new Set(getShellExplorerDefaultExpandedIds(tree)),
+    filter: "agents drift"
+  });
+
+  const rowIds = flattened.rows.map((row) => row.id);
+  assert.equal(rowIds.includes("agents"), true);
+  assert.equal(rowIds.includes("agents-drift"), true);
+  assert.equal(rowIds.includes("explore-agents-drift"), true);
+  assert.equal(rowIds.includes("explore-agents-drift-apply"), true);
+  assert.equal(flattened.expandedIds.has("agents"), true);
+  assert.equal(flattened.expandedIds.has("agents-drift"), true);
+});
+
+test("createShellExplorerTree exposes the interactive shell catalog", () => {
+  const tree = createShellExplorerTree();
+  const flattened = flattenShellExplorerTree(tree, {
+    expandedIds: new Set([
+      "setup",
+      "profiles",
+      "skills",
+      "mcps",
+      "upstreams",
+      "agents",
+      "setup-init",
+      "setup-sync",
+      "setup-health",
+      "profiles-current",
+      "profiles-manage",
+      "profiles-inspect",
+      "skills-list",
+      "skills-search",
+      "skills-manage",
+      "skills-refresh",
+      "mcps-list",
+      "mcps-manage",
+      "upstreams-list",
+      "upstreams-manage",
+      "agents-list",
+      "agents-drift"
+    ])
+  });
+  const commands = flattened.rows
+    .filter((row) => row.kind === "action")
+    .map((row) => row.command);
+
+  assert.equal(commands.includes("detect"), true, "explorer should expose agent detection.");
+  assert.equal(commands.includes("use "), true, "explorer should expose profile switching.");
+  assert.equal(commands.includes("new "), true, "explorer should expose profile creation.");
+  assert.equal(commands.includes("list mcps"), true, "explorer should expose MCP inventory.");
+  assert.equal(commands.includes("list everything"), true, "explorer should expose combined inventory.");
+  assert.equal(commands.includes("list upstreams"), true, "explorer should expose upstream inventory.");
+  assert.equal(commands.includes("list upstream-content --upstream "), true, "explorer should expose upstream content browsing.");
+  assert.equal(commands.includes("upstream add --source "), true, "explorer should expose upstream registration.");
+  assert.equal(commands.includes("profile refresh"), true, "explorer should expose profile refresh.");
+  assert.equal(commands.includes("profile add-mcp"), true, "explorer should expose MCP mutation.");
+  assert.equal(commands.includes("profile add-skill --interactive"), true, "explorer should expose skill import.");
+  assert.equal(commands.includes("profile diff "), true, "explorer should prefill profile comparison.");
+  assert.equal(commands.includes("workspace sync"), false, "workspace commands should stay out of the interactive explorer.");
+});
+
+test("guided explorer actions expose flow metadata", () => {
+  const tree = createShellExplorerTree();
+  const flattened = flattenShellExplorerTree(tree, {
+    expandedIds: new Set([
+      "skills",
+      "skills-manage",
+      "mcps",
+      "mcps-manage",
+      "upstreams",
+      "upstreams-manage"
+    ])
+  });
+
+  const upstreamAdd = flattened.rows.find((row) => row.id === "profile-upstream-add");
+  const skillAdd = flattened.rows.find((row) => row.id === "profile-skills-add");
+  const mcpAdd = flattened.rows.find((row) => row.id === "profile-mcp-add");
+
+  assert.equal(upstreamAdd?.mode, "guided");
+  assert.equal(upstreamAdd?.flowId, "upstream-add");
+  assert.equal(skillAdd?.mode, "guided");
+  assert.equal(skillAdd?.flowId, "skill-add");
+  assert.equal(mcpAdd?.mode, "guided");
+  assert.equal(mcpAdd?.flowId, "mcp-add");
+});
+
+test("createShellTuiViewModel exposes explorer-first shell state", () => {
+  const state = createInitialShellTuiState("personal");
+  const viewModel = createShellTuiViewModel(state);
+
+  assert.equal(viewModel.profileLabel, "personal");
+  assert.equal(viewModel.activePane, "explorer");
+  assert.equal(viewModel.layoutMode, "wide");
+  assert.equal(viewModel.explorerRows[0]?.label, "Setup");
+  assert.equal(viewModel.footerHints.some((hint) => hint.key === ":" && hint.label === "command"), true);
+  assert.equal(viewModel.transcriptBlockCount, 1);
+});
+
+test("clearShellEntryState resets transient command-bar state", () => {
+  const state = createInitialShellTuiState("personal");
+  setCommandInput(state, "sync --dry-run");
+  state.promptMode = "command";
+  state.guided = { currentStep: { id: "source" } };
+  state.historyDraft = "sync --dry-run";
+  state.historyIndex = 0;
+
+  clearShellEntryState(state);
+
+  assert.equal(state.commandInput, "");
+  assert.equal(state.cursorOffset, 0);
+  assert.equal(state.promptMode, null);
+  assert.equal(state.guided, null);
+  assert.equal(state.historyDraft, "");
+  assert.equal(state.historyIndex, null);
+});
+
+test("guided upstream add flow assembles canonical CLI args", async () => {
+  const session = await createGuidedFlowSession({
+    flowId: "upstream-add",
+    context: {
+      flowDefaults: {
+        variant: "profile"
+      }
+    }
+  });
+
+  assert.equal(session.currentStep.id, "source");
+  session.ui.textValue = "matlab/skills";
+  await advanceGuidedFlowSession(session);
+  assert.equal(session.currentStep.id, "upstreamAliasId");
+
+  session.ui.textValue = "matlab_skills";
+  await advanceGuidedFlowSession(session);
+  assert.equal(session.currentStep.id, "advancedFlags");
+
+  session.ui.textValue = "--default-ref main";
+  await advanceGuidedFlowSession(session);
+  assert.equal(session.currentStep.id, "review");
+  assert.equal(session.currentStep.commandText.includes("profile add-upstream"), true);
+
+  const result = await advanceGuidedFlowSession(session);
+  assert.equal(result.type, "completed");
+  assert.deepEqual(result.commandArgs, [
+    "profile",
+    "add-upstream",
+    "matlab_skills",
+    "--source",
+    "matlab/skills",
+    "--default-ref",
+    "main"
+  ]);
+});
+
+test("guided mcp add flow branches to the correct transport fields", async () => {
+  const stdioSession = await createGuidedFlowSession({
+    flowId: "mcp-add",
+    activeProfile: "personal"
+  });
+
+  assert.equal(stdioSession.currentStep.id, "serverName");
+  stdioSession.ui.textValue = "filesystem";
+  await advanceGuidedFlowSession(stdioSession);
+  assert.equal(stdioSession.currentStep.id, "transport");
+
+  await advanceGuidedFlowSession(stdioSession);
+  assert.equal(stdioSession.currentStep.id, "command");
+
+  const httpSession = await createGuidedFlowSession({
+    flowId: "mcp-add",
+    activeProfile: "personal"
+  });
+
+  httpSession.ui.textValue = "remote";
+  await advanceGuidedFlowSession(httpSession);
+  httpSession.ui.selectedIndex = 1;
+  await advanceGuidedFlowSession(httpSession);
+  assert.equal(httpSession.currentStep.id, "url");
+});
+
+test("createShellOutputRecord returns normalized transcript blocks", () => {
+  const output = createShellOutputRecord({
+    title: "Command output",
+    command: "help",
+    text: "line 1\nline 2"
+  });
+
+  assert.equal(output.title, "Command output");
+  assert.equal(output.command, "help");
+  assert.equal(output.text, "line 1\nline 2");
+  assert.equal(output.kind, "stdout");
+});
+
+test("buildShellTranscriptLineMap renders command blocks and shell messages", () => {
+  const lineMap = buildShellTranscriptLineMap([
+    createShellOutputRecord({
+      command: "sync --dry-run",
+      text: "preview line 1\npreview line 2"
+    }),
+    createShellOutputRecord({
+      kind: "status",
+      tone: "muted",
+      text: "[shell] Shell profile context: personal"
+    })
+  ]);
+
+  assert.deepEqual(
+    lineMap.lines.map((line) => line.text),
+    [
+      "$ sync --dry-run",
+      "preview line 1",
+      "preview line 2",
+      "",
+      "[shell] Shell profile context: personal"
+    ]
+  );
+});
+
+test("findShellTranscriptMatches returns line and column matches", () => {
+  const lineMap = buildShellTranscriptLineMap([
+    createShellOutputRecord({
+      command: "profile inspect",
+      text: "Profile context: personal\nworkspace diff preview\nProfile import warnings"
+    })
+  ]);
+
+  const matches = findShellTranscriptMatches(lineMap, "profile");
+
+  assert.deepEqual(matches, [
+    { line: 0, start: 2, end: 9 },
+    { line: 1, start: 0, end: 7 },
+    { line: 3, start: 0, end: 7 }
+  ]);
+});
+
+test("extractShellTranscriptSelectionText returns multi-line selections", () => {
+  const lineMap = buildShellTranscriptLineMap([
+    createShellOutputRecord({
+      command: "workspace diff",
+      text: "alpha beta gamma\nsecond line"
+    })
+  ]);
+
+  const selection = extractShellTranscriptSelectionText(
+    lineMap,
+    { line: 1, column: 6 },
+    { line: 2, column: 6 }
+  );
+
+  assert.equal(selection, "beta gamma\nsecond");
 });

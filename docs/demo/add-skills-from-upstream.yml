@@ -1,624 +1,564 @@
 {
-    "config":  {
-                   "command":  null,
-                   "cwd":  null,
-                   "env":  {
-                               "recording":  true
-                           },
-                   "cols":  88,
-                   "rows":  22,
-                   "repeat":  0,
-                   "quality":  100,
-                   "frameDelay":  "auto",
-                   "maxIdleTime":  700,
-                   "frameBox":  {
-                                    "type":  "floating",
-                                    "title":  "skills-sync",
-                                    "style":  {
-                                                  "border":  "0px black solid"
-                                              }
-                                },
-                   "watermark":  {
-                                     "imagePath":  null,
-                                     "style":  {
-                                                   "position":  "absolute",
-                                                   "right":  "15px",
-                                                   "bottom":  "15px",
-                                                   "width":  "100px",
-                                                   "opacity":  0.9
-                                               }
-                                 },
-                   "cursorStyle":  "bar",
-                   "fontFamily":  "Cascadia Code, Consolas, Monaco, monospace",
-                   "fontSize":  14,
-                   "lineHeight":  1.2,
-                   "letterSpacing":  0,
-                   "theme":  {
-                                 "background":  "#09111f",
-                                 "foreground":  "#d9e2f2",
-                                 "cursor":  "#f7c948",
-                                 "black":  "#0b1220",
-                                 "red":  "#ff7b72",
-                                 "green":  "#7ee787",
-                                 "yellow":  "#f2cc60",
-                                 "blue":  "#79c0ff",
-                                 "magenta":  "#d2a8ff",
-                                 "cyan":  "#a5f3fc",
-                                 "white":  "#c9d1d9",
-                                 "brightBlack":  "#6e7681",
-                                 "brightRed":  "#ffa198",
-                                 "brightGreen":  "#56d364",
-                                 "brightYellow":  "#e3b341",
-                                 "brightBlue":  "#58a6ff",
-                                 "brightMagenta":  "#bc8cff",
-                                 "brightCyan":  "#76e3ea",
-                                 "brightWhite":  "#f0f6fc"
-                             }
-               },
-    "records":  [
-                    {
-                        "delay":  160,
-                        "content":  "$ "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "k"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "i"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "-"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "y"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "n"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "c"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  360,
-                        "content":  "\u001b[1;36mskills-sync\u001b[0m \u001b[1;34minteractive shell\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90mRun CLI commands directly. Use help/:help for shell commands. Type exit to quit.\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90mProfile context enabled: personal\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90mModes:\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  setup   -\u003e init | init --seed\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  sync    -\u003e sync | sync --dry-run\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90mExplore and Manage:\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  list      -\u003e profiles, skills, MCP servers, upstreams, and detected agents\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  agents    -\u003e inventory/drift to identify drift and sync status\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  profile   -\u003e inspect, refresh, scaffold, and manage skills/MCPs/upstreams\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  search    -\u003e choose search mode, then enter query\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  workspace -\u003e export, diff, and sync full environment manifests\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  440,
-                        "content":  "\u001b[1;36mskills-sync(personal)\u001b[0m\u001b[90m \u003e\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "p"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "r"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "o"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "f"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "i"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mshow           \u001b[0m  \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n  inspect          \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n  refresh          \u001b[90mrefresh imported skill sources\u001b[0m\r\n  add-skill        \u001b[90madd a skill import to profile\u001b[0m\r\n  remove-skill     \u001b[90mremove a skill import from profile\u001b[0m\r\n  new-skill        \u001b[90mscaffold a local skill directory\u001b[0m\r\n  add-upstream     \u001b[90madd an upstream repository\u001b[0m\r\n  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n  import           \u001b[90mimport profile config JSON\u001b[0m\r\n  diff             \u001b[90mcompare two profiles\u001b[0m\r\n  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[15A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[2K\r  show             \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36minspect        \u001b[0m  \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n\u001b[2K\r  refresh          \u001b[90mrefresh imported skill sources\u001b[0m\r\n\u001b[2K\r  add-skill        \u001b[90madd a skill import to profile\u001b[0m\r\n\u001b[2K\r  remove-skill     \u001b[90mremove a skill import from profile\u001b[0m\r\n\u001b[2K\r  new-skill        \u001b[90mscaffold a local skill directory\u001b[0m\r\n\u001b[2K\r  add-upstream     \u001b[90madd an upstream repository\u001b[0m\r\n\u001b[2K\r  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n\u001b[2K\r  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n\u001b[2K\r  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n\u001b[2K\r  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n\u001b[2K\r  import           \u001b[90mimport profile config JSON\u001b[0m\r\n\u001b[2K\r  diff             \u001b[90mcompare two profiles\u001b[0m\r\n\u001b[2K\r  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[15A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[2K\r  show             \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n\u001b[2K\r  inspect          \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mrefresh        \u001b[0m  \u001b[90mrefresh imported skill sources\u001b[0m\r\n\u001b[2K\r  add-skill        \u001b[90madd a skill import to profile\u001b[0m\r\n\u001b[2K\r  remove-skill     \u001b[90mremove a skill import from profile\u001b[0m\r\n\u001b[2K\r  new-skill        \u001b[90mscaffold a local skill directory\u001b[0m\r\n\u001b[2K\r  add-upstream     \u001b[90madd an upstream repository\u001b[0m\r\n\u001b[2K\r  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n\u001b[2K\r  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n\u001b[2K\r  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n\u001b[2K\r  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n\u001b[2K\r  import           \u001b[90mimport profile config JSON\u001b[0m\r\n\u001b[2K\r  diff             \u001b[90mcompare two profiles\u001b[0m\r\n\u001b[2K\r  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[15A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[2K\r  show             \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n\u001b[2K\r  inspect          \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n\u001b[2K\r  refresh          \u001b[90mrefresh imported skill sources\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36madd-skill      \u001b[0m  \u001b[90madd a skill import to profile\u001b[0m\r\n\u001b[2K\r  remove-skill     \u001b[90mremove a skill import from profile\u001b[0m\r\n\u001b[2K\r  new-skill        \u001b[90mscaffold a local skill directory\u001b[0m\r\n\u001b[2K\r  add-upstream     \u001b[90madd an upstream repository\u001b[0m\r\n\u001b[2K\r  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n\u001b[2K\r  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n\u001b[2K\r  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n\u001b[2K\r  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n\u001b[2K\r  import           \u001b[90mimport profile config JSON\u001b[0m\r\n\u001b[2K\r  diff             \u001b[90mcompare two profiles\u001b[0m\r\n\u001b[2K\r  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[15A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[2K\r  show             \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n\u001b[2K\r  inspect          \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n\u001b[2K\r  refresh          \u001b[90mrefresh imported skill sources\u001b[0m\r\n\u001b[2K\r  add-skill        \u001b[90madd a skill import to profile\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mremove-skill   \u001b[0m  \u001b[90mremove a skill import from profile\u001b[0m\r\n\u001b[2K\r  new-skill        \u001b[90mscaffold a local skill directory\u001b[0m\r\n\u001b[2K\r  add-upstream     \u001b[90madd an upstream repository\u001b[0m\r\n\u001b[2K\r  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n\u001b[2K\r  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n\u001b[2K\r  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n\u001b[2K\r  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n\u001b[2K\r  import           \u001b[90mimport profile config JSON\u001b[0m\r\n\u001b[2K\r  diff             \u001b[90mcompare two profiles\u001b[0m\r\n\u001b[2K\r  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[15A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[2K\r  show             \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n\u001b[2K\r  inspect          \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n\u001b[2K\r  refresh          \u001b[90mrefresh imported skill sources\u001b[0m\r\n\u001b[2K\r  add-skill        \u001b[90madd a skill import to profile\u001b[0m\r\n\u001b[2K\r  remove-skill     \u001b[90mremove a skill import from profile\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mnew-skill      \u001b[0m  \u001b[90mscaffold a local skill directory\u001b[0m\r\n\u001b[2K\r  add-upstream     \u001b[90madd an upstream repository\u001b[0m\r\n\u001b[2K\r  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n\u001b[2K\r  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n\u001b[2K\r  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n\u001b[2K\r  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n\u001b[2K\r  import           \u001b[90mimport profile config JSON\u001b[0m\r\n\u001b[2K\r  diff             \u001b[90mcompare two profiles\u001b[0m\r\n\u001b[2K\r  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[15A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[2K\r  show             \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n\u001b[2K\r  inspect          \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n\u001b[2K\r  refresh          \u001b[90mrefresh imported skill sources\u001b[0m\r\n\u001b[2K\r  add-skill        \u001b[90madd a skill import to profile\u001b[0m\r\n\u001b[2K\r  remove-skill     \u001b[90mremove a skill import from profile\u001b[0m\r\n\u001b[2K\r  new-skill        \u001b[90mscaffold a local skill directory\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36madd-upstream   \u001b[0m  \u001b[90madd an upstream repository\u001b[0m\r\n\u001b[2K\r  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n\u001b[2K\r  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n\u001b[2K\r  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n\u001b[2K\r  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n\u001b[2K\r  import           \u001b[90mimport profile config JSON\u001b[0m\r\n\u001b[2K\r  diff             \u001b[90mcompare two profiles\u001b[0m\r\n\u001b[2K\r  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  280,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mSource locator\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\u001b[90m|\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "m"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "a"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "a"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "b"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "/"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "k"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "i"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  360,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Added upstream \u0027matlab_skills\u0027.\r\n"
-                    },
-                    {
-                        "delay":  440,
-                        "content":  "\u001b[1;36mskills-sync(personal)\u001b[0m\u001b[90m \u003e\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "i"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mList options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mprofiles        \u001b[0m  \u001b[90mshow available profiles\u001b[0m\r\n  skills            \u001b[90mshow effective profile skills\u001b[0m\r\n  mcps              \u001b[90mshow effective profile MCP servers\u001b[0m\r\n  upstreams         \u001b[90mshow configured upstream repos\u001b[0m\r\n  agents            \u001b[90mshow locally detected agents\u001b[0m\r\n  everything        \u001b[90mfull profile inventory\u001b[0m\r\n  upstream-content  \u001b[90mskills and MCP manifests in upstream refs\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[8A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mList options\u001b[0m\r\n\u001b[2K\r  profiles          \u001b[90mshow available profiles\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mskills          \u001b[0m  \u001b[90mshow effective profile skills\u001b[0m\r\n\u001b[2K\r  mcps              \u001b[90mshow effective profile MCP servers\u001b[0m\r\n\u001b[2K\r  upstreams         \u001b[90mshow configured upstream repos\u001b[0m\r\n\u001b[2K\r  agents            \u001b[90mshow locally detected agents\u001b[0m\r\n\u001b[2K\r  everything        \u001b[90mfull profile inventory\u001b[0m\r\n\u001b[2K\r  upstream-content  \u001b[90mskills and MCP manifests in upstream refs\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[8A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mList options\u001b[0m\r\n\u001b[2K\r  profiles          \u001b[90mshow available profiles\u001b[0m\r\n\u001b[2K\r  skills            \u001b[90mshow effective profile skills\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mmcps            \u001b[0m  \u001b[90mshow effective profile MCP servers\u001b[0m\r\n\u001b[2K\r  upstreams         \u001b[90mshow configured upstream repos\u001b[0m\r\n\u001b[2K\r  agents            \u001b[90mshow locally detected agents\u001b[0m\r\n\u001b[2K\r  everything        \u001b[90mfull profile inventory\u001b[0m\r\n\u001b[2K\r  upstream-content  \u001b[90mskills and MCP manifests in upstream refs\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[8A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mList options\u001b[0m\r\n\u001b[2K\r  profiles          \u001b[90mshow available profiles\u001b[0m\r\n\u001b[2K\r  skills            \u001b[90mshow effective profile skills\u001b[0m\r\n\u001b[2K\r  mcps              \u001b[90mshow effective profile MCP servers\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mupstreams       \u001b[0m  \u001b[90mshow configured upstream repos\u001b[0m\r\n\u001b[2K\r  agents            \u001b[90mshow locally detected agents\u001b[0m\r\n\u001b[2K\r  everything        \u001b[90mfull profile inventory\u001b[0m\r\n\u001b[2K\r  upstream-content  \u001b[90mskills and MCP manifests in upstream refs\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[8A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mList options\u001b[0m\r\n\u001b[2K\r  profiles          \u001b[90mshow available profiles\u001b[0m\r\n\u001b[2K\r  skills            \u001b[90mshow effective profile skills\u001b[0m\r\n\u001b[2K\r  mcps              \u001b[90mshow effective profile MCP servers\u001b[0m\r\n\u001b[2K\r  upstreams         \u001b[90mshow configured upstream repos\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36magents          \u001b[0m  \u001b[90mshow locally detected agents\u001b[0m\r\n\u001b[2K\r  everything        \u001b[90mfull profile inventory\u001b[0m\r\n\u001b[2K\r  upstream-content  \u001b[90mskills and MCP manifests in upstream refs\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[8A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mList options\u001b[0m\r\n\u001b[2K\r  profiles          \u001b[90mshow available profiles\u001b[0m\r\n\u001b[2K\r  skills            \u001b[90mshow effective profile skills\u001b[0m\r\n\u001b[2K\r  mcps              \u001b[90mshow effective profile MCP servers\u001b[0m\r\n\u001b[2K\r  upstreams         \u001b[90mshow configured upstream repos\u001b[0m\r\n\u001b[2K\r  agents            \u001b[90mshow locally detected agents\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36meverything      \u001b[0m  \u001b[90mfull profile inventory\u001b[0m\r\n\u001b[2K\r  upstream-content  \u001b[90mskills and MCP manifests in upstream refs\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[8A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mList options\u001b[0m\r\n\u001b[2K\r  profiles          \u001b[90mshow available profiles\u001b[0m\r\n\u001b[2K\r  skills            \u001b[90mshow effective profile skills\u001b[0m\r\n\u001b[2K\r  mcps              \u001b[90mshow effective profile MCP servers\u001b[0m\r\n\u001b[2K\r  upstreams         \u001b[90mshow configured upstream repos\u001b[0m\r\n\u001b[2K\r  agents            \u001b[90mshow locally detected agents\u001b[0m\r\n\u001b[2K\r  everything        \u001b[90mfull profile inventory\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mupstream-content\u001b[0m  \u001b[90mskills and MCP manifests in upstream refs\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mUpstream id\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mmatlab_skills \u001b[0m  \u001b[90mMATLAB demo upstream\u001b[0m\r\n  openai_curated  \u001b[90mcurated OpenAI demo upstream\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  360,
-                        "content":  "matlab_skills [git] (c34e10671f78)\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "Skills (2)\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "  skills/matlab-plot-debugger\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "  skills/matlab-test-generator\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "MCP Servers (0)\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "  (none found in source manifests)\r\n"
-                    },
-                    {
-                        "delay":  440,
-                        "content":  "\u001b[1;36mskills-sync(personal)\u001b[0m\u001b[90m \u003e\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "p"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "r"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "o"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "f"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "i"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mshow           \u001b[0m  \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n  inspect          \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n  refresh          \u001b[90mrefresh imported skill sources\u001b[0m\r\n  add-skill        \u001b[90madd a skill import to profile\u001b[0m\r\n  remove-skill     \u001b[90mremove a skill import from profile\u001b[0m\r\n  new-skill        \u001b[90mscaffold a local skill directory\u001b[0m\r\n  add-upstream     \u001b[90madd an upstream repository\u001b[0m\r\n  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n  import           \u001b[90mimport profile config JSON\u001b[0m\r\n  diff             \u001b[90mcompare two profiles\u001b[0m\r\n  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[15A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[2K\r  show             \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36minspect        \u001b[0m  \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n\u001b[2K\r  refresh          \u001b[90mrefresh imported skill sources\u001b[0m\r\n\u001b[2K\r  add-skill        \u001b[90madd a skill import to profile\u001b[0m\r\n\u001b[2K\r  remove-skill     \u001b[90mremove a skill import from profile\u001b[0m\r\n\u001b[2K\r  new-skill        \u001b[90mscaffold a local skill directory\u001b[0m\r\n\u001b[2K\r  add-upstream     \u001b[90madd an upstream repository\u001b[0m\r\n\u001b[2K\r  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n\u001b[2K\r  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n\u001b[2K\r  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n\u001b[2K\r  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n\u001b[2K\r  import           \u001b[90mimport profile config JSON\u001b[0m\r\n\u001b[2K\r  diff             \u001b[90mcompare two profiles\u001b[0m\r\n\u001b[2K\r  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[15A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[2K\r  show             \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n\u001b[2K\r  inspect          \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mrefresh        \u001b[0m  \u001b[90mrefresh imported skill sources\u001b[0m\r\n\u001b[2K\r  add-skill        \u001b[90madd a skill import to profile\u001b[0m\r\n\u001b[2K\r  remove-skill     \u001b[90mremove a skill import from profile\u001b[0m\r\n\u001b[2K\r  new-skill        \u001b[90mscaffold a local skill directory\u001b[0m\r\n\u001b[2K\r  add-upstream     \u001b[90madd an upstream repository\u001b[0m\r\n\u001b[2K\r  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n\u001b[2K\r  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n\u001b[2K\r  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n\u001b[2K\r  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n\u001b[2K\r  import           \u001b[90mimport profile config JSON\u001b[0m\r\n\u001b[2K\r  diff             \u001b[90mcompare two profiles\u001b[0m\r\n\u001b[2K\r  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[15A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mProfile options\u001b[0m\r\n\u001b[2K\r  show             \u001b[90mshow active profile skills + MCP servers\u001b[0m\r\n\u001b[2K\r  inspect          \u001b[90mcheck imports, freshness, and capability warnings\u001b[0m\r\n\u001b[2K\r  refresh          \u001b[90mrefresh imported skill sources\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36madd-skill      \u001b[0m  \u001b[90madd a skill import to profile\u001b[0m\r\n\u001b[2K\r  remove-skill     \u001b[90mremove a skill import from profile\u001b[0m\r\n\u001b[2K\r  new-skill        \u001b[90mscaffold a local skill directory\u001b[0m\r\n\u001b[2K\r  add-upstream     \u001b[90madd an upstream repository\u001b[0m\r\n\u001b[2K\r  remove-upstream  \u001b[90mremove an upstream repository\u001b[0m\r\n\u001b[2K\r  add-mcp          \u001b[90madd or update an MCP server\u001b[0m\r\n\u001b[2K\r  remove-mcp       \u001b[90mremove an MCP server\u001b[0m\r\n\u001b[2K\r  export           \u001b[90mexport profile config to JSON\u001b[0m\r\n\u001b[2K\r  import           \u001b[90mimport profile config JSON\u001b[0m\r\n\u001b[2K\r  diff             \u001b[90mcompare two profiles\u001b[0m\r\n\u001b[2K\r  clone            \u001b[90mclone a profile pack\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mImport source\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mexisting upstream\u001b[0m  \u001b[90muse a registered upstream id\u001b[0m\r\n  source locator     \u001b[90mimport directly from a repo or path\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mUpstream\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mmatlab_skills \u001b[0m  \u001b[90mMATLAB demo upstream\u001b[0m\r\n  openai_curated  \u001b[90mcurated OpenAI demo upstream\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mSelection mode\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mall discoverable skills\u001b[0m  \u001b[90mattach every matching skill\u001b[0m\r\n  pick explicit paths      \u001b[90mchoose skill paths manually\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[3A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mSelection mode\u001b[0m\r\n\u001b[2K\r  all discoverable skills  \u001b[90mattach every matching skill\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mpick explicit paths    \u001b[0m  \u001b[90mchoose skill paths manually\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  280,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mSkill path\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\u001b[90m|\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "k"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "i"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "/"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "m"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "a"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "a"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "b"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "-"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "-"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "g"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "n"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "r"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "a"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "o"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "r"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mAfter import\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36msync now \u001b[0m  \u001b[90mupdate runtime artifacts and agent targets\u001b[0m\r\n  skip sync  \u001b[90mleave changes in workspace only\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  360,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Added 1 skill import entry to profile \u0027personal\u0027 from \u0027matlab_skills\u0027.\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Prepared runtime artifacts for profile \u0027personal\u0027.\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Lock mode: write | Resolved upstream refs: 1\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Synced profile \u0027personal\u0027.\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "\u001b[1;36m[skills-sync]\u001b[0m Target OS: windows\r\n"
-                    },
-                    {
-                        "delay":  440,
-                        "content":  "\u001b[1;36mskills-sync(personal)\u001b[0m\u001b[90m \u003e\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "x"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "i"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  240,
-                        "content":  "\u001b[1;32mLeaving shell mode.\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  1500,
-                        "content":  "\u001b[0m"
-                    }
-                ]
+  "config": {
+    "command": null,
+    "cwd": null,
+    "env": {
+      "recording": true
+    },
+    "cols": 88,
+    "rows": 22,
+    "repeat": 0,
+    "quality": 100,
+    "frameDelay": "auto",
+    "maxIdleTime": 700,
+    "frameBox": {
+      "type": "floating",
+      "title": "skills-sync",
+      "style": {
+        "border": "0px black solid"
+      }
+    },
+    "watermark": {
+      "imagePath": null,
+      "style": {
+        "position": "absolute",
+        "right": "15px",
+        "bottom": "15px",
+        "width": "100px",
+        "opacity": 0.9
+      }
+    },
+    "cursorStyle": "bar",
+    "fontFamily": "Cascadia Code, Consolas, Monaco, monospace",
+    "fontSize": 14,
+    "lineHeight": 1.2,
+    "letterSpacing": 0,
+    "theme": {
+      "background": "#0f1521",
+      "foreground": "#d7deea",
+      "cursor": "#8bb6ff",
+      "black": "#0f1521",
+      "red": "#ef7c8e",
+      "green": "#7fca7d",
+      "yellow": "#e5b868",
+      "blue": "#6ea6ff",
+      "magenta": "#c792ea",
+      "cyan": "#7fdbca",
+      "white": "#d7deea",
+      "brightBlack": "#7f8aa0",
+      "brightRed": "#f29aa8",
+      "brightGreen": "#9cd999",
+      "brightYellow": "#ebc988",
+      "brightBlue": "#8bb6ff",
+      "brightMagenta": "#d9b8f7",
+      "brightCyan": "#a6e9df",
+      "brightWhite": "#f0f5fb"
+    }
+  },
+  "records": [
+    {
+      "delay": 257,
+      "content": "\u001b[?9001h\u001b[?1004h"
+    },
+    {
+      "delay": 880,
+      "content": "\u001b[?25l\u001b[2J\u001b[m\u001b[H\u001b]0;C:\\Program Files\\nodejs\\node.exe\u0007\u001b[?25h\u001b[?1049h\u001b[2J\u001b[38;5;253m\u001b[48;5;233m \u001b[38;5;75m\u001b[1mskills-sync\u001b[38;5;253m\u001b[22m \u001b[38;5;237m| \u001b[38;5;103mprofile personal \u001b[38;5;237m| \u001b[38;5;114mready \u001b[38;5;237m| \u001b[38;5;253m\u001b[1mActive: Explorer\u001b[22m                              \u001b[38;5;111m\u001b[49m┌─ \u001b[mExplorer (active) \u001b[38;5;111m──────────┐\u001b[K\r\n│\u001b[38;5;233m\u001b[48;5;75m\u001b[1mv Setup                      \u001b[38;5;253m\u001b[48;5;234m\u001b[22m \u001b[38;5;111m\u001b[49m│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m  > Init\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m  > Sync\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m  > Health\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m> Profiles\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m> Skills\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m> MCPs\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[24C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m> Upstreams\u001b[19X\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m> Agents\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n└──────────────────────────────┘\u001b[K\u001b[38;5;253m\u001b[48;5;233m\r\n \u001b[38;5;75m\u001b[1mEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexpand / run \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m:\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcommand \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103mfilter \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mtranscript \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexit                  \u001b]0;skills-sync\u0007\u001b[?25l\u001b[22;107H\u001b[m"
+    },
+    {
+      "delay": 605,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2Hv Setup\u001b[22X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[4;2H  > Init                     "
+    },
+    {
+      "delay": 93,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[4;2H  > Init\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[5;2H  > Sync                     "
+    },
+    {
+      "delay": 103,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[5;2H  > Sync\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[6;2H  > Health                   "
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 73,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[6;2H  > Health\u001b[19X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[7;2H> Profiles                   "
+    },
+    {
+      "delay": 91,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[7;2H> Profiles\u001b[19X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[8;2H> Skills                     "
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 74,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[8;2H> Skills\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[9;2H> MCPs                       "
+    },
+    {
+      "delay": 12,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 90,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[9;2H> MCPs\u001b[23X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[10;2H> Upstreams                  \u001b[m"
+    },
+    {
+      "delay": 79,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[10;2Hv\u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[11;2H \u001b[1C> List\u001b[12;4H>\u001b[1CManage\u001b[13;2H>\u001b[1CAgents\u001b[m"
+    },
+    {
+      "delay": 130,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[10;2Hv Upstreams\u001b[18X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H  > List                     "
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 74,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[11;2H  > List\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H  > Manage                   \u001b[m"
+    },
+    {
+      "delay": 91,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;4Hv\u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[13;2H \u001b[1C    upstream\u001b[1Cadd\u001b[1C--source\u001b[14;8Hupstream\u001b[1Cremove\u001b[1C<id>\u001b[15;8Hprofile\u001b[1Cadd-upstream\u001b[16;8Hprofile\u001b[1Cremove-upstream\u001b[17;2H>\u001b[1CAgents"
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 121,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[12;2H  v Manage\u001b[19X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[13;2H      upstream add --source  \u001b[m"
+    },
+    {
+      "delay": 82,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[13;2H      upstream add --source  \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[14;2H      upstream remove <id>   "
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 87,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[14;2H      upstream remove <id>   \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[15;2H      profile add-upstream   \u001b[m"
+    },
+    {
+      "delay": 84,
+      "content": "\u001b[?12l\u001b[38;5;237m\u001b[48;5;233m\u001b[1;60H|\u001b[38;5;75m\u001b[1Cprofile add-upstream      \u001b[38;5;253m\u001b[48;5;237m\u001b[14;31H \u001b[38;5;111m\u001b[49m\u001b[16;1H└──────────────────────────────┘\r\n┌── \u001b[mGuided 1/4 \u001b[38;5;111m────────────────────────────────────────────────────────────────────────┐\u001b[38;5;253m\u001b[48;5;233m\u001b[18;2H \u001b[49m\u001b[1mSource locator\u001b[m \u001b[38;5;103m(1/4)\u001b[10X\u001b[38;5;253m\u001b[48;5;233m\u001b[64C \u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;233m\u001b[19;2H \u001b[38;5;103m\u001b[49mGitHub shorthand, git URL, or local path.\u001b[38;5;253m\u001b[48;5;233m\u001b[43C \u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;233m\u001b[20;2H \u001b[38;5;75m\u001b[49m\u001b[1m> \u001b[38;5;253m\u001b[48;5;233m\u001b[22m                                                                                   \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[21;32H────────────────────────────────────────────────────────┘\u001b[38;5;103m\u001b[48;5;233m\u001b[22;8Hnext \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mCtrl+Q\u001b[38;5;103m\u001b[22m\u001b[1Cexit      \u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C\u001b[10X\u001b[11C \u001b[1C   \u001b[1C    \u001b[20;5H\u001b[?25h"
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 197,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mm\u001b[m"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ma"
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mt"
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 24,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ml"
+    },
+    {
+      "delay": 32,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233ma\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mb"
+    },
+    {
+      "delay": 14,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233m/"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[m\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ms"
+    },
+    {
+      "delay": 34,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233mk"
+    },
+    {
+      "delay": 31,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233mi"
+    },
+    {
+      "delay": 14,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 29,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ml"
+    },
+    {
+      "delay": 41,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233ml"
+    },
+    {
+      "delay": 32,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233ms"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 151,
+      "content": "\u001b[?12l\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[1;60H \u001b[1C\u001b[26X\u001b[m\u001b[17;12H2\u001b[38;5;253m\u001b[1m\u001b[18;3HUpstr\u001b[1Cam id (optional)\u001b[38;5;103m\u001b[22m\u001b[1C(2/4)\u001b[19;3HLeave blank to auto-infer the\u001b[1Cupstream id.\u001b[38;5;253m\u001b[48;5;233m\u001b[20;5H\u001b[13X\u001b[?25h"
+    },
+    {
+      "delay": 208,
+      "content": "\u001b[?12l\u001b[?12l\u001b[?25l\u001b[m\u001b[17;12H3\u001b[38;5;253m\u001b[1m\u001b[18;3HAdvanced\u001b[1Cflags (optional)\u001b[m \u001b[38;5;103m(3/4)\u001b[19;3HEx\u001b[1Cmples: --provider local-path --\u001b[1Coot\u001b[1Cskills --default-ref main\u001b[20;5H\u001b[?25h"
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 210,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H>\u001b[1CProfiles\u001b[4;2H>\u001b[1CSkills\u001b[5;2H>\u001b[1CMCPs  \u001b[6;2Hv\u001b[1CUpstreams\u001b[7;2H \u001b[1C> List  \u001b[8;2H \u001b[1Cv Manage\u001b[9;2H \u001b[1C    upstream\u001b[1Cadd\u001b[1C--source\u001b[10;2H \u001b[1C    upstream\u001b[1Cremove\u001b[1C<id>\u001b[48;5;237m\u001b[3C \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H      profile add-upstream   \u001b[38;5;111m\u001b[49m\u001b[22m\r\n└──────────────────────────────┘\r\n┌── \u001b[mGuided 4/4 \u001b[38;5;111m────────────────────────────────────────────────────────────────────────┐\u001b[38;5;253m\u001b[48;5;233m\u001b[14;2H \u001b[49m\u001b[1mReview upstream add\u001b[m \u001b[38;5;103m(4/4)     \u001b[38;5;253m\u001b[48;5;233m\u001b[54C \u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;233m\u001b[15;2H \u001b[38;5;103m\u001b[49mConfirm the upstream registration command.\u001b[38;5;253m\u001b[48;5;233m\u001b[42C \u001b[38;5;111m\u001b[49m││\u001b[38;5;253m\u001b[48;5;233m \u001b[38;5;75m\u001b[1mprofile add-upstream --source matlab/skills\u001b[38;5;253m\u001b[22m                                          \u001b[K\u001b[38;5;111m\u001b[49m││\u001b[38;5;253m\u001b[48;5;233m                                                                                      \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;233m\u001b[18;3H\u001b[84X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\nRun command (profile add-upstream --source matlab/skills)                          \u001b[38;5;253m\u001b[48;5;237m\u001b[22m \u001b[48;5;233m\u001b[20;3HBack\u001b[38;5;103m\u001b[1C(return to the previous step)\u001b[38;5;75m\u001b[1m\u001b[22;2HUp/Down\u001b[38;5;253m\u001b[22m \u001b[38;5;103mchoose \u001b[38;5;237m|\u001b[38;5;75m\u001b[1m\u001b[1CEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mconfirm\u001b[38;5;237m\u001b[1C| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;103m\u001b[22m\u001b[1Cback\u001b[m"
+    },
+    {
+      "delay": 213,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2Hv\u001b[1CSetup   \u001b[4;2H \u001b[1C> Init\u001b[5;2H \u001b[1C> Sync\u001b[6;2H \u001b[1C> Health \u001b[7;2H>\u001b[1CProfiles\u001b[8;2H>\u001b[1CSkills  \u001b[9;2H>\u001b[1CMCPs        \u001b[1C   \u001b[1C        \u001b[10;2Hv\u001b[1CUpstreams   \u001b[1C      \u001b[1C    \u001b[3C \u001b[11;2H  > List\u001b[21X\u001b[38;5;111m\u001b[49m\r\n│\u001b[38;5;253m\u001b[48;5;234m  v Manage\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\r\n│\u001b[38;5;253m\u001b[48;5;234m      upstream add --source   \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[14;2H      upstream remove <id>    \u001b[38;5;111m\u001b[49m│\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[15;2H      profile add-upstream   \u001b[38;5;253m\u001b[48;5;234m\u001b[22m \u001b[38;5;111m\u001b[49m│\u001b[12X\u001b[38;5;253m\u001b[48;5;234m\u001b[16;2H      profile remove-upstream \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[17;2H> Agents\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[18;2H\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[19;2H\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[20;2H\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[54X\u001b[21;32H┴\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexpand / run \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m:\u001b[38;5;103m\u001b[22m\u001b[3Cmmand\u001b[38;5;75m\u001b[1m\u001b[3C/\u001b[38;5;253m\u001b[22m \u001b[38;5;103mfilter\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CTab\u001b[38;5;103m\u001b[22m\u001b[1Ctranscript\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CEsc\u001b[38;5;103m\u001b[22m\u001b[1Cexit\u001b[m"
+    },
+    {
+      "delay": 962,
+      "content": "\u001b[38;5;253m\u001b[48;5;233m\u001b[1m\u001b[1;51HTranscript\u001b[22m\u001b[1C \u001b[1C\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[2;3H─ \u001b[mTransc\u001b[1Cipt (active) \u001b[38;5;111m\u001b[7C────────────────────────────────────────────────────────┐\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[38;5;103m[shell] Explorer-first shell ready.                                                  \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;103m\u001b[48;5;234m\u001b[4;3H[shell] Profile context: personal                                                    \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;103m\u001b[48;5;234m\u001b[5;3H  \u001b[38;5;253m\u001b[1C    \u001b[22C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;75m\u001b[48;5;234m\u001b[1m\u001b[6;3H$ profile add-upstream --source matlab/skills\u001b[38;5;253m\u001b[22m                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[7;2H \u001b[38;5;75m\u001b[1m[skills-sync] Added upstream 'matlab_skills'.\u001b[38;5;253m\u001b[22m                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[8;2H \u001b[1C      \u001b[22C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[9;2H \u001b[1C    \u001b[24C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[10;2H \u001b[1C\u001b[9X\u001b[28C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[11;4H \u001b[1C    \u001b[22C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[12;4H \u001b[1C      \u001b[20C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[13;8H        \u001b[1C   \u001b[1C        \u001b[3C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[14;8H        \u001b[1C      \u001b[1C    \u001b[4C\u001b[56X\u001b[15;2H\u001b[29X\u001b[30C\u001b[56X\u001b[16;8H       \u001b[1C\u001b[15X\u001b[16C\u001b[56X\u001b[17;2H \u001b[1C      \u001b[22C\u001b[56X\n\u001b[56X\n\u001b[56X\n\u001b[56X\u001b[38;5;111m\u001b[49m\n─\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexplorer \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mSpace\u001b[38;5;103m\u001b[22m\u001b[1Cselect \u001b[38;5;237m| \u001b[38;5;75m\u001b[1my\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcopy \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103msearch\u001b[38;5;237m\u001b[1C| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback\u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C    "
+    },
+    {
+      "delay": 14,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 1811,
+      "content": "\u001b[38;5;253m\u001b[48;5;233m\u001b[1m\u001b[1;51HExplorer\u001b[22m  \u001b[m\u001b[2;3H Explore\u001b[1C (active) \u001b[38;5;111m───\u001b[7C┬\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2Hv Setup\u001b[23X\u001b[38;5;111m\u001b[49m\u001b[23C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[4;3H > Init\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[5;3H >\u001b[1CSync\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[6;3H > Health\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[7;2H> Profiles\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[8;2H>\u001b[1CSkills\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[9;2H>\u001b[1CMCPs\u001b[38;5;111m\u001b[49m\u001b[24C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[10;2Hv\u001b[1CUpstreams\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[11;4H>\u001b[1CList\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[12;4Hv\u001b[1CManage\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[13;8Hupstream\u001b[1Cadd\u001b[1C--source\u001b[38;5;111m\u001b[49m\u001b[3C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[14;8Hupstream\u001b[1Cremove\u001b[1C<id>\u001b[38;5;111m\u001b[49m\u001b[4C│\u001b[54X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[15;2H      profile add-upstream   \u001b[38;5;111m\u001b[49m\u001b[22m\u001b[1C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[16;8Hprofile\u001b[1Cremove-upstream\u001b[38;5;111m\u001b[49m\u001b[1C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[17;2H>\u001b[1CAgents\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[18;32H│\u001b[54X\u001b[19;32H│\u001b[54X\u001b[20;32H│\u001b[54X\u001b[21;32H┴\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexpand / run \u001b[38;5;237m|\u001b[38;5;75m\u001b[1m\u001b[1C:\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcommand \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103mfilter \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;103m\u001b[22m\u001b[1Ctranscript\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CEsc\u001b[38;5;103m\u001b[22m\u001b[1Cexit"
+    },
+    {
+      "delay": 15,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 103,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[14;2H      upstream remove <id>   \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[15;2H      profile add-upstream   \u001b[m"
+    },
+    {
+      "delay": 80,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[13;2H      upstream add --source  \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[14;2H      upstream remove <id>   \u001b[m"
+    },
+    {
+      "delay": 95,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H  v Manage                   \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[13;2H      upstream add --source  "
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 71,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H  > List                     \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[12;2H  v Manage\u001b[19X\u001b[19C"
+    },
+    {
+      "delay": 93,
+      "content": "\u001b[m\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[10;2Hv Upstreams                  \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[11;2H  > List\u001b[21X\u001b[21C"
+    },
+    {
+      "delay": 99,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[10;2Hv Upstreams\u001b[18X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H  > List                     \u001b[m"
+    },
+    {
+      "delay": 88,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;4Hv\u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[12;4H \u001b[1C  list\u001b[1Cupstreams\u001b[13;8Hli\u001b[2C upstream\u001b[1Ccontent\u001b[14;4Hv\u001b[1CManage    \u001b[1C      \u001b[1C    \u001b[15;8Hupstream a\u001b[1Cd --source\u001b[16;8Hupstream remove <id>   \u001b[17;2H \u001b[1C    profile\u001b[1Cadd-upstream\u001b[18;8Hprofile\u001b[1Cremove-upstream\u001b[19;2H>\u001b[1CAgents"
+    },
+    {
+      "delay": 151,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[11;2H  v List\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H      list upstreams         "
+    },
+    {
+      "delay": 98,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[12;2H      list upstreams\u001b[9X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[13;2H      list upstream-content  "
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 113,
+      "content": "\u001b[38;5;237m\u001b[48;5;233m\u001b[1;60H|\u001b[38;5;75m\u001b[1Clist upstream-content     \u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[1C> Init\u001b[4;6HSync\u001b[5;6HHealth\u001b[6;2H>\u001b[1CProfi\u001b[1Ces\u001b[7;4HSkills  \u001b[8;4HMCPs  \u001b[9;2Hv\u001b[1CUpstreams\u001b[48;5;237m\u001b[18C \u001b[48;5;234m\u001b[10;2H \u001b[1Cv List   \u001b[11;4H \u001b[1C  list\u001b[1Cupstreams\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H      list upstream-content  \u001b[38;5;111m\u001b[49m\u001b[22m\r\n└──────────────────────────────┘\r\n┌── \u001b[mGuided 1/4 \u001b[38;5;111m────────────────────────────────────────────────────────────────────────┤\u001b[38;5;253m\u001b[48;5;233m\u001b[15;2H \u001b[49m\u001b[1mUpstream id\u001b[m \u001b[38;5;103m(1/4)\u001b[13X\u001b[38;5;253m\u001b[48;5;233m\u001b[67C \u001b[16;2H \u001b[38;5;103m\u001b[49mChoose the upstream to inspect.\u001b[38;5;253m\u001b[48;5;233m\u001b[53C \u001b[17;2H \u001b[38;5;233m\u001b[48;5;75m\u001b[1mmatlab_skills (https://github.com/matlab/skills.git)                               \u001b[38;5;253m\u001b[48;5;233m\u001b[22m  \u001b[18;2H\u001b[86X\n\u001b[86X\n\u001b[86X\u001b[38;5;111m\u001b[49m\u001b[21;32H─\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HUp/Down\u001b[38;5;253m\u001b[22m \u001b[38;5;103mchoose \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEnter\u001b[38;5;103m\u001b[22m\u001b[1Cnext \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback   \u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C\u001b[10X\u001b[11C \u001b[1C   \u001b[1C    \u001b[m"
+    },
+    {
+      "delay": 206,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233m\u001b[1;60H \u001b[1C\u001b[26X\u001b[48;5;234m\u001b[3;2Hv\u001b[1CSetup \u001b[4;6HInit\u001b[5;6HSync  \u001b[6;2H \u001b[1C> Hea\u001b[1Cth\u001b[7;4HProfiles\u001b[8;4HSkills\u001b[9;2H>\u001b[1CMCPs     \u001b[18C \u001b[10;2Hv\u001b[1CUpstreams\u001b[11;4Hv\u001b[1CList  \u001b[1C\u001b[9X\u001b[48;5;237m\u001b[18C \u001b[48;5;234m\u001b[12;2H      list upstreams\u001b[9X\u001b[38;5;111m\u001b[49m\r\n│\u001b[38;5;233m\u001b[48;5;75m\u001b[1m      list upstream-content  \u001b[38;5;253m\u001b[48;5;234m\u001b[22m \u001b[38;5;111m\u001b[49m│\r\n│\u001b[38;5;253m\u001b[48;5;234m  v Manage\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[15;2H      upstream add --source   \u001b[38;5;111m\u001b[49m│\r\n└──────────────────────────────┘\r\n┌── \u001b[mGuided 2/4 \u001b[38;5;111m────────────────────────────────────────────────────────────────────────┤\u001b[38;5;253m\u001b[1m\u001b[18;3HRef (optional)\u001b[m \u001b[38;5;103m(2/4)\u001b[64X\u001b[19;3HLeave blank to use the upstream default ref.\u001b[40X\u001b[38;5;75m\u001b[1m\u001b[20;3H> \u001b[48;5;233m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mnext \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;103m\u001b[22m\u001b[1Cback \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mCtrl+Q\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexit   \u001b[20;5H\u001b[?25h\u001b[m"
+    },
+    {
+      "delay": 198,
+      "content": "\u001b[?12l\u001b[?12l\u001b[?25l\u001b[17;12H3\u001b[38;5;253m\u001b[1m\u001b[18;3HAdvanced fl\u001b[1Cgs (optional)\u001b[38;5;103m\u001b[22m\u001b[1C(3/4)\u001b[19;3HEx\u001b[1Cmples: --verbose --format json\u001b[11X\u001b[20;5H\u001b[?25h"
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 189,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233m-"
+    },
+    {
+      "delay": 38,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233m-"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[m\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mv"
+    },
+    {
+      "delay": 34,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233me"
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 23,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mr\u001b[m"
+    },
+    {
+      "delay": 28,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mb"
+    },
+    {
+      "delay": 42,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233mo\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ms"
+    },
+    {
+      "delay": 15,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 30,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me\u001b[m"
+    },
+    {
+      "delay": 157,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[1C> Sync\u001b[4;6HHealth\u001b[5;2H>\u001b[1CProfiles\u001b[6;2H>\u001b[1CSkills  \u001b[7;4HMCPs    \u001b[8;2Hv\u001b[1CUpstreams\u001b[48;5;237m\u001b[18C \u001b[48;5;234m\u001b[9;2H \u001b[1Cv List\u001b[10;2H \u001b[1C    list upstreams\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H      list upstream-content  \u001b[38;5;253m\u001b[48;5;234m\u001b[22m \u001b[38;5;111m\u001b[49m\r\n└──────────────────────────────┘\r\n┌── \u001b[mGuided 4/4 \u001b[38;5;111m────────────────────────────────────────────────────────────────────────┤\u001b[38;5;253m\u001b[48;5;233m\u001b[14;2H \u001b[49m\u001b[1mReview upstream content\u001b[m \u001b[38;5;103m(4/4) \u001b[38;5;253m\u001b[48;5;233m\u001b[54C \u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;233m\u001b[15;2H \u001b[38;5;103m\u001b[49mConfirm the upstream content listing command.\u001b[38;5;111m\r\n│\u001b[38;5;253m\u001b[48;5;233m \u001b[38;5;75m\u001b[1mlist upstream-content --upstream matlab_skills --verbose\u001b[38;5;253m\u001b[22m\u001b[28X\u001b[38;5;111m\u001b[49m\r\n│\u001b[38;5;253m\u001b[48;5;233m                                                                                      \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;233m\u001b[18;3H\u001b[84X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\nRun command (list upstream-content --upstream matlab_skills --verbose)             \u001b[38;5;253m\u001b[48;5;237m\u001b[22m \u001b[48;5;233m\u001b[20;3HBack \u001b[38;5;103m(return to the previous step)\u001b[38;5;75m\u001b[1m\u001b[22;2HUp/Down\u001b[38;5;253m\u001b[22m \u001b[38;5;103mchoose \u001b[38;5;237m|\u001b[38;5;75m\u001b[1m\u001b[1CEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mconfirm\u001b[38;5;237m\u001b[1C| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;103m\u001b[22m\u001b[1Cback\u001b[m"
+    },
+    {
+      "delay": 226,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2Hv\u001b[1CSetup \u001b[4;6HInit  \u001b[5;2H \u001b[1C> Sync  \u001b[6;2H \u001b[1C> Health\u001b[7;4HProfiles\u001b[8;2H>\u001b[1CSkills   \u001b[18C \u001b[9;2H>\u001b[1CMCPs  \u001b[10;2Hv\u001b[1CUpstreams\u001b[9X\u001b[11;2H  v List\u001b[21X\u001b[38;5;111m\u001b[49m\r\n│\u001b[38;5;253m\u001b[48;5;234m      list upstreams\u001b[10X\u001b[38;5;111m\u001b[49m\u001b[10C│\r\n│\u001b[38;5;233m\u001b[48;5;75m\u001b[1m      list upstream-content  \u001b[38;5;253m\u001b[48;5;234m\u001b[22m \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[14;2H  v Manage\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[38;5;253m\u001b[48;5;234m\u001b[15;2H      upstream add --source   \u001b[38;5;111m\u001b[49m│\u001b[15X\u001b[38;5;253m\u001b[48;5;234m\u001b[16;2H      upstream remove <id>    \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[17;2H      profile add-upstream    \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[18;2H      profile remove-upstream \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[19;2H> Agents\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[20;2H\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[54X\u001b[21;32H┴\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexpand / run \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m:\u001b[38;5;103m\u001b[22m\u001b[3Cmmand\u001b[38;5;75m\u001b[1m\u001b[3C/\u001b[38;5;253m\u001b[22m \u001b[38;5;103mfilter\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CTab\u001b[38;5;103m\u001b[22m\u001b[1Ctranscript\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CEsc\u001b[38;5;103m\u001b[22m\u001b[1Cexit"
+    },
+    {
+      "delay": 14,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 1744,
+      "content": "\u001b[38;5;253m\u001b[48;5;233m\u001b[1m\u001b[1;51HTranscript\u001b[22m\u001b[1C \u001b[1C\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[2;3H─ \u001b[mTransc\u001b[1Cipt (active) \u001b[38;5;111m\u001b[7C─\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[38;5;75m\u001b[1m$ profile add-upstream --source matlab/skills\u001b[38;5;253m\u001b[22m\u001b[39X\u001b[4;3H[skills-sync]\u001b[1CAdded\u001b[1Cupstream\u001b[1C'matlab_skills'.\u001b[39X\u001b[38;5;103m\u001b[5;3H  \u001b[38;5;253m\u001b[1C    \u001b[22C\u001b[55X\u001b[38;5;75m\u001b[1m\u001b[6;3H$ list upstream-content --upstream matlab_skills --verbose\u001b[38;5;253m\u001b[22m\u001b[26X\u001b[7;2H \u001b[38;5;75m\u001b[1mUpstream\u001b[38;5;253m\u001b[22m \u001b[20C\u001b[55X\u001b[8;2H \u001b[1C Id   \u001b[5Cmatlab_skills\u001b[4C\u001b[55X\u001b[9;2H \u001b[1C Provider\u001b[2Cgit\u001b[14C\u001b[55X\u001b[10;2H \u001b[1C Ref     \u001b[2Cmain\u001b[13C\u001b[55X\u001b[11;4H Revision\u001b[2Cb92b2918f737\u001b[5C\u001b[55X\u001b[12;5HSource \u001b[1C  h\u001b[1Ctps://github.com/matlab/skills.git\u001b[36X\u001b[13;2H\u001b[29X\u001b[30C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;75m\u001b[48;5;234m\u001b[1m\u001b[14;3HSkills (2)\u001b[38;5;253m\u001b[22m\u001b[19C\u001b[56X\u001b[38;5;103m\u001b[1m\u001b[15;3H  PATH                          TITLE                  CAPABILITIES                \u001b[38;5;253m\u001b[22m  \u001b[16;5Hskill\u001b[1C/matlab-plot-debugger   matlab-plot-debugger   [frontmatter] [instructions]  \u001b[17;5Hskills/matl\u001b[1Cb-test-g\u001b[1Cnerator  matlab-test-generator  [frontmatter] [instructions]  \u001b[18;8H       \u001b[1C\u001b[15X\u001b[16C\u001b[56X\u001b[19;2H \u001b[38;5;75m\u001b[1mMCP Servers (0)\u001b[38;5;253m\u001b[22m\u001b[14C\u001b[56X\u001b[38;5;75m\u001b[1m\u001b[20;3H  (none found in source manifests)\u001b[38;5;253m\u001b[22m\u001b[49X\u001b[48;5;237m\u001b[49C \u001b[48;5;234m \u001b[38;5;111m\u001b[49m\u001b[21;32H─\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexplorer \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mSpace\u001b[38;5;103m\u001b[22m\u001b[1Cselect \u001b[38;5;237m| \u001b[38;5;75m\u001b[1my\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcopy \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103msearch\u001b[38;5;237m\u001b[1C| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback\u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C    "
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 818,
+      "content": "\u001b[38;5;253m\u001b[48;5;233m\u001b[1m\u001b[1;51HExplorer\u001b[22m  \u001b[m\u001b[2;3H Explore\u001b[1C (active) \u001b[38;5;111m───\u001b[7C┬\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2Hv Setup\u001b[23X\u001b[38;5;111m\u001b[49m\u001b[23C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[4;3H > Init      \u001b[1C     \u001b[1C        \u001b[38;5;111m\u001b[49m\u001b[1C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[5;3H >\u001b[1CSync\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[6;3H > Health\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[7;2H> Profiles\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[8;2H>\u001b[1CSkills\u001b[5C\u001b[13X\u001b[38;5;111m\u001b[49m\u001b[17C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[9;2H>\u001b[1CMCPs     \u001b[2C   \u001b[38;5;111m\u001b[49m\u001b[14C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[10;2Hv\u001b[1CUpstreams\u001b[2C    \u001b[38;5;111m\u001b[49m\u001b[13C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[11;4Hv List   \u001b[2C\u001b[12X\u001b[38;5;111m\u001b[49m\u001b[17C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[12;5H   list\u001b[1Cups\u001b[1Creams\u001b[10X\u001b[38;5;111m\u001b[49m\u001b[10C│\u001b[54X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[13;2H      list upstream-content  \u001b[38;5;111m\u001b[49m\u001b[22m\u001b[1C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[14;3H v Manage \u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[15;3H     upstream add --source   \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[16;5H   up\u001b[1Ctream remove <id>    \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[17;5H   profile \u001b[1Cdd-upstr\u001b[1Cam    \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[18;8Hprofile\u001b[1Cremove-upstream\u001b[38;5;111m\u001b[49m\u001b[1C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[19;2H> Agents        \u001b[38;5;111m\u001b[49m\u001b[14C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[20;3H\u001b[29X\u001b[38;5;111m\u001b[49m\u001b[29C│\u001b[54X\u001b[21;32H┴\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexpand / run \u001b[38;5;237m|\u001b[38;5;75m\u001b[1m\u001b[1C:\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcommand \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103mfilter \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;103m\u001b[22m\u001b[1Ctranscript\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CEsc\u001b[38;5;103m\u001b[22m\u001b[1Cexit"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 101,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H      list upstreams         \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[13;2H      list upstream-content  "
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 81,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H  v List                     \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[12;2H      list upstreams\u001b[9X\u001b[9C\u001b[m"
+    },
+    {
+      "delay": 81,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[10;2Hv Upstreams                  \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[11;2H  v List\u001b[21X\u001b[21C"
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 79,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[9;2H> MCPs                       \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[10;2Hv Upstreams\u001b[18X\u001b[18C\u001b[m"
+    },
+    {
+      "delay": 88,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[8;2H> Skills                     \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[9;2H> MCPs\u001b[23X\u001b[23C"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 74,
+      "content": "\u001b[38;5;253m\u001b[48;5;237m\u001b[7;31H \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[8;2Hv\u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[9;2H \u001b[1C> List\u001b[10;2H \u001b[1C> Search \u001b[11;4H>\u001b[1CManage\u001b[12;4H>\u001b[1CRefresh\u001b[9X\u001b[13;2H>\u001b[1CMCPs    \u001b[1C\u001b[16X\u001b[14;2Hv\u001b[1CUpstreams\u001b[15;4Hv\u001b[1CList      \u001b[1C   \u001b[1C        \u001b[16;8Hli\u001b[2C upst\u001b[2Cams \u001b[1C    \u001b[17;8Hlist upstream-content\u001b[18;4Hv\u001b[1CManage   \u001b[1C\u001b[15X\u001b[19;2H \u001b[1C    upstream\u001b[1Cadd\u001b[1C--source\u001b[20;8Hupstream\u001b[1Cremove\u001b[1C<id>\u001b[m"
+    },
+    {
+      "delay": 133,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[7;31H \u001b[8;2Hv Skills\u001b[21X\u001b[48;5;237m\u001b[21C \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[9;2H  > List                     "
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 77,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[8;31H \u001b[9;2H  > List\u001b[21X\u001b[48;5;237m\u001b[21C \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[10;2H  > Search                   "
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 78,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[9;31H \u001b[10;2H  > Search\u001b[19X\u001b[48;5;237m\u001b[19C \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H  > Manage                   "
+    },
+    {
+      "delay": 92,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;237m\u001b[8;31H \u001b[48;5;234m\u001b[10;31H \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;4Hv\u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[12;4H \u001b[1C  p\u001b[1Cofile\u001b[1Cadd-skill\u001b[13;2H \u001b[1C    profile\u001b[1Cadd-skill\u001b[14;2H \u001b[1C    profile\u001b[1Cadd-skill\u001b[15;4H \u001b[1C  profile\u001b[1Cremove-skill\u001b[16;8Hprofile new-skill\u001b[17;4H>\u001b[1CRefresh\u001b[16X\u001b[18;2H>\u001b[1CMCPs    \u001b[19;2Hv\u001b[1CUpstreams   \u001b[1C   \u001b[1C        \u001b[20;4Hv\u001b[1CList      \u001b[1C      \u001b[1C    "
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 132,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[8;31H \u001b[48;5;237m\u001b[9;31H \u001b[48;5;234m\u001b[11;2H  v Manage\u001b[19X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H      profile add-skill      \u001b[m"
+    },
+    {
+      "delay": 97,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[9;31H \u001b[48;5;237m\u001b[10;31H \u001b[48;5;234m\u001b[12;2H      profile add-skill      \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[13;2H      profile add-skill      \u001b[m"
+    },
+    {
+      "delay": 90,
+      "content": "\u001b[38;5;237m\u001b[48;5;233m\u001b[1;60H|\u001b[38;5;75m\u001b[1Cprofile add-skill\u001b[9X\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[1C> Init\u001b[4;6HSync\u001b[5;6HHealth\u001b[6;2H>\u001b[1CProfi\u001b[1Ces\u001b[7;2Hv\u001b[1CSkills  \u001b[48;5;237m\u001b[19C \u001b[48;5;234m\u001b[8;2H \u001b[1C> List\u001b[9;6HSearch\u001b[10;4Hv\u001b[1CManage\u001b[19C \u001b[11;4H \u001b[1C  profile\u001b[1Cadd-skill\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H      profile add-skill      \u001b[38;5;111m\u001b[49m\u001b[22m\r\n└──────────────────────────────┘\r\n┌── \u001b[mGuided 1/6 \u001b[38;5;111m────────────────────────────────────────────────────────────────────────┤\u001b[38;5;253m\u001b[48;5;233m\u001b[15;2H \u001b[49m\u001b[1mUpstream id\u001b[m \u001b[38;5;103m(1/6)\u001b[13X\u001b[38;5;253m\u001b[48;5;233m\u001b[67C \u001b[16;2H \u001b[38;5;103m\u001b[49mChoose the configured upstream to browse.\u001b[38;5;253m\u001b[48;5;233m\u001b[43C \u001b[17;2H \u001b[38;5;233m\u001b[48;5;75m\u001b[1mmatlab_skills (https://github.com/matlab/skills.git)                               \u001b[38;5;253m\u001b[48;5;233m\u001b[22m  \u001b[18;2H\u001b[86X\n\u001b[86X\n\u001b[86X\u001b[38;5;111m\u001b[49m\u001b[21;32H─\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HUp/Down\u001b[38;5;253m\u001b[22m \u001b[38;5;103mchoose \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEnter\u001b[38;5;103m\u001b[22m\u001b[1Cnext \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback   \u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C\u001b[10X\u001b[11C \u001b[1C   \u001b[1C    "
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 196,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233m\u001b[1;60H \u001b[1C\u001b[26X\u001b[48;5;234m\u001b[3;2Hv\u001b[1CSetup \u001b[4;6HInit\u001b[5;6HSync  \u001b[6;2H \u001b[1C> Hea\u001b[1Cth\u001b[7;2H>\u001b[1CProfiles\u001b[19C \u001b[8;2Hv\u001b[1CSkills\u001b[48;5;237m\u001b[21C \u001b[48;5;234m\u001b[9;6HList  \u001b[10;4H>\u001b[1CSearch\u001b[11;4Hv\u001b[1CManage   \u001b[1C\u001b[9X\u001b[12;2H      profile add-skill      \u001b[38;5;111m\u001b[49m\r\n│\u001b[38;5;233m\u001b[48;5;75m\u001b[1m      profile add-skill      \u001b[38;5;253m\u001b[48;5;234m\u001b[22m \u001b[38;5;111m\u001b[49m│\r\n│\u001b[38;5;253m\u001b[48;5;234m      profile add-skill       \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[15;2H      profile remove-skill    \u001b[38;5;111m\u001b[49m│\r\n└──────────────────────────────┘\r\n┌── \u001b[mGuided 2/6 \u001b[38;5;111m────────────────────────────────────────────────────────────────────────┤\u001b[38;5;253m\u001b[1m\u001b[18;3HRef (optional)\u001b[m \u001b[38;5;103m(2/6)\u001b[64X\u001b[19;3HBranch, tag, or commit for discovery and import.\u001b[36X\u001b[38;5;75m\u001b[1m\u001b[20;3H> \u001b[48;5;233m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mnext \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;103m\u001b[22m\u001b[1Cback \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mCtrl+Q\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexit   \u001b[20;5H\u001b[?25h\u001b[m"
+    },
+    {
+      "delay": 213,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[1C> Init\u001b[4;6HSync\u001b[5;6HHealth\u001b[6;2H>\u001b[1CProfi\u001b[1Ces\u001b[7;2Hv\u001b[1CSkills  \u001b[48;5;237m\u001b[19C \u001b[48;5;234m\u001b[8;2H \u001b[1C> List\u001b[21C \u001b[9;6HSearch\u001b[10;4Hv\u001b[1CManage\u001b[11;4H \u001b[1C  profile\u001b[1Cadd-skill\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H      profile add-skill      \u001b[38;5;111m\u001b[49m\u001b[22m\r\n└──────────────────────────────┘\r\n┌── \u001b[mGuided 3/6 \u001b[38;5;111m───────────────────────────────────────────────────────────────────────\u001b[38;5;253m\u001b[48;5;233m\u001b[15;2H \u001b[49m\u001b[1mSelection mode\u001b[m \u001b[38;5;103m(3/6)\u001b[10X\u001b[38;5;111m\r\n│\u001b[38;5;253m\u001b[48;5;233m \u001b[38;5;103m\u001b[49mChoose specific skills or impor\u001b[1C everything discoverable.\u001b[38;5;111m\r\n│\u001b[38;5;253m\u001b[48;5;233m \u001b[38;5;233m\u001b[48;5;75m\u001b[1mChoose skills (pick one or more skill paths)                                       \u001b[38;5;253m\u001b[48;5;233m\u001b[22m  \u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;233m\u001b[18;3HImport all \u001b[38;5;103m(use --all)\u001b[62X\u001b[38;5;253m\u001b[19;3H\u001b[84X\n  \u001b[38;5;75m\u001b[1m\u001b[22;2HUp/Down\u001b[38;5;253m\u001b[22m \u001b[38;5;103mchoose \u001b[38;5;237m|\u001b[38;5;75m\u001b[1m\u001b[1CEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mnext \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback"
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 818,
+      "content": "\u001b[14;12H4\u001b[38;5;253m\u001b[1m\u001b[15;4Hkill paths\u001b[m \u001b[38;5;103m(4/6)   \u001b[16;10Hon\u001b[1C or more skills\u001b[1Cto import.\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[17;3H[ ] \u001b[1Ckills/matlab-pl\u001b[1Ct-debugger\u001b[1C(mat\u001b[1Cab-plot-debugger)\u001b[38;5;75m\u001b[48;5;233m\u001b[18;3H[ ]\u001b[38;5;253m\u001b[22m skil\u001b[1Cs/matlab-test-generator\u001b[38;5;103m\u001b[1C(matlab-test-generator)\u001b[38;5;75m\u001b[1m\u001b[22;19HSpace\u001b[38;5;103m\u001b[22m\u001b[1Ctoggle\u001b[38;5;237m\u001b[1C| \u001b[38;5;75m\u001b[1mEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mnext\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CEsc\u001b[38;5;103m\u001b[22m\u001b[1Cback\u001b[m"
+    },
+    {
+      "delay": 185,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[17;4Hx"
+    },
+    {
+      "delay": 95,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2Hv\u001b[1CSetup \u001b[4;6HInit\u001b[5;6HSync  \u001b[6;2H \u001b[1C> Hea\u001b[1Cth\u001b[7;2H>\u001b[1CProfiles\u001b[19C \u001b[8;2Hv\u001b[1CSkills\u001b[48;5;237m\u001b[21C \u001b[48;5;234m\u001b[9;6HList  \u001b[10;4H>\u001b[1CSearch\u001b[11;4Hv\u001b[1CManage   \u001b[1C\u001b[9X\u001b[12;2H      profile add-skill      \u001b[38;5;111m\u001b[49m\r\n│\u001b[38;5;233m\u001b[48;5;75m\u001b[1m      profile add-skill      \u001b[38;5;253m\u001b[48;5;234m\u001b[22m \u001b[38;5;111m\u001b[49m│\r\n│\u001b[38;5;253m\u001b[48;5;234m      profile add-skill       \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[15;2H      profile remove-skill    \u001b[38;5;111m\u001b[49m│\r\n└──────────────────────────────┘\r\n┌── \u001b[mGuided 5/6 \u001b[38;5;111m────────────────────────────────────────────────────────────────────────┤\u001b[38;5;253m\u001b[1m\u001b[18;3HAdvanced flags (optional)\u001b[m \u001b[38;5;103m(5/6)\u001b[53X\u001b[19;3HExamples: --pin --dest-prefix vendor --upstream-id org_demo --no-sync\u001b[15X\u001b[38;5;75m\u001b[1m\u001b[20;3H> \u001b[48;5;233m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mnext \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;103m\u001b[22m\u001b[1Cback \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mCtrl+Q\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexit  \u001b[38;5;253m\u001b[1C    \u001b[1C \u001b[1C   \u001b[1C    \u001b[20;5H\u001b[?25h\u001b[m"
+    },
+    {
+      "delay": 210,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[1C> Sync\u001b[4;6HHealth\u001b[5;2H>\u001b[1CProfiles\u001b[6;2Hv\u001b[1CSkills  \u001b[48;5;237m\u001b[19C \u001b[48;5;234m\u001b[7;2H \u001b[1C> List  \u001b[8;2H \u001b[1C> Search\u001b[19C \u001b[9;4Hv\u001b[1CManage\u001b[10;4H \u001b[1C  p\u001b[1Cofile\u001b[1Cadd-skill\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H      profile add-skill      \u001b[38;5;111m\u001b[49m\u001b[22m\r\n└──────────────────────────────┘\r\n┌── \u001b[mGuided 6/6 \u001b[38;5;111m────────────────────────────────────────────────────────────────────────┤\u001b[38;5;253m\u001b[48;5;233m\u001b[14;2H \u001b[49m\u001b[1mReview skill import\u001b[m \u001b[38;5;103m(6/6)     \u001b[38;5;253m\u001b[48;5;233m\u001b[54C \u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;233m\u001b[15;2H \u001b[38;5;103m\u001b[49mConfirm the skill import command.\u001b[38;5;111m\r\n│\u001b[38;5;253m\u001b[48;5;233m \u001b[38;5;75m\u001b[1mprofile add-skill personal --upstream matlab_skills --path skills/matlab-plot-debugg\u001b[38;5;111m\u001b[49m\u001b[22m\r\n│\u001b[38;5;253m\u001b[48;5;233m \u001b[38;5;75m\u001b[1mer\u001b[38;5;253m\u001b[22m                                                                                   \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;233m\u001b[18;3H\u001b[84X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\nRun command (profile add-skill personal --upstream matlab_skills --path skills/matl\u001b[38;5;253m\u001b[48;5;237m\u001b[22m \u001b[48;5;233m\u001b[20;3HBack\u001b[38;5;103m\u001b[1C(return to the previous step)\u001b[38;5;75m\u001b[1m\u001b[22;2HUp/Down\u001b[38;5;253m\u001b[22m \u001b[38;5;103mchoose \u001b[38;5;237m|\u001b[38;5;75m\u001b[1m\u001b[1CEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mconfirm\u001b[38;5;237m\u001b[1C| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;103m\u001b[22m\u001b[1Cback\u001b[m"
+    },
+    {
+      "delay": 232,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2Hv\u001b[1CSetup \u001b[4;6HInit  \u001b[5;2H \u001b[1C> Sync  \u001b[6;2H \u001b[1C> Health\u001b[19C \u001b[7;2H>\u001b[1CProfiles\u001b[8;2Hv\u001b[1CSkills  \u001b[9;4H>\u001b[1CList  \u001b[10;4H>\u001b[1CSea\u001b[1Cch   \u001b[1C\u001b[9X\u001b[48;5;237m\u001b[15C \u001b[48;5;234m\u001b[11;2H  v Manage\u001b[19X\u001b[38;5;111m\u001b[49m\r\n│\u001b[38;5;253m\u001b[48;5;234m      profile add-skill       \u001b[38;5;111m\u001b[49m│\r\n│\u001b[38;5;233m\u001b[48;5;75m\u001b[1m      profile add-skill      \u001b[38;5;253m\u001b[48;5;234m\u001b[22m \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[14;2H      profile add-skill       \u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[15;2H      profile remove-skill    \u001b[38;5;111m\u001b[49m│   \u001b[38;5;253m\u001b[48;5;234m\u001b[16;2H      profile new-skill       \u001b[38;5;111m\u001b[49m│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[17;2H  > Refresh\u001b[19X\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[18;2H> MCPs\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[24C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[19;2Hv Upstreams\u001b[19X\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[20;2H  v List\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[21;32H┴\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexpand / run \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m:\u001b[38;5;103m\u001b[22m\u001b[3Cmmand\u001b[38;5;75m\u001b[1m\u001b[3C/\u001b[38;5;253m\u001b[22m \u001b[38;5;103mfilter\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CTab\u001b[38;5;103m\u001b[22m\u001b[1Ctranscript\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CEsc\u001b[38;5;103m\u001b[22m\u001b[1Cexit"
+    },
+    {
+      "delay": 23,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 1633,
+      "content": "\u001b[38;5;253m\u001b[48;5;233m\u001b[1m\u001b[1;51HTranscript\u001b[22m\u001b[1C \u001b[1C\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[2;3H─ \u001b[mTransc\u001b[1Cipt (active) \u001b[38;5;111m\u001b[7C─\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[1C Ref \u001b[6Cmain\u001b[13C\u001b[55X\u001b[4;4H Rev\u001b[1Csion\u001b[2Cb92b2918f737\u001b[5C\u001b[55X\u001b[5;4H Sour\u001b[1Ce\u001b[4Chttps://github.com/matlab/skills.git\u001b[36X\u001b[6;4H \u001b[1C      \u001b[20C\u001b[55X\u001b[7;2H \u001b[38;5;75m\u001b[1mSkills (2)\u001b[38;5;253m\u001b[22m\u001b[19C\u001b[55X\u001b[8;2H \u001b[38;5;103m\u001b[1m  PATH                          TITLE                  CAPABILITIES                \u001b[38;5;253m\u001b[22m \u001b[9;4H sk\u001b[1Clls/matlab-plot-debugger   matlab-plot-debugger   [frontmatter] [instructions] \u001b[10;4H skills/matlab-test-generator  matlab-test-generator  [frontmatter] [instructions] \u001b[11;4H \u001b[1C      \u001b[20C\u001b[55X\u001b[38;5;75m\u001b[1m\u001b[12;3HMCP Servers (0)\u001b[38;5;253m\u001b[22m       \u001b[7C\u001b[55X\u001b[13;2H   (none found in source manifests)                                                   \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;103m\u001b[48;5;234m\u001b[14;3H \u001b[38;5;253m\u001b[4C       \u001b[1C\u001b[9X\u001b[16C\u001b[56X\u001b[38;5;75m\u001b[1m\u001b[15;3H$ profile add-skill personal --upstream matlab_skills --path skills/matlab-plot-deb\u001b[38;5;253m\u001b[22m  \u001b[16;3H[skills-sync] Added 1 skill\u001b[1Cimport entry to profile 'personal' from 'matlab_skills'  \u001b[17;3H[skills-\u001b[1Cync]\u001b[1CPrepared\u001b[1Cruntime artifacts for profile 'personal'.\u001b[21X\u001b[18;2H [skills-sync]\u001b[1CLock\u001b[1Cmode:\u001b[1Cwrite | Resolved upstream refs: 1\u001b[27X\u001b[19;2H [skills-sync]\u001b[1CSynced\u001b[1Cprofile\u001b[1C'personal'.\u001b[45X\u001b[38;5;75m\u001b[1m\u001b[20;3H[skills-sync] Target OS: windows\u001b[38;5;253m\u001b[22m\u001b[51X\u001b[48;5;237m\u001b[51C \u001b[48;5;234m \u001b[38;5;111m\u001b[49m\u001b[21;32H─\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexplorer \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mSpace\u001b[38;5;103m\u001b[22m\u001b[1Cselect \u001b[38;5;237m| \u001b[38;5;75m\u001b[1my\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcopy \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103msearch\u001b[38;5;237m\u001b[1C| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback\u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C    "
+    },
+    {
+      "delay": 18,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 1722,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;234m\u001b[3;5H   \u001b[7C    \u001b[38;5;75m\u001b[1m\u001b[4;3HSkills (2)\u001b[38;5;253m\u001b[22m\u001b[2C\u001b[12X\u001b[38;5;103m\u001b[1m\u001b[5;3H  PATH                          TITLE                  CAPABILITIES                \u001b[38;5;253m\u001b[22m\u001b[6;5Hskills/matlab-plot-debugger\u001b[3Cmatlab-plot-debugger\u001b[3C[frontmatter]\u001b[1C[instructions]\u001b[7;3H  skills/matlab-test-generator\u001b[2Cmatlab-test-generator\u001b[2C[frontmatter]\u001b[1C[instructions]\u001b[8;3H\u001b[83X\u001b[38;5;75m\u001b[1m\nMCP Servers (0)\u001b[38;5;253m\u001b[22m\u001b[14X\u001b[17C\u001b[20X\u001b[23C\u001b[13X\u001b[14C\u001b[14X\u001b[10;5H(none found in sourc\u001b[1C manifests)\u001b[19X\u001b[21C\u001b[13X\u001b[14C\u001b[14X\u001b[38;5;103m\u001b[11;3H \u001b[38;5;75m\u001b[1m\u001b[12;3H$ profil\u001b[1C add-skill personal --upstream matlab_skills --path skills/matlab-plot-deb\u001b[38;5;253m\u001b[22m\u001b[13;3H[skills-sync]\u001b[1CAdded 1 skill import\u001b[1Centry\u001b[1Cto\u001b[1Cprofile\u001b[1C'personal'\u001b[1Cfrom\u001b[1C'matlab_skills'\u001b[14;3H[skills-sync]\u001b[1CPrepared\u001b[1Cruntime\u001b[1Cartifacts\u001b[1Cfor\u001b[1Cprofile\u001b[1C'personal'.\u001b[15;3H[skills-sync] Lock mode: write | Resolved upstream refs: 1\u001b[25X\u001b[16;17HSynced profi\u001b[1Ce '\u001b[1Ce\u001b[1Csonal'.\u001b[1C  \u001b[1C       \u001b[1C\u001b[10X\u001b[11C    \u001b[1C\u001b[15X\u001b[17;17HTarget OS: windows        \u001b[1C   \u001b[1C       \u001b[1C\u001b[11X\u001b[48;5;237m\u001b[30C \u001b[38;5;111m\u001b[49m\r\n└──────────────────────────────────────────────────────────────────────────────────────┘┌── \u001b[mCommand \u001b[38;5;111m───────────────────────────────────────────────────────────────────────────┐\u001b[38;5;253m\u001b[48;5;233m\u001b[20;2H \u001b[38;5;75m\u001b[49m\u001b[1mskills-sync(personal) > \u001b[38;5;253m\u001b[48;5;233m\u001b[22m\u001b[61X\u001b[38;5;75m\u001b[1m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mrun \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcomplete \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mUp/Down\u001b[38;5;253m\u001b[22m \u001b[38;5;103mhistory \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mclose    \u001b[20;27H\u001b[?25h\u001b[m"
+    },
+    {
+      "delay": 207,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me"
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mx"
+    },
+    {
+      "delay": 14,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 28,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mi\u001b[m"
+    },
+    {
+      "delay": 32,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mt"
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 151,
+      "content": "\u001b[?25l\u001b[?25l\u001b[?12l\u001b[?12l\u001b[38;5;253m\u001b[48;5;234m\u001b[3;5HRef\u001b[7Cmain\u001b[4;3H  Revision\u001b[2Cb92b2918f737\u001b[5;3H  Source    https://github.com/matlab/skills.git\u001b[35X\u001b[6;5H\u001b[27X\u001b[30C\u001b[20X\u001b[23C\u001b[13X\u001b[14C\u001b[14X\u001b[38;5;75m\u001b[1m\u001b[7;3HSkills (2)\u001b[38;5;253m\u001b[22m\u001b[20X\u001b[22C\u001b[21X\u001b[23C\u001b[13X\u001b[14C\u001b[14X\u001b[38;5;103m\u001b[1m\u001b[8;3H  PATH                          TITLE                  CAPABILITIES                \u001b[38;5;253m\u001b[22m\u001b[9;3H  skills/matlab-plot-debugger\u001b[3Cmatlab-plot-debugger\u001b[3C[frontmatter]\u001b[1C[instructions]\u001b[10;5Hskills/matlab-test-g\u001b[1Cnerator  matlab-test-generator\u001b[2C[frontmatter]\u001b[1C[instructions]\u001b[11;3H \u001b[38;5;75m\u001b[1m\u001b[12;3HMCP Serv\u001b[1Crs (0)\u001b[38;5;253m\u001b[22m\u001b[68X\u001b[13;3H  (none found\u001b[1Cin source manifests)\u001b[1C     \u001b[1C  \u001b[1C       \u001b[1C\u001b[10X\u001b[11C    \u001b[1C\u001b[15X\u001b[38;5;103m\u001b[14;3H\u001b[13X\u001b[38;5;253m\u001b[14C        \u001b[1C       \u001b[1C\u001b[9X\u001b[10C   \u001b[1C       \u001b[1C\u001b[11X\u001b[38;5;75m\u001b[1m\u001b[15;3H$ profile add-skill personal --upstream matlab_skills --path skills/matlab-plot-deb\u001b[38;5;253m\u001b[22m\u001b[16;17HAdded 1 skil\u001b[1C im\u001b[1Co\u001b[1Ct entry\u001b[1Cto\u001b[1Cprofile\u001b[1C'personal'\u001b[1Cfrom\u001b[1C'matlab_skills'\u001b[17;17HPrepared runtime artifacts\u001b[1Cfor\u001b[1Cprofile\u001b[1C'personal'.\u001b[19C \u001b[38;5;111m\u001b[49m\r\n│\u001b[38;5;253m\u001b[48;5;234m [skills-sync] Lock mode: write | Resolved upstream refs: 1                           \u001b[K\u001b[38;5;111m\u001b[49m││\u001b[38;5;253m\u001b[48;5;234m [skills-sync] Synced profile 'personal'.                                             \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[20;2H \u001b[38;5;75m\u001b[1m[skills-sync] Target OS: windows\u001b[38;5;253m\u001b[22m\u001b[51X\u001b[48;5;237m\u001b[51C \u001b[48;5;234m \u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexplorer \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mSpace\u001b[38;5;253m\u001b[22m \u001b[38;5;103mselect \u001b[38;5;237m| \u001b[38;5;75m\u001b[1my\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcopy \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103msearch \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback\u001b[H\u001b[?25h\u001b[m\u001b[2J\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\u001b[H\u001b[?25h\u001b[?1049l\u001b[?25l\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\u001b[H\u001b[?25h"
+    },
+    {
+      "delay": 41,
+      "content": "\r\n"
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[?25l\u001b[HLeaving shell mode.\r\n\u001b[?25h"
+    }
+  ]
 }

@@ -1513,7 +1513,7 @@ function createProgram() {
 
   program
     .command("shell")
-    .description("Launch interactive shell mode with command completion and colorized prompts.")
+    .description("Launch interactive shell mode. Requires a capable TTY terminal (minimum 80x18).")
     .option("--profile <name>", "optional shell profile context for sync/doctor commands")
     .action((options) =>
       cmdShell({
@@ -1528,14 +1528,14 @@ function createProgram() {
 export async function runCli(argv = process.argv.slice(2)) {
   const normalizedArgv = normalizeCliArgv(argv);
 
-  if (normalizedArgv.length === 0) {
-    await cmdShell({
-      executeCommand: (commandArgs) => runCli(commandArgs)
-    });
-    return 0;
-  }
-
   try {
+    if (normalizedArgv.length === 0) {
+      await cmdShell({
+        executeCommand: (commandArgs) => runCli(commandArgs)
+      });
+      return 0;
+    }
+
     preflightUnknownCommandCheck(normalizedArgv);
     const program = createProgram();
     await program.parseAsync(["node", "skills-sync", ...normalizedArgv]);

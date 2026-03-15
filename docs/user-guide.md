@@ -181,25 +181,40 @@ Important workspace files:
 ## Interactive Shell
 
 Run `skills-sync` with no arguments to open shell mode.
+Shell mode requires a capable TTY terminal and uses a full-screen interface with:
+
+- an `Explorer` pane on the left grouped into expandable `Setup`, `Profiles`, `Skills`, `MCPs`, `Upstreams`, and `Agents` branches
+- a `Transcript` pane on the right that keeps the running shell session output
+- a hidden prompt that opens only when you need a raw command or a filter/search query
+- a minimal footer that changes with the active pane
+
+When `stdin`/`stdout` are not interactive TTYs, use normal CLI commands directly instead of shell mode.
 
 Inside shell mode:
 
-- `list` opens list shortcuts
-- `agents` opens inventory/drift shortcuts
-- `profile` opens profile shortcuts
-- `search` opens search shortcuts
-- `workspace` opens manifest shortcuts
+- `skills`, `mcps`, `upstreams`, `agents`, `profiles`, and `search` jump to the main explorer groups
+- `list` jumps to the main skills listing group
 - `:profile <name>` sets shell profile context
+- `Tab` switches between `Explorer` and `Transcript`
+- `Enter` or `Right` expands the selected explorer branch or runs the selected action
+- `:` opens the raw command prompt
+- `/` filters the `Explorer` or searches the `Transcript`
+- `Space` starts or clears transcript selection
+- `y` copies the current transcript selection or block, and `Ctrl+Y` copies the full transcript
+- `workspace` commands still work from the raw `:` prompt, but they are no longer shown in the explorer tree
 - `exit` closes shell mode
 
 Example:
 
 ```text
-skills-sync
-skills-sync(personal) > sync --agents codex,claude
-skills-sync(personal) > profile inspect
-skills-sync(personal) > workspace diff
-skills-sync(personal) > exit
+ skills-sync | profile personal | ready | Active: Explorer
++---------------------------+---------------------------------+
+| Explorer                  | Transcript                      |
+| v Setup                   | [shell] Explorer-first shell    |
+|   > Init                  | [shell] Profile context:        |
+| > Explore                 | personal                        |
++---------------------------+---------------------------------+
+| Enter expand/run | : command | / filter | Tab transcript   |
 ```
 
 ## Migration Notes

@@ -1,436 +1,760 @@
 {
-    "config":  {
-                   "command":  null,
-                   "cwd":  null,
-                   "env":  {
-                               "recording":  true
-                           },
-                   "cols":  88,
-                   "rows":  22,
-                   "repeat":  0,
-                   "quality":  100,
-                   "frameDelay":  "auto",
-                   "maxIdleTime":  700,
-                   "frameBox":  {
-                                    "type":  "floating",
-                                    "title":  "skills-sync",
-                                    "style":  {
-                                                  "border":  "0px black solid"
-                                              }
-                                },
-                   "watermark":  {
-                                     "imagePath":  null,
-                                     "style":  {
-                                                   "position":  "absolute",
-                                                   "right":  "15px",
-                                                   "bottom":  "15px",
-                                                   "width":  "100px",
-                                                   "opacity":  0.9
-                                               }
-                                 },
-                   "cursorStyle":  "bar",
-                   "fontFamily":  "Cascadia Code, Consolas, Monaco, monospace",
-                   "fontSize":  14,
-                   "lineHeight":  1.2,
-                   "letterSpacing":  0,
-                   "theme":  {
-                                 "background":  "#09111f",
-                                 "foreground":  "#d9e2f2",
-                                 "cursor":  "#f7c948",
-                                 "black":  "#0b1220",
-                                 "red":  "#ff7b72",
-                                 "green":  "#7ee787",
-                                 "yellow":  "#f2cc60",
-                                 "blue":  "#79c0ff",
-                                 "magenta":  "#d2a8ff",
-                                 "cyan":  "#a5f3fc",
-                                 "white":  "#c9d1d9",
-                                 "brightBlack":  "#6e7681",
-                                 "brightRed":  "#ffa198",
-                                 "brightGreen":  "#56d364",
-                                 "brightYellow":  "#e3b341",
-                                 "brightBlue":  "#58a6ff",
-                                 "brightMagenta":  "#bc8cff",
-                                 "brightCyan":  "#76e3ea",
-                                 "brightWhite":  "#f0f6fc"
-                             }
-               },
-    "records":  [
-                    {
-                        "delay":  160,
-                        "content":  "$ "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "k"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "i"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "-"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "y"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "n"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "c"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  360,
-                        "content":  "\u001b[1;36mskills-sync\u001b[0m \u001b[1;34minteractive shell\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90mRun CLI commands directly. Use help/:help for shell commands. Type exit to quit.\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90mProfile context enabled: personal\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90mModes:\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  setup   -\u003e init | init --seed\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  sync    -\u003e sync | sync --dry-run\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90mExplore and Manage:\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  list      -\u003e profiles, skills, MCP servers, upstreams, and detected agents\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  agents    -\u003e inventory/drift to identify drift and sync status\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  profile   -\u003e inspect, refresh, scaffold, and manage skills/MCPs/upstreams\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  search    -\u003e choose search mode, then enter query\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\u001b[90m  workspace -\u003e export, diff, and sync full environment manifests\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  56,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  440,
-                        "content":  "\u001b[1;36mskills-sync(personal)\u001b[0m\u001b[90m \u003e\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "i"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mList options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mprofiles        \u001b[0m  \u001b[90mshow available profiles\u001b[0m\r\n  skills            \u001b[90mshow effective profile skills\u001b[0m\r\n  mcps              \u001b[90mshow effective profile MCP servers\u001b[0m\r\n  upstreams         \u001b[90mshow configured upstream repos\u001b[0m\r\n  agents            \u001b[90mshow locally detected agents\u001b[0m\r\n  everything        \u001b[90mfull profile inventory\u001b[0m\r\n  upstream-content  \u001b[90mskills and MCP manifests in upstream refs\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[8A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mList options\u001b[0m\r\n\u001b[2K\r  profiles          \u001b[90mshow available profiles\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mskills          \u001b[0m  \u001b[90mshow effective profile skills\u001b[0m\r\n\u001b[2K\r  mcps              \u001b[90mshow effective profile MCP servers\u001b[0m\r\n\u001b[2K\r  upstreams         \u001b[90mshow configured upstream repos\u001b[0m\r\n\u001b[2K\r  agents            \u001b[90mshow locally detected agents\u001b[0m\r\n\u001b[2K\r  everything        \u001b[90mfull profile inventory\u001b[0m\r\n\u001b[2K\r  upstream-content  \u001b[90mskills and MCP manifests in upstream refs\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mDetail level\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mconcise\u001b[0m  \u001b[90mcompact inventory rows\u001b[0m\r\n  full     \u001b[90mshow provenance and materialization details\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[3A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mDetail level\u001b[0m\r\n\u001b[2K\r  concise  \u001b[90mcompact inventory rows\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36mfull   \u001b[0m  \u001b[90mshow provenance and materialization details\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  360,
-                        "content":  "matlab_skills/matlab-test-generator\timported\tmatlab_skills\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "openai_curated/skill-creator\timported\topenai_curated\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "openai_curated/spreadsheet\timported\topenai_curated\r\n"
-                    },
-                    {
-                        "delay":  440,
-                        "content":  "\u001b[1;36mskills-sync(personal)\u001b[0m\u001b[90m \u003e\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "a"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "r"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "c"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "h"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mSearch options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mskills        \u001b[0m  \u001b[90mfuzzy search skills\u001b[0m\r\n  skills verbose  \u001b[90minclude title metadata and title matching\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  280,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mSearch query\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\u001b[90m|\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "m"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "a"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "l"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "a"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "b"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mSearch scope\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mdiscoverable\u001b[0m  \u001b[90msearch upstream content\u001b[0m\r\n  installed     \u001b[90msearch skills attached to the profile\u001b[0m\r\n  all           \u001b[90msearch installed and discoverable content\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  360,
-                        "content":  "discoverable:matlab_skills  skills/matlab-plot-debugger\r\n"
-                    },
-                    {
-                        "delay":  70,
-                        "content":  "discoverable:matlab_skills  skills/matlab-test-generator\r\n"
-                    },
-                    {
-                        "delay":  440,
-                        "content":  "\u001b[1;36mskills-sync(personal)\u001b[0m\u001b[90m \u003e\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "a"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "r"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "c"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "h"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mSearch options\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mskills        \u001b[0m  \u001b[90mfuzzy search skills\u001b[0m\r\n  skills verbose  \u001b[90minclude title metadata and title matching\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  280,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mSearch query\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\u001b[90m|\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "p"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "r"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "a"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "d"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "s"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "h"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  300,
-                        "content":  "\u001b[1;34m?\u001b[0m \u001b[1;34mSearch scope\u001b[0m\r\n\u001b[1;36m\u003e\u001b[0m \u001b[1;36mdiscoverable\u001b[0m  \u001b[90msearch upstream content\u001b[0m\r\n  installed     \u001b[90msearch skills attached to the profile\u001b[0m\r\n  all           \u001b[90msearch installed and discoverable content\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  320,
-                        "content":  "\u001b[4A\u001b[2K\r\u001b[1;34m?\u001b[0m \u001b[1;34mSearch scope\u001b[0m\r\n\u001b[2K\r  discoverable  \u001b[90msearch upstream content\u001b[0m\r\n\u001b[2K\r\u001b[1;36m\u003e\u001b[0m \u001b[1;36minstalled   \u001b[0m  \u001b[90msearch skills attached to the profile\u001b[0m\r\n\u001b[2K\r  all           \u001b[90msearch installed and discoverable content\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  360,
-                        "content":  "installed:openai_curated  openai_curated/spreadsheet\tspreadsheet\r\n"
-                    },
-                    {
-                        "delay":  440,
-                        "content":  "\u001b[1;36mskills-sync(personal)\u001b[0m\u001b[90m \u003e\u001b[0m "
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "e"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "x"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "i"
-                    },
-                    {
-                        "delay":  32,
-                        "content":  "t"
-                    },
-                    {
-                        "delay":  0,
-                        "content":  "\r\n"
-                    },
-                    {
-                        "delay":  240,
-                        "content":  "\u001b[1;32mLeaving shell mode.\u001b[0m\r\n"
-                    },
-                    {
-                        "delay":  1500,
-                        "content":  "\u001b[0m"
-                    }
-                ]
+  "config": {
+    "command": null,
+    "cwd": null,
+    "env": {
+      "recording": true
+    },
+    "cols": 88,
+    "rows": 22,
+    "repeat": 0,
+    "quality": 100,
+    "frameDelay": "auto",
+    "maxIdleTime": 700,
+    "frameBox": {
+      "type": "floating",
+      "title": "skills-sync",
+      "style": {
+        "border": "0px black solid"
+      }
+    },
+    "watermark": {
+      "imagePath": null,
+      "style": {
+        "position": "absolute",
+        "right": "15px",
+        "bottom": "15px",
+        "width": "100px",
+        "opacity": 0.9
+      }
+    },
+    "cursorStyle": "bar",
+    "fontFamily": "Cascadia Code, Consolas, Monaco, monospace",
+    "fontSize": 14,
+    "lineHeight": 1.2,
+    "letterSpacing": 0,
+    "theme": {
+      "background": "#0f1521",
+      "foreground": "#d7deea",
+      "cursor": "#8bb6ff",
+      "black": "#0f1521",
+      "red": "#ef7c8e",
+      "green": "#7fca7d",
+      "yellow": "#e5b868",
+      "blue": "#6ea6ff",
+      "magenta": "#c792ea",
+      "cyan": "#7fdbca",
+      "white": "#d7deea",
+      "brightBlack": "#7f8aa0",
+      "brightRed": "#f29aa8",
+      "brightGreen": "#9cd999",
+      "brightYellow": "#ebc988",
+      "brightBlue": "#8bb6ff",
+      "brightMagenta": "#d9b8f7",
+      "brightCyan": "#a6e9df",
+      "brightWhite": "#f0f5fb"
+    }
+  },
+  "records": [
+    {
+      "delay": 277,
+      "content": "\u001b[?9001h\u001b[?1004h"
+    },
+    {
+      "delay": 925,
+      "content": "\u001b[?25l\u001b[2J\u001b[m\u001b[H\u001b]0;C:\\Program Files\\nodejs\\node.exe\u0007\u001b[?25h\u001b[?1049h\u001b[2J\u001b[38;5;253m\u001b[48;5;233m \u001b[38;5;75m\u001b[1mskills-sync\u001b[38;5;253m\u001b[22m \u001b[38;5;237m| \u001b[38;5;103mprofile personal \u001b[38;5;237m| \u001b[38;5;114mready \u001b[38;5;237m| \u001b[38;5;253m\u001b[1mActive: Explorer\u001b[22m                              \u001b[38;5;111m\u001b[49m┌─ \u001b[mExplorer (active) \u001b[38;5;111m──────────┐\u001b[K\r\n│\u001b[38;5;233m\u001b[48;5;75m\u001b[1mv Setup                      \u001b[38;5;253m\u001b[48;5;234m\u001b[22m \u001b[38;5;111m\u001b[49m│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m  > Init\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m  > Sync\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m  > Health\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m> Profiles\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m> Skills\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m> MCPs\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[24C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m> Upstreams\u001b[19X\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m> Agents\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n│\u001b[38;5;253m\u001b[48;5;234m\u001b[30X\u001b[38;5;111m\u001b[49m\u001b[30C│\u001b[K\r\n└──────────────────────────────┘\u001b[K\u001b[38;5;253m\u001b[48;5;233m\r\n \u001b[38;5;75m\u001b[1mEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexpand / run \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m:\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcommand \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103mfilter \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mtranscript \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexit                  \u001b]0;skills-sync\u0007\u001b[?25l\u001b[22;107H"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 600,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2Hv Setup\u001b[22X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[4;2H  > Init                     "
+    },
+    {
+      "delay": 15,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 84,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[4;2H  > Init\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[5;2H  > Sync                     "
+    },
+    {
+      "delay": 18,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 72,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[5;2H  > Sync\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[6;2H  > Health                   "
+    },
+    {
+      "delay": 96,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[6;2H  > Health\u001b[19X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[7;2H> Profiles                   "
+    },
+    {
+      "delay": 95,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[7;2H> Profiles\u001b[19X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[8;2H> Skills                     "
+    },
+    {
+      "delay": 12,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 88,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[8;2Hv\u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[9;2H \u001b[1C> List\u001b[10;2H \u001b[1C> Search \u001b[11;2H \u001b[1C> Manage\u001b[12;4H>\u001b[1CRefresh\u001b[13;2H>\u001b[1CMCPs\u001b[14;2H>\u001b[1CUpstreams\u001b[15;2H>\u001b[1CAgents"
+    },
+    {
+      "delay": 142,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[8;2Hv Skills\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[9;2H  > List                     \u001b[m"
+    },
+    {
+      "delay": 88,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[9;4Hv\u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[10;4H \u001b[1C  list\u001b[1Cskills\u001b[11;4H \u001b[1C  list\u001b[1Cskills\u001b[1C--detail\u001b[12;4H \u001b[1C  list everything\u001b[13;2H \u001b[1C> Search\u001b[14;2H \u001b[1C> Manage \u001b[15;2H \u001b[1C> Refresh\u001b[16;2H>\u001b[1CMCPs\u001b[17;2H>\u001b[1CUpstreams\u001b[18;2H>\u001b[1CAgents\u001b[m"
+    },
+    {
+      "delay": 140,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[9;2H  v List\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[10;2H      list skills            "
+    },
+    {
+      "delay": 95,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[10;2H      list skills\u001b[12X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H      list skills --detail   "
+    },
+    {
+      "delay": 1069,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;233m\u001b[1m\u001b[1;51HTranscript\u001b[22m\u001b[1C \u001b[1C\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[2;3H─ \u001b[mTransc\u001b[1Cipt (active) \u001b[38;5;111m\u001b[7C────────────────────────────────────────────────────────┐\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[38;5;103m[shell] Explorer-first shell ready.                                                  \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;103m\u001b[48;5;234m\u001b[4;3H[shell] Profile context: personal                                                    \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;103m\u001b[48;5;234m\u001b[5;3H  \u001b[38;5;253m\u001b[1C    \u001b[22C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;75m\u001b[48;5;234m\u001b[1m\u001b[6;3H$ list skills --detail full\u001b[38;5;253m\u001b[22m\u001b[2C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[7;2H \u001b[38;5;103m\u001b[1m  NAME                                 TYPE      SOURCE          STATE             \u001b[38;5;253m\u001b[22m  \u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[8;2H \u001b[1C mat\u001b[1Cab_skills/matlab-test-generator  imported  matlab_skills   [imported] [floati  \u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[9;4H openai_curated/skill-creator         imported  openai_curated  [imported] [floati  \u001b[38;5;111m\u001b[49m│\u001b[38;5;75m\u001b[48;5;234m\u001b[1m\u001b[10;3H  openai_curated/spreadsheet           imported  openai_curated  [imported] [floati\u001b[38;5;253m\u001b[22m  \u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[11;2H\u001b[29X\u001b[30C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[12;8H    \u001b[1C\u001b[10X\u001b[19C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[13;4H \u001b[1C      \u001b[20C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[14;4H \u001b[1C      \u001b[20C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[15;4H \u001b[1C       \u001b[19C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[16;2H \u001b[1C    \u001b[24C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[17;2H \u001b[1C\u001b[9X\u001b[28C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[18;2H \u001b[1C      \u001b[22C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[19;32H                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[20;32H                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[21;32H────────────────────────────────────────────────────────┘\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexplorer \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mSpace\u001b[38;5;103m\u001b[22m\u001b[1Cselect \u001b[38;5;237m| \u001b[38;5;75m\u001b[1my\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcopy \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103msearch\u001b[38;5;237m\u001b[1C| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback\u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C    \u001b[m"
+    },
+    {
+      "delay": 3616,
+      "content": "\u001b[38;5;253m\u001b[48;5;233m\u001b[1m\u001b[1;51HExplorer\u001b[22m  \u001b[m\u001b[2;3H Explore\u001b[1C (active) \u001b[38;5;111m───\u001b[7C┬\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2Hv Setup\u001b[23X\u001b[38;5;111m\u001b[49m\u001b[23C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[4;3H > Init\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[5;3H >\u001b[1CSync\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[6;3H > Health\u001b[18X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[7;2H> Profiles\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[8;2Hv\u001b[1CSkil\u001b[1Cs\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[9;4Hv List\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[10;3H     list skills\u001b[13X\u001b[38;5;111m\u001b[49m\u001b[13C│\u001b[54X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H      list skills --detail   \u001b[38;5;111m\u001b[49m\u001b[22m\u001b[1C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[12;8Hlist\u001b[1Ceverything\u001b[38;5;111m\u001b[49m\u001b[9C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[13;4H>\u001b[1CSearch\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[14;4H>\u001b[1CManage\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[15;4H>\u001b[1CRefresh\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[16;2H>\u001b[1CMCPs\u001b[38;5;111m\u001b[49m\u001b[24C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[17;2H>\u001b[1CUpstreams\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[18;2H>\u001b[1CAgents\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[19;32H│\u001b[54X\u001b[20;32H│\u001b[54X\u001b[21;32H┴\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexpand / run \u001b[38;5;237m|\u001b[38;5;75m\u001b[1m\u001b[1C:\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcommand \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103mfilter \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;103m\u001b[22m\u001b[1Ctranscript\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CEsc\u001b[38;5;103m\u001b[22m\u001b[1Cexit\u001b[m"
+    },
+    {
+      "delay": 100,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[10;2H      list skills            \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[11;2H      list skills --detail   "
+    },
+    {
+      "delay": 91,
+      "content": "\u001b[m\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[9;2H  v List                     \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[10;2H      list skills\u001b[12X\u001b[12C"
+    },
+    {
+      "delay": 18,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 81,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[8;2Hv Skills                     \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[9;2H  v List\u001b[21X\u001b[21C\u001b[m"
+    },
+    {
+      "delay": 82,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[8;2Hv Skills\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[9;2H  v List                     "
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 74,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[9;2H  v List\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[10;2H      list skills            \u001b[m"
+    },
+    {
+      "delay": 89,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[10;2H      list skills\u001b[12X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H      list skills --detail   "
+    },
+    {
+      "delay": 18,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 81,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[11;2H      list skills --detail   \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H      list everything        "
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 83,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[12;2H      list everything        \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[13;2H  > Search                   "
+    },
+    {
+      "delay": 18,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 84,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[13;4Hv\u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[14;4H \u001b[1C  search\u001b[1Cskills\u001b[1C--query\u001b[15;4H \u001b[1C  search\u001b[1Cskills\u001b[16;2H \u001b[1C> Manage\u001b[17;2H \u001b[1C> Refresh\u001b[18;4HMCPs  \u001b[19;2H>\u001b[1CUpstreams\u001b[20;2H>\u001b[1CAgents"
+    },
+    {
+      "delay": 14,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 135,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[13;2H  v Search\u001b[19X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[14;2H      search skills --query  \u001b[m"
+    },
+    {
+      "delay": 85,
+      "content": "\u001b[?12l\u001b[38;5;237m\u001b[48;5;233m\u001b[1;60H|\u001b[38;5;75m\u001b[1CPrefilled command: search \u001b[38;5;253m\u001b[48;5;237m\u001b[12;31H \u001b[38;5;111m\u001b[49m\u001b[18;1H└──────────────────────────────┘\r\n┌── \u001b[mCommand \u001b[38;5;111m───────────────────────────────────────────────────────────────────────────┤\u001b[38;5;253m\u001b[48;5;233m\u001b[20;2H \u001b[38;5;75m\u001b[49m\u001b[1mskills-sync(personal) > \u001b[38;5;253m\u001b[48;5;233m\u001b[22msearch skills --query\u001b[40X\u001b[38;5;111m\u001b[49m\u001b[21;32H─\u001b[38;5;103m\u001b[48;5;233m\u001b[22;8Hrun \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcomplete \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mUp/Down\u001b[38;5;103m\u001b[22m\u001b[1Ch\u001b[1Cs\u001b[1Co\u001b[1Cy \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mclo\u001b[1Ce    \u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C    \u001b[20;49H\u001b[?25h"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 191,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mm\u001b[m"
+    },
+    {
+      "delay": 32,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ma"
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mt\u001b[m"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ml"
+    },
+    {
+      "delay": 18,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ma"
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mb"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[m\u001b[1C"
+    },
+    {
+      "delay": 45,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233m-"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233m-"
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[m\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ms"
+    },
+    {
+      "delay": 14,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 24,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mc"
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 23,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mo"
+    },
+    {
+      "delay": 15,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 23,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mp\u001b[m"
+    },
+    {
+      "delay": 31,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me\u001b[m"
+    },
+    {
+      "delay": 34,
+      "content": "\u001b[1C"
+    },
+    {
+      "delay": 32,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233md"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mi"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 23,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ms"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mc\u001b[m"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mo\u001b[m"
+    },
+    {
+      "delay": 35,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mv"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[m\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me\u001b[m"
+    },
+    {
+      "delay": 31,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mr"
+    },
+    {
+      "delay": 41,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233ma"
+    },
+    {
+      "delay": 18,
+      "content": "\u001b[m\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mb"
+    },
+    {
+      "delay": 39,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233ml"
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 18,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me"
+    },
+    {
+      "delay": 23,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 178,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[1;60H \u001b[1C\u001b[26X\u001b[48;5;234m\u001b[12;31H \u001b[38;5;111m\u001b[49m\u001b[18;1H│\u001b[38;5;253m\u001b[48;5;234m> MCPs\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[24C│\r\n│\u001b[38;5;253m\u001b[48;5;234m> Upstreams\u001b[19X\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[20;2H> Agents\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[21;32H┴\u001b[38;5;103m\u001b[48;5;233m\u001b[22;8Hexpand / run \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m:\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcommand \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;103m\u001b[22m\u001b[1Cf\u001b[1Cl\u001b[1Ce\u001b[38;5;253m\u001b[1C \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mtran\u001b[1Ccript\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CEsc\u001b[38;5;103m\u001b[22m\u001b[1Cexit"
+    },
+    {
+      "delay": 15,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 1300,
+      "content": "\u001b[38;5;253m\u001b[48;5;233m\u001b[1m\u001b[1;51HTranscript\u001b[22m\u001b[1C \u001b[1C\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[2;3H─ \u001b[mTransc\u001b[1Cipt (active) \u001b[38;5;111m\u001b[7C─\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[38;5;103m[shell] Explorer-first shell ready.\u001b[49X\u001b[4;3H[shell] Profile context: personal\u001b[51X\u001b[5;3H  \u001b[38;5;253m\u001b[1C    \u001b[22C\u001b[55X\u001b[38;5;75m\u001b[1m\u001b[6;3H$ list skills --detail full\u001b[38;5;253m\u001b[22m\u001b[2C\u001b[55X\u001b[7;2H \u001b[38;5;103m\u001b[1m  NAME                                 TYPE      SOURCE          STATE             \u001b[38;5;253m\u001b[22m \u001b[8;2H \u001b[1C mat\u001b[1Cab_skills/matlab-test-generator  imported  matlab_skills   [imported] [floati \u001b[9;4H openai_curated/skill-creator         imported  openai_curated  [imported] [floati \u001b[10;5Hopenai_curated/spreadsheet\u001b[1C          imported  openai_curated  [imported] [floati \u001b[38;5;103m\u001b[11;3H \u001b[38;5;253m\u001b[4C    \u001b[1C      \u001b[1C        \u001b[4C\u001b[55X\u001b[38;5;75m\u001b[1m\u001b[12;3H$ search skills --query matlab --scope discoverable\u001b[38;5;253m\u001b[22m\u001b[33X\u001b[38;5;103m\u001b[1m\u001b[13;3H  SCOPE                       PATH                          TITLE\u001b[38;5;253m\u001b[22m\u001b[19X\u001b[14;2H   discoverable:matlab_skills\u001b[1C skills/matlab-plot-debugger   -\u001b[23X\u001b[38;5;75m\u001b[1m\u001b[15;3H  discoverable:matlab_skills  skills/matlab-test-generator  -\u001b[38;5;253m\u001b[22m\u001b[23X\u001b[16;4H \u001b[1C      \u001b[20C\u001b[55X\u001b[17;4H \u001b[1C       \u001b[19C\u001b[55X\u001b[18;2H \u001b[1C    \u001b[24C\u001b[55X\u001b[19;2H \u001b[1C\u001b[9X\u001b[28C                                                        \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[20;2H \u001b[1C      \u001b[22C\u001b[56X\u001b[38;5;111m\u001b[49m\n─\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexplorer \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mSpace\u001b[38;5;103m\u001b[22m\u001b[1Cselect \u001b[38;5;237m| \u001b[38;5;75m\u001b[1my\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcopy \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103msearch\u001b[38;5;237m\u001b[1C| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback\u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C    "
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 1124,
+      "content": "\u001b[38;5;253m\u001b[48;5;233m\u001b[1m\u001b[1;51HExplorer\u001b[22m  \u001b[m\u001b[2;3H Explore\u001b[1C (active) \u001b[38;5;111m───\u001b[7C┬\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2Hv Setup\u001b[23X\u001b[38;5;111m\u001b[49m\u001b[23C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[4;3H > Init\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[5;3H >\u001b[1CSync\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[6;3H > Health\u001b[18X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[7;2H> Profiles\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[8;2Hv\u001b[1CSkil\u001b[1Cs\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[9;4Hv List\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[10;5H   list skills\u001b[12X\u001b[38;5;111m\u001b[49m\u001b[13C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[11;3H \u001b[4Clist\u001b[1Cskills\u001b[1C--detail\u001b[38;5;111m\u001b[49m\u001b[4C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[12;3H     list everything\u001b[9X\u001b[38;5;111m\u001b[49m\u001b[9C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[13;3H v Search\u001b[20X\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[14;2H      search skills --query  \u001b[38;5;111m\u001b[49m\u001b[22m\u001b[1C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[15;3H     search skills\u001b[11X\u001b[38;5;111m\u001b[49m\u001b[11C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[16;4H>\u001b[1CManage\u001b[38;5;111m\u001b[49m\u001b[20C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[17;4H>\u001b[1CRefresh\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[18;2H>\u001b[1CMCPs\u001b[38;5;111m\u001b[49m\u001b[24C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[19;2H>\u001b[1CUpstreams\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[20;2H>\u001b[1CAgents\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[21;32H┴\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexpand / run \u001b[38;5;237m|\u001b[38;5;75m\u001b[1m\u001b[1C:\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcommand \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103mfilter \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;103m\u001b[22m\u001b[1Ctranscript\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CEsc\u001b[38;5;103m\u001b[22m\u001b[1Cexit\u001b[m"
+    },
+    {
+      "delay": 108,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[13;2H  v Search                   \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[14;2H      search skills --query  \u001b[m"
+    },
+    {
+      "delay": 96,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H      list everything        \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[13;2H  v Search\u001b[19X\u001b[19C\u001b[m"
+    },
+    {
+      "delay": 82,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H      list skills --detail   \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[12;2H      list everything        "
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 81,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[10;2H      list skills            \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[11;2H      list skills --detail   "
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 72,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[9;2H  v List                     \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[10;2H      list skills\u001b[12X\u001b[12C\u001b[m"
+    },
+    {
+      "delay": 84,
+      "content": "\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[8;2Hv Skills                     \u001b[38;5;253m\u001b[48;5;234m\u001b[22m\u001b[9;2H  v List\u001b[21X\u001b[21C\u001b[m"
+    },
+    {
+      "delay": 90,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[8;2Hv Skills\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[9;2H  v List                     \u001b[m"
+    },
+    {
+      "delay": 93,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[9;2H  v List\u001b[21X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[10;2H      list skills            "
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 80,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[10;2H      list skills\u001b[12X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[11;2H      list skills --detail   "
+    },
+    {
+      "delay": 12,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 88,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[11;2H      list skills --detail   \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[12;2H      list everything        "
+    },
+    {
+      "delay": 96,
+      "content": "\u001b[m\u001b[38;5;253m\u001b[48;5;234m\u001b[12;2H      list everything        \u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[13;2H  v Search                   "
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 77,
+      "content": "\u001b[38;5;253m\u001b[48;5;234m\u001b[13;2H  v Search\u001b[19X\u001b[38;5;233m\u001b[48;5;75m\u001b[1m\u001b[14;2H      search skills --query  "
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 80,
+      "content": "\u001b[?12l\u001b[38;5;237m\u001b[48;5;233m\u001b[1;60H|\u001b[38;5;75m\u001b[1CPrefilled command: search \u001b[38;5;253m\u001b[48;5;237m\u001b[12;31H \u001b[38;5;111m\u001b[49m\u001b[18;1H└──────────────────────────────┘\r\n┌── \u001b[mCommand \u001b[38;5;111m───────────────────────────────────────────────────────────────────────────┤\u001b[38;5;253m\u001b[48;5;233m\u001b[20;2H \u001b[38;5;75m\u001b[49m\u001b[1mskills-sync(personal) > \u001b[38;5;253m\u001b[48;5;233m\u001b[22msearch skills --query\u001b[40X\u001b[38;5;111m\u001b[49m\u001b[21;32H─\u001b[38;5;103m\u001b[48;5;233m\u001b[22;8Hrun \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcomplete \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mUp/Down\u001b[38;5;103m\u001b[22m\u001b[1Ch\u001b[1Cs\u001b[1Co\u001b[1Cy \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mclo\u001b[1Ce    \u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C    \u001b[20;49H\u001b[?25h"
+    },
+    {
+      "delay": 18,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 205,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ms"
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mp"
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mr\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me"
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ma\u001b[m"
+    },
+    {
+      "delay": 29,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233md"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[m\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ms"
+    },
+    {
+      "delay": 30,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233mh"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me\u001b[m"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mt"
+    },
+    {
+      "delay": 40,
+      "content": "\u001b[m\u001b[1C"
+    },
+    {
+      "delay": 38,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233m-\u001b[m"
+    },
+    {
+      "delay": 24,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233m-"
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[m\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mp\u001b[m"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mr\u001b[m"
+    },
+    {
+      "delay": 26,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mo\u001b[m"
+    },
+    {
+      "delay": 29,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mf"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mi\u001b[m"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ml\u001b[m"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[m\u001b[1C"
+    },
+    {
+      "delay": 34,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mp\u001b[m"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mr"
+    },
+    {
+      "delay": 12,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ms\u001b[m"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mo"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[m\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mn"
+    },
+    {
+      "delay": 13,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 34,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ma\u001b[m\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ml"
+    },
+    {
+      "delay": 44,
+      "content": "\u001b[m\u001b[1C"
+    },
+    {
+      "delay": 27,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233m-"
+    },
+    {
+      "delay": 38,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233m-"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233ms"
+    },
+    {
+      "delay": 37,
+      "content": "\u001b[?12l\u001b[m\u001b[38;5;253m\u001b[48;5;233mc\u001b[m"
+    },
+    {
+      "delay": 32,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mo\u001b[m"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mp\u001b[m"
+    },
+    {
+      "delay": 23,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me"
+    },
+    {
+      "delay": 18,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 24,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[20;27Hearch skil\u001b[1Cs -\u001b[1Cquery spreadshe\u001b[1Ct -\u001b[1Cprofile personal -\u001b[1Cscope \u001b[?25h"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[20;27Harch skil\u001b[1Cs -\u001b[1Cquery spreadshe\u001b[1Ct -\u001b[1Cprofile personal -\u001b[1Cscope i\u001b[?25h"
+    },
+    {
+      "delay": 15,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[20;27Hrch skil\u001b[1Cs -\u001b[1Cquery spreadshe\u001b[1Ct -\u001b[1Cprofile personal -\u001b[1Cscope in\u001b[?25h\u001b[m"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[20;27Hch skil\u001b[1Cs -\u001b[1Cquery spreadshe\u001b[1Ct -\u001b[1Cprofile personal -\u001b[1Cscope ins\u001b[?25h"
+    },
+    {
+      "delay": 12,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[20;27Hh skil\u001b[1Cs -\u001b[1Cquery spreadshe\u001b[1Ct -\u001b[1Cprofile personal -\u001b[1Cscope inst\u001b[?25h\u001b[m"
+    },
+    {
+      "delay": 20,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[20;27H skil\u001b[1Cs -\u001b[1Cquery spreadshe\u001b[1Ct -\u001b[1Cprofile personal -\u001b[1Cscope insta\u001b[?25h\u001b[m"
+    },
+    {
+      "delay": 32,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[20;27Hskil\u001b[1Cs -\u001b[1Cquery spreadshe\u001b[1Ct -\u001b[1Cprofile personal -\u001b[1Cscope instal\u001b[?25h\u001b[m"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[20;27Hkil\u001b[1Cs -\u001b[1Cquery spreadshe\u001b[1Ct -\u001b[1Cprofile personal -\u001b[1Cscope instal\u001b[1C\u001b[?25h"
+    },
+    {
+      "delay": 39,
+      "content": "\u001b[?12l\u001b[?25l\u001b[m\u001b[38;5;253m\u001b[48;5;233m\u001b[20;27Hil\u001b[1Cs -\u001b[1Cquery spreadshe\u001b[1Ct -\u001b[1Cprofile personal -\u001b[1Cscope instal\u001b[1Ce\u001b[?25h"
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 21,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[20;27Hl\u001b[1Cs -\u001b[1Cquery spreadshe\u001b[1Ct -\u001b[1Cprofile personal -\u001b[1Cscope instal\u001b[1Ced\u001b[?25h\u001b[m"
+    },
+    {
+      "delay": 191,
+      "content": "\u001b[?12l\u001b[?25l\u001b[38;5;253m\u001b[48;5;233m\u001b[1;60H \u001b[1C\u001b[26X\u001b[48;5;234m\u001b[12;31H \u001b[38;5;111m\u001b[49m\u001b[18;1H│\u001b[38;5;253m\u001b[48;5;234m> MCPs\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[24C│\r\n│\u001b[38;5;253m\u001b[48;5;234m> Upstreams\u001b[19X\u001b[38;5;111m\u001b[49m\u001b[19C│\u001b[54X\u001b[38;5;253m\u001b[48;5;234m\u001b[20;2H> Agents\u001b[22X\u001b[38;5;111m\u001b[49m\u001b[22C│\u001b[54X\u001b[21;32H┴\u001b[38;5;103m\u001b[48;5;233m\u001b[22;8Hexpand / run \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m:\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcommand \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;103m\u001b[22m\u001b[1Cf\u001b[1Cl\u001b[1Ce\u001b[38;5;253m\u001b[1C \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mtran\u001b[1Ccript\u001b[38;5;237m\u001b[1C|\u001b[38;5;75m\u001b[1m\u001b[1CEsc\u001b[38;5;103m\u001b[22m\u001b[1Cexit"
+    },
+    {
+      "delay": 17,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 865,
+      "content": "\u001b[38;5;253m\u001b[48;5;233m\u001b[1m\u001b[1;51HTranscript\u001b[22m\u001b[1C \u001b[1C\u001b[24X\u001b[38;5;111m\u001b[49m\u001b[2;3H─ \u001b[mTransc\u001b[1Cipt (active) \u001b[38;5;111m\u001b[7C─\u001b[38;5;253m\u001b[48;5;234m\u001b[3;2H \u001b[38;5;103m[shell] Explorer-first shell ready.\u001b[49X\u001b[4;3H[shell] Profile context: personal\u001b[51X\u001b[5;3H  \u001b[38;5;253m\u001b[1C    \u001b[22C\u001b[55X\u001b[38;5;75m\u001b[1m\u001b[6;3H$ list skills --detail full\u001b[38;5;253m\u001b[22m\u001b[2C\u001b[55X\u001b[7;2H \u001b[38;5;103m\u001b[1m  NAME                                 TYPE      SOURCE          STATE             \u001b[38;5;253m\u001b[22m \u001b[8;2H \u001b[1C mat\u001b[1Cab_skills/matlab-test-generator  imported  matlab_skills   [imported] [floati \u001b[9;4H openai_curated/skill-creator         imported  openai_curated  [imported] [floati \u001b[10;5Hopenai_curated/spreadsheet\u001b[1C          imported  openai_curated  [imported] [floati \u001b[38;5;103m\u001b[11;3H \u001b[38;5;253m\u001b[4C    \u001b[1C      \u001b[1C        \u001b[4C\u001b[55X\u001b[38;5;75m\u001b[1m\u001b[12;3H$ search skills --query matlab --scope discoverable\u001b[38;5;253m\u001b[22m\u001b[33X\u001b[38;5;103m\u001b[1m\u001b[13;3H  SCOPE                       PATH                          TITLE\u001b[38;5;253m\u001b[22m\u001b[19X\u001b[14;2H   discoverable:matlab_skills\u001b[1C skills/matlab-plot-debugger   -\u001b[23X\u001b[15;5Hdiscoverable:matlab_skills\u001b[1C skills/matlab-test-generator  -\u001b[23X\u001b[38;5;103m\u001b[16;3H  \u001b[38;5;253m\u001b[1C      \u001b[20C\u001b[55X\u001b[38;5;75m\u001b[1m\u001b[17;3H$ search skills --query spreadsheet --profile personal --scope installed\u001b[38;5;253m\u001b[22m\u001b[12X\u001b[18;2H \u001b[38;5;103m\u001b[1m  SCOPE                     PATH                        TITLE      \u001b[38;5;253m\u001b[22m\u001b[17X\u001b[19;2H \u001b[38;5;75m\u001b[1m  installed:openai_curated  openai_curated/spreadsheet  spreadsheet\u001b[38;5;253m\u001b[22m                  \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[20;2H \u001b[1C      \u001b[22C\u001b[56X\u001b[38;5;111m\u001b[49m\n─\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexplorer \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mSpace\u001b[38;5;103m\u001b[22m\u001b[1Cselect \u001b[38;5;237m| \u001b[38;5;75m\u001b[1my\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcopy \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103msearch\u001b[38;5;237m\u001b[1C| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback\u001b[38;5;253m\u001b[1C \u001b[1C   \u001b[1C    \u001b[m"
+    },
+    {
+      "delay": 1759,
+      "content": "\u001b[?12l\u001b[38;5;103m\u001b[48;5;234m\u001b[3;3H\u001b[35X\u001b[38;5;75m\u001b[1m\n$ list skills --detail full\u001b[38;5;253m\u001b[22m      \u001b[38;5;103m\u001b[1m\u001b[5;3H  NAME                                 TYPE      SOURCE          STATE             \u001b[38;5;253m\u001b[22m\u001b[6;3H  matlab_skills/matlab-test-generator\u001b[2Cimported\u001b[2Cmatlab_skills\u001b[3C[imported]\u001b[1C[floati\u001b[7;3H  openai_curated/skill-creator         imported  openai_curated  [imported] [floati\u001b[8;5Hopen\u001b[1Ci\u001b[1Ccurated/spreadsheet\u001b[9X\u001b[21Copen\u001b[1Ci\u001b[1Ccurated\u001b[38;5;103m\u001b[9;3H \u001b[38;5;253m\u001b[1C\u001b[28X\u001b[37C        \u001b[2C\u001b[14X\u001b[16C\u001b[10X\u001b[11C       \u001b[38;5;75m\u001b[1m\u001b[10;3H$ search skills --query matlab --scope discoverable\u001b[38;5;253m\u001b[22m\u001b[12X\u001b[14C\u001b[10X\u001b[11C       \u001b[38;5;103m\u001b[1m\u001b[11;3H  SCOPE                       PATH                          TITLE\u001b[38;5;253m\u001b[22m\u001b[12;3H  discoverable:matlab_skills  skills/matlab-plot-debugger\u001b[3C-\u001b[13;3H  discoverable:matlab_skills  skills/matlab-test-generator  -    \u001b[38;5;103m\u001b[14;3H \u001b[38;5;253m\u001b[1C\u001b[26X\u001b[28C\u001b[27X\u001b[30C \u001b[38;5;75m\u001b[1m\u001b[15;3H$ search skills --query spreadsheet --profile personal --scope installed\u001b[38;5;103m\u001b[16;3H  SCOPE                     PATH                        TITLE      \u001b[38;5;253m\u001b[22m\u001b[17;3H  installed:openai_curated  openai_curated/spreadsheet  spreadsheet     \u001b[48;5;237m\u001b[11C \u001b[38;5;111m\u001b[49m\r\n└──────────────────────────────────────────────────────────────────────────────────────┘┌── \u001b[mCommand \u001b[38;5;111m───────────────────────────────────────────────────────────────────────────┐\u001b[38;5;253m\u001b[48;5;233m\u001b[20;2H \u001b[38;5;75m\u001b[49m\u001b[1mskills-sync(personal) > \u001b[38;5;253m\u001b[48;5;233m\u001b[22m\u001b[61X\u001b[38;5;75m\u001b[1m\u001b[22;2HEnter\u001b[38;5;253m\u001b[22m \u001b[38;5;103mrun \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcomplete \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mUp/Down\u001b[38;5;253m\u001b[22m \u001b[38;5;103mhistory \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mclose    \u001b[20;27H\u001b[?25h"
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 199,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233me\u001b[m"
+    },
+    {
+      "delay": 22,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mx\u001b[m"
+    },
+    {
+      "delay": 23,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mi"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 26,
+      "content": "\u001b[?12l\u001b[38;5;253m\u001b[48;5;233mt"
+    },
+    {
+      "delay": 16,
+      "content": "\u001b[m"
+    },
+    {
+      "delay": 156,
+      "content": "\u001b[?25l\u001b[?25l\u001b[?12l\u001b[?12l\u001b[38;5;103m\u001b[48;5;234m\u001b[3;3H[shell] Explorer-first shell ready.\u001b[4;3H[shell] Profile context: personal\u001b[5;3H\u001b[83X\u001b[38;5;75m\u001b[1m\n$ list skills --detail full\u001b[38;5;253m\u001b[22m\u001b[10X\u001b[12C        \u001b[2C\u001b[13X\u001b[16C\u001b[10X\u001b[11C       \u001b[38;5;103m\u001b[1m\u001b[7;3H  NAME                                 TYPE      SOURCE          STATE             \u001b[38;5;253m\u001b[22m\u001b[8;5Hmatl\u001b[1Cb\u001b[1Cskills/matlab-test-generator\u001b[12Cmatl\u001b[1Cb\u001b[1Cskills \u001b[9;3H \u001b[1Copenai_curated/skill-creator\u001b[9Cimported\u001b[2Copenai_curated\u001b[2C[imported]\u001b[1C[floati\u001b[10;3H  openai_curated/spreadsheet           imported  openai_curated\u001b[2C[imported]\u001b[1C[floati\u001b[38;5;103m\u001b[11;3H\u001b[65X\u001b[38;5;75m\u001b[1m\n$ search skills --query matlab --scope discoverable\u001b[38;5;253m\u001b[22m      \u001b[3C \u001b[38;5;103m\u001b[1m\u001b[13;3H  SCOPE                       PATH                          TITLE\u001b[38;5;253m\u001b[22m\u001b[14;3H \u001b[1Cdiscoverable:matlab_skills\u001b[2Cskills/matlab-plot-debugger\u001b[3C-\u001b[15;3H  discoverable:matlab_skills  skills/matlab-test-generator  -\u001b[11X\u001b[38;5;103m\u001b[16;3H\u001b[67X\u001b[38;5;75m\u001b[1m\n$ search skills --query spreadsheet --profile personal --scope installed\u001b[38;5;253m\u001b[22m\u001b[11C \u001b[38;5;111m\u001b[49m\r\n│\u001b[38;5;253m\u001b[48;5;234m \u001b[38;5;103m\u001b[1m  SCOPE                     PATH                        TITLE      \u001b[38;5;253m\u001b[22m                  \u001b[K\u001b[38;5;111m\u001b[49m││\u001b[38;5;253m\u001b[48;5;234m \u001b[38;5;75m\u001b[1m  installed:openai_curated  openai_curated/spreadsheet  spreadsheet\u001b[38;5;253m\u001b[22m                  \u001b[K\u001b[38;5;111m\u001b[49m│\u001b[38;5;253m\u001b[48;5;234m\u001b[20;2H\u001b[86X\u001b[38;5;75m\u001b[48;5;233m\u001b[1m\u001b[22;2HTab\u001b[38;5;253m\u001b[22m \u001b[38;5;103mexplorer \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mSpace\u001b[38;5;253m\u001b[22m \u001b[38;5;103mselect \u001b[38;5;237m| \u001b[38;5;75m\u001b[1my\u001b[38;5;253m\u001b[22m \u001b[38;5;103mcopy \u001b[38;5;237m| \u001b[38;5;75m\u001b[1m/\u001b[38;5;253m\u001b[22m \u001b[38;5;103msearch \u001b[38;5;237m| \u001b[38;5;75m\u001b[1mEsc\u001b[38;5;253m\u001b[22m \u001b[38;5;103mback\u001b[H\u001b[?25h\u001b[m\u001b[2J\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\u001b[H\u001b[?25h\u001b[?1049l\u001b[?25l\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\r\n\u001b[K\u001b[H\u001b[?25h"
+    },
+    {
+      "delay": 53,
+      "content": "\r\n"
+    },
+    {
+      "delay": 19,
+      "content": "\u001b[?25l\u001b[HLeaving shell mode.\r\n\u001b[?25h"
+    }
+  ]
 }

@@ -8,6 +8,7 @@ export default [
       "node_modules/**",
       "internal/scripts/**",
       ".cache/**",
+      ".tui-test/**",
       "workspace/**",
       ".tmp*/**"
     ]
