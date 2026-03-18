@@ -102,7 +102,7 @@ Those files are the only authored source of truth for agent metadata, runtime pr
 | `skills.support.*` | yes | Boolean skill feature support map. Unsupported optional features are stripped from agent skill projections, and the same map is used for advisory compatibility warnings. |
 | `mcp.internalConfig` | yes | Generated runtime MCP config path under `~/.skills-sync/internal/`. |
 | `mcp.targets.<os>.config` | yes | Real per-OS MCP config location. |
-| `mcp.kind` | yes | MCP config reader/writer kind. Current values: `json-mcpServers`, `json-command-url`, `copilot-json-type`, `toml-managed-block`. |
+| `mcp.kind` | yes | MCP config reader/writer kind. Current values: `json-mcpServers`, `claude-json-type`, `json-command-url`, `copilot-json-type`, `toml-managed-block`. |
 | `mcp.supportVersion` | optional | Version for the MCP support matrix shape. Missing values normalize to `1`. |
 | `mcp.hasNonMcpConfig` | yes | If `true`, the target config file contains non-MCP settings, so runtime generation must seed from the local config and replace only the managed MCP section. If `false`, a clean agent-native config can be generated. |
 | `mcp.support.transports.*` | optional | Transport support metadata: `stdio`, `streamableHttp`, `sse`. Missing keys default to `false`. |

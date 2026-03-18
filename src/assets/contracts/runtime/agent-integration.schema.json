@@ -127,6 +127,7 @@
           "type": "string",
           "enum": [
             "json-mcpServers",
+            "claude-json-type",
             "json-command-url",
             "copilot-json-type",
             "toml-managed-block"

@@ -193,6 +193,11 @@ function normalizeCopilotRemoteType(value) {
   return normalized === "sse" ? "sse" : "http";
 }
 
+function normalizeClaudeRemoteType(value) {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return normalized === "sse" ? "sse" : "http";
+}
+
 function projectCopilotServer(server) {
   if (typeof server.url === "string" && server.url.trim().length > 0) {
     return {
@@ -205,6 +210,19 @@ function projectCopilotServer(server) {
     type: "stdio",
     ...buildBaseCommandServer(server),
     tools: ["*"]
+  };
+}
+
+function projectClaudeServer(server) {
+  if (typeof server.url === "string" && server.url.trim().length > 0) {
+    return {
+      type: normalizeClaudeRemoteType(server.transport),
+      url: server.url
+    };
+  }
+  return {
+    type: "stdio",
+    ...buildBaseCommandServer(server)
   };
 }
 
@@ -252,7 +270,12 @@ function normalizeJsonMcpServer(name, value) {
     name,
     command: typeof value.command === "string" ? value.command : null,
     url: typeof value.url === "string" ? value.url : null,
-    transport: typeof value.transport === "string" ? value.transport : null,
+    transport:
+      typeof value.transport === "string"
+        ? value.transport
+        : typeof value.type === "string"
+          ? value.type
+          : null,
     args: Array.isArray(value.args) ? value.args.map((item) => String(item)) : [],
     env:
       value.env && typeof value.env === "object" && !Array.isArray(value.env)
@@ -692,6 +715,11 @@ function createJsonKind(id, projectServer, buildRuntimeProjectionServers = null)
 
 const MCP_CONFIG_KINDS = Object.freeze({
   "json-mcpServers": createJsonKind("json-mcpServers", projectJsonMcpServer),
+  "claude-json-type": createJsonKind(
+    "claude-json-type",
+    projectClaudeServer,
+    (canonicalMcp) => buildProjectedServersFromEntries(canonicalMcp, projectClaudeServer)
+  ),
   "json-command-url": createJsonKind("json-command-url", projectJsonCommandUrlServer),
   "copilot-json-type": createJsonKind(
     "copilot-json-type",
@@ -713,6 +741,7 @@ const MCP_CONFIG_KINDS = Object.freeze({
 
 const DEFAULT_MCP_CONFIG_KIND_BY_TOOL = Object.freeze({
   codex: "toml-managed-block",
+  claude: "claude-json-type",
   copilot: "copilot-json-type",
   gemini: "json-command-url"
 });

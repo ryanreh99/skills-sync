@@ -27,7 +27,7 @@ export async function projectClaudeFromBundle(options) {
   const canonicalMcp = await readJsonFile(bundleMcpPath);
   const projectedMcpServers = buildAgentRuntimeMcpServers(canonicalMcp, agent ?? {
     id: "claude",
-    mcpKind: "json-mcpServers"
+    mcpKind: "claude-json-type"
   });
   let projected = {
     ...canonicalMcp,

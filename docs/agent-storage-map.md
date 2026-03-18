@@ -44,10 +44,10 @@ If a field is not clearly documented in official docs, it is marked **UNVERIFIED
   - Project: `.claude/settings.json`
   - Local project override: `.claude/settings.local.json`
 - MCP config locations documented as:
-  - Main Claude config (primary): `~/.claude.json`
-  - Dedicated MCP file: `~/.claude/mcp_servers.json`
+  - Local/user scope: `~/.claude.json`
   - Project scope: `.mcp.json`
-  - Precedence: when both user-level files are present, the main `~/.claude.json` takes priority over `~/.claude/mcp_servers.json`.
+  - Managed/admin scope: system-wide `managed-mcp.json`
+  - The documented `.mcp.json` / `managed-mcp.json` examples use `mcpServers` entries with Claude-style `type` values like `http` and `stdio`.
 
 ### Skills / sub-agents discovery
 - Sub-agents:
@@ -64,6 +64,7 @@ If a field is not clearly documented in official docs, it is marked **UNVERIFIED
 ### Stability
 - Claude settings + MCP are documented.
 - Sub-agents are documented as primary feature.
+- Plugin marketplaces can also bundle MCP servers, but that is a separate plugin-installation path from user/project MCP config files.
 
 ### Sources
 - https://docs.anthropic.com/en/docs/claude-code/settings

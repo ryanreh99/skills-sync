@@ -32,18 +32,18 @@
   },
   "mcp": {
     "internalConfig": ".claude/mcp.json",
-    "kind": "json-mcpServers",
+    "kind": "claude-json-type",
     "supportVersion": 1,
-    "hasNonMcpConfig": false,
+    "hasNonMcpConfig": true,
     "targets": {
       "windows": {
-        "config": "%USERPROFILE%\\\\.claude\\\\mcp_servers.json"
+        "config": "%USERPROFILE%\\\\.claude.json"
       },
       "macos": {
-        "config": "$HOME/mcp_servers.json"
+        "config": "$HOME/.claude.json"
       },
       "linux": {
-        "config": "$HOME/.claude/mcp_servers.json"
+        "config": "$HOME/.claude.json"
       }
     },
     "support": {

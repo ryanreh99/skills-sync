@@ -1,10 +1,11 @@
-## 1.2.2
+## 1.2.3
 
 Claude support hardening and release metadata update.
 
 Features
 - Promoted Claude Code from experimental to supported in the public support matrix
 - Switched Claude skill projection to top-level alias discovery so nested imported skills are reliably discoverable, matching the flat projection behavior used for Gemini-style integrations
+- Fixed Claude MCP sync to target the documented `~/.claude.json` user/local config and emit Claude's `type`-based MCP server shape
 - Added integration coverage to verify Claude skill projections expose top-level discoverable skills after apply
 - Updated Claude storage/projection notes to reflect the tested runtime behavior
 

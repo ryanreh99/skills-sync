@@ -446,6 +446,7 @@ test("loadAgentIntegrations derives registry and targets from per-agent integrat
   const integrations = await loadAgentIntegrations();
   const ids = integrations.map((entry) => entry.id);
   assert.deepEqual(ids, ["codex", "claude", "cursor", "copilot", "gemini"]);
+  const claude = integrations.find((entry) => entry.id === "claude");
 
   const windowsTargets = buildTargetsDocument(integrations, "windows");
   assert.equal(typeof windowsTargets.codex?.mcpConfig, "string");
@@ -454,6 +455,9 @@ test("loadAgentIntegrations derives registry and targets from per-agent integrat
   assert.equal(typeof windowsTargets.codex?.hasNonMcpConfig, "boolean");
   assert.equal(typeof integrations[0]?.internal?.skillsDir, "string");
   assert.equal(typeof integrations[0]?.adapter, "string");
+  assert.equal(claude?.mcpKind, "claude-json-type");
+  assert.equal(claude?.hasNonMcpConfig, true);
+  assert.equal(windowsTargets.claude?.mcpConfig, "%USERPROFILE%\\\\.claude.json");
 });
 
 test("normalizeAgentIntegrationEntry defaults missing MCP support and version conservatively", () => {
@@ -699,6 +703,41 @@ test("buildToolJsonMcpServers renders Gemini-compatible command/url server shape
   });
   assert.deepEqual(projected.notion, {
     url: "https://mcp.notion.com/mcp"
+  });
+});
+
+test("buildToolJsonMcpServers renders Claude-compatible type-based server shapes", () => {
+  const projected = buildToolJsonMcpServers(
+    {
+      mcpServers: {
+        filesystem: {
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-filesystem"]
+        },
+        notion: {
+          url: "https://mcp.notion.com/mcp"
+        },
+        events: {
+          url: "https://example.com/sse",
+          transport: "sse"
+        }
+      }
+    },
+    "claude"
+  );
+
+  assert.deepEqual(projected.filesystem, {
+    type: "stdio",
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-filesystem"]
+  });
+  assert.deepEqual(projected.notion, {
+    type: "http",
+    url: "https://mcp.notion.com/mcp"
+  });
+  assert.deepEqual(projected.events, {
+    type: "sse",
+    url: "https://example.com/sse"
   });
 });
 

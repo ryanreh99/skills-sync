@@ -17,7 +17,7 @@ export async function writeTargetsOverride(localOverridesPath, runtimePath) {
     claude: {
       skillsDir: path.join(runtimePath, ".claude", "skills"),
       mcpConfig: path.join(runtimePath, ".claude.json"),
-      hasNonMcpConfig: false
+      hasNonMcpConfig: true
     },
     cursor: {
       skillsDir: path.join(runtimePath, ".cursor", "skills"),

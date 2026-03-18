@@ -40,17 +40,27 @@ export async function run({ distPath, runtimePath }) {
     "Dist Codex config should replace (not merge) local MCP tables."
   );
 
-  // Claude (hasNonMcpConfig:false): build produces a clean config — no user settings bleed through
+  // Claude (hasNonMcpConfig:true): build merges pre-existing non-MCP user settings
   const distClaudeDoc = JSON.parse(await fs.readFile(path.join(distPath, ".claude", "mcp.json"), "utf8"));
   assert.equal(
     distClaudeDoc.settings?.verbose,
-    undefined,
-    "Dist Claude config should be fully overrideable (no verbose setting)."
+    true,
+    "Dist Claude config should preserve local non-MCP settings."
   );
   assert.equal(
     "keep_me" in (distClaudeDoc.mcpServers ?? {}),
     false,
     "Dist Claude config should replace local MCP servers."
+  );
+  assert.equal(
+    distClaudeDoc.mcpServers?.filesystem?.type,
+    "stdio",
+    "Dist Claude stdio servers should use Claude's documented 'type' field."
+  );
+  assert.equal(
+    "transport" in (distClaudeDoc.mcpServers?.filesystem ?? {}),
+    false,
+    "Dist Claude managed MCP entries should not include the legacy transport field."
   );
 
   // Cursor (hasNonMcpConfig:false): clean config, no user keys
@@ -131,6 +141,16 @@ export async function run({ distPath, runtimePath }) {
   assertManagedJsonMerged(JSON.stringify(claudeRuntimeDoc), "claude");
   assertManagedJsonMerged(JSON.stringify(cursorRuntimeDoc), "cursor");
   assertManagedJsonMerged(JSON.stringify(copilotRuntimeDoc), "copilot");
+  assert.equal(
+    claudeRuntimeDoc.mcpServers?.filesystem?.type,
+    "stdio",
+    "Claude managed stdio servers should use the 'type' field."
+  );
+  assert.equal(
+    "transport" in (claudeRuntimeDoc.mcpServers?.filesystem ?? {}),
+    false,
+    "Claude managed MCP entries should not include the legacy transport field."
+  );
   assert.equal(
     copilotRuntimeDoc.mcpServers?.filesystem?.type,
     "stdio",
