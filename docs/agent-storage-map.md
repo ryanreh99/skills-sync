@@ -55,6 +55,7 @@ If a field is not clearly documented in official docs, it is marked **UNVERIFIED
   - Project: `.claude/agents/`
 - `~/.claude/skills` / `.claude/skills` are **UNVERIFIED** in Anthropic docs.
   - This repo uses `.claude/skills` as a conservative compatibility path.
+  - Because this path is undocumented, `skills-sync` treats skill discovery conservatively as top-level only and projects flat aliases for nested skill namespaces.
 
 ### Precedence and env vars
 - Settings precedence is documented (managed > user/project tiers).
@@ -177,5 +178,5 @@ If a field is not clearly documented in official docs, it is marked **UNVERIFIED
 ## Conservative defaults used by this repo
 
 - `sync` manages **user-level targets only** by default.
-- Cursor adapter uses copy+aliases projection (same as Gemini) — skills are projected to `~/.skills-sync/internal/.cursor/skills` with flat `vendor__*` aliases for any nested skill paths, then bound to `~/.cursor/skills` during runtime sync.
+- Claude, Cursor, Copilot, and Gemini use flat alias projection for nested skill paths — skills are projected under `~/.skills-sync/internal/.<agent>/skills` with `vendor__*` aliases when needed, then bound to the agent runtime skills directory during sync.
 - When schema/path behavior is ambiguous, docs are preserved in this file and implementation avoids destructive assumptions.

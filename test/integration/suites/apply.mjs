@@ -199,6 +199,12 @@ export async function run({ distPath, runtimePath }) {
   }
 
   assert.equal(
+    (await countDiscoverableSkills(path.join(runtimePath, ".claude", "skills"))) > 0,
+    true,
+    "Claude skills projection should provide at least one top-level discoverable skill."
+  );
+
+  assert.equal(
     (await countDiscoverableSkills(path.join(runtimePath, ".cursor", "skills"))) > 0,
     true,
     "Cursor skills projection should provide at least one top-level discoverable skill."

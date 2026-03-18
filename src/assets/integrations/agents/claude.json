@@ -21,7 +21,7 @@
       }
     },
     "support": {
-      "nestedDiscovery": true,
+      "nestedDiscovery": false,
       "instructions": true,
       "frontmatter": true,
       "scripts": false,

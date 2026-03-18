@@ -21,7 +21,7 @@ Define an environment once, keep it in a local workspace, and sync it to tools l
 ![Cursor](https://img.shields.io/badge/Cursor-supported-000000?logo=cursor)
 ![Gemini](https://img.shields.io/badge/Gemini-supported-4285F4?logo=google)
 ![Copilot](https://img.shields.io/badge/Copilot-supported-2F80ED?logo=githubcopilot)
-![Claude Code](https://img.shields.io/badge/Claude%20Code-experimental-orange?logo=anthropic&logoColor=white)
+![Claude Code](https://img.shields.io/badge/Claude%20Code-supported-191919?logo=anthropic&logoColor=white)
 
 ## Installation
 
