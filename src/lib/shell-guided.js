@@ -577,8 +577,11 @@ function buildRefreshArgs(session) {
 function buildAddMcpArgs(session) {
   const args = buildProfilePrefix(session, "add-mcp");
   args.push(normalizeRequiredText(session.values.serverName, "MCP server name"));
-  if (session.values.transport === "http") {
+  if (session.values.transport === "http" || session.values.transport === "sse") {
     args.push("--url", normalizeRequiredText(session.values.url, "MCP server URL"));
+    if (session.values.transport === "sse") {
+      args.push("--transport", "sse");
+    }
   } else {
     args.push("--command", normalizeRequiredText(session.values.command, "MCP server command"));
     for (const arg of uniqueValues(session.values.commandArgs)) {
@@ -1048,18 +1051,19 @@ const FLOW_DEFINITIONS = {
         description: "Choose the MCP transport type.",
         loadOptions: async () => [
           { value: "stdio", label: "stdio", hint: "local command-based MCP server" },
-          { value: "http", label: "http", hint: "remote HTTP MCP server" }
+          { value: "http", label: "http", hint: "remote HTTP MCP server" },
+          { value: "sse", label: "sse", hint: "legacy remote SSE MCP server" }
         ],
         getSelectedValue: (session) => session.values.transport || "stdio",
         commit: async (session, value) => {
-          session.values.transport = value === "http" ? "http" : "stdio";
+          session.values.transport = value === "http" || value === "sse" ? value : "stdio";
         }
       }),
       textStep({
         id: "command",
         title: "Server command",
         description: "Executable to launch for stdio MCP servers.",
-        isVisible: (session) => session.values.transport !== "http",
+        isVisible: (session) => session.values.transport !== "http" && session.values.transport !== "sse",
         placeholder: "npx",
         getValue: (session) => session.values.command || "",
         commit: async (session, value) => {
@@ -1069,8 +1073,8 @@ const FLOW_DEFINITIONS = {
       textStep({
         id: "url",
         title: "Server URL",
-        description: "Base URL for the remote HTTP MCP server.",
-        isVisible: (session) => session.values.transport === "http",
+        description: "Base URL for the remote MCP server.",
+        isVisible: (session) => session.values.transport === "http" || session.values.transport === "sse",
         placeholder: "https://example.com/mcp",
         getValue: (session) => session.values.url || "",
         commit: async (session, value) => {
@@ -1081,7 +1085,7 @@ const FLOW_DEFINITIONS = {
         id: "commandArgs",
         title: "Command args (optional)",
         description: "Enter args separated by spaces or commas.",
-        isVisible: (session) => session.values.transport !== "http",
+        isVisible: (session) => session.values.transport !== "http" && session.values.transport !== "sse",
         placeholder: "-y @modelcontextprotocol/server-filesystem",
         optional: true,
         getValue: (session) => Array.isArray(session.values.commandArgs) ? session.values.commandArgs.join(" ") : "",
@@ -1093,7 +1097,7 @@ const FLOW_DEFINITIONS = {
         id: "envEntries",
         title: "Env entries (optional)",
         description: "Enter KEY=VALUE pairs separated by spaces or commas.",
-        isVisible: (session) => session.values.transport !== "http",
+        isVisible: (session) => session.values.transport !== "http" && session.values.transport !== "sse",
         placeholder: "ROOT=$HOME",
         optional: true,
         getValue: (session) => Array.isArray(session.values.envEntries) ? session.values.envEntries.join(" ") : "",

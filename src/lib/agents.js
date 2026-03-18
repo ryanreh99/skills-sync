@@ -13,7 +13,11 @@ import {
   logWarn,
   writeJsonFile
 } from "./core.js";
-import { readInstalledMcpServersForAgent, resolveAgentMcpConfigKind } from "./mcp-config.js";
+import {
+  buildAgentManagedServerEntries,
+  readInstalledMcpServersForAgent,
+  resolveAgentMcpConfigKind
+} from "./mcp-config.js";
 import { applyBindings } from "./bindings.js";
 import { getStatePath } from "./bindings.js";
 import { loadAgentIntegrations } from "./agent-integrations.js";
@@ -518,14 +522,18 @@ async function buildExpectedSkillMap(expectedInventory, integration, sourceSkill
   return expectedByPath;
 }
 
-function buildExpectedMcpMap(expectedInventory) {
+function buildExpectedMcpMap(canonicalMcp, integration) {
   const expectedByName = new Map();
-  for (const server of expectedInventory.mcp.servers ?? []) {
-    const normalized = normalizeStoredProfileMcpSpec(server);
+  const projectedEntries = integration
+    ? buildAgentManagedServerEntries(canonicalMcp, integration)
+    : [];
+
+  for (const entry of projectedEntries) {
+    const normalized = normalizeDiscoveredMcpServerSpec(entry.server);
     if (!normalized) {
       continue;
     }
-    expectedByName.set(server.name, normalized);
+    expectedByName.set(entry.managedName, normalized);
   }
   return expectedByName;
 }
@@ -968,10 +976,7 @@ export async function buildAgentDrift({ profile, agents } = {}) {
   const expectedInventory = await buildProfileInventory(resolvedProfile, { detail: "full" });
   const effectiveState = await loadEffectiveProfileState(resolvedProfile);
   const expectedSkills = sortStrings(expectedInventory.skills.items.map((item) => item.name));
-  const expectedMcpServers = normalizeDriftMcpNames(
-    expectedInventory.mcp.servers.map((item) => item.name)
-  );
-  const expectedMcpByName = buildExpectedMcpMap(expectedInventory);
+  const expectedMcpServers = normalizeDriftMcpNames(expectedInventory.mcp.servers.map((item) => item.name));
   const registry = await loadAgentRegistry();
   const registryById = new Map(registry.map((entry) => [entry.id, entry]));
   const integrations = await loadAgentIntegrations();
@@ -1014,161 +1019,163 @@ export async function buildAgentDrift({ profile, agents } = {}) {
         projectionHashCache,
         projectionHashRoot
       );
-    const expectedSkillPaths = sortStrings(Array.from(expectedSkillsByPath.keys()));
-    const actualSkills = sortStrings(agent.inventory.skills);
-    const actualSkillDetailsByPath = indexSkillDetails(agent.inventory.skillDetails);
-    const actualMcp = normalizeDriftMcpNames(
-      agent.inventory.mcpServers.map((item) => item.name)
-    );
-    const actualMcpByName = buildActualMcpMap(agent);
-    const skillsDrift = computeDifference(expectedSkillPaths, actualSkills);
-    const mcpDrift = computeDifference(expectedMcpServers, actualMcp);
-    const changedSkills = [];
-    const changedMcpServers = [];
-    const classes = [];
+      const expectedSkillPaths = sortStrings(Array.from(expectedSkillsByPath.keys()));
+      const expectedMcpByName = buildExpectedMcpMap(effectiveState.normalizedMcp, integration);
+      const expectedAgentMcpServers = sortStrings(Array.from(expectedMcpByName.keys()));
+      const actualSkills = sortStrings(agent.inventory.skills);
+      const actualSkillDetailsByPath = indexSkillDetails(agent.inventory.skillDetails);
+      const actualMcp = normalizeDriftMcpNames(
+        agent.inventory.mcpServers.map((item) => item.name)
+      );
+      const actualMcpByName = buildActualMcpMap(agent);
+      const skillsDrift = computeDifference(expectedSkillPaths, actualSkills);
+      const mcpDrift = computeDifference(expectedAgentMcpServers, actualMcp);
+      const changedSkills = [];
+      const changedMcpServers = [];
+      const classes = [];
 
-    for (const skillPath of skillsDrift.missing) {
-      const expectedSkill = expectedSkillsByPath.get(skillPath);
-      classes.push({
-        code: "missing-skill",
-        severity: "error",
-        agentId: agent.tool,
-        skillName: expectedSkill?.canonicalName ?? skillPath,
-        skillPath,
-        message: `Expected skill '${skillPath}' is missing from agent '${agent.tool}'.`
-      });
-    }
-    for (const skillPath of skillsDrift.extra) {
-      classes.push({
-        code: "extra-skill",
-        severity: "warning",
-        agentId: agent.tool,
-        skillPath,
-        message: `Agent '${agent.tool}' has unexpected skill '${skillPath}'.`
-      });
-    }
-    for (const skillPath of expectedSkillPaths) {
-      const expectedSkill = expectedSkillsByPath.get(skillPath);
-      const actualSkill = actualSkillDetailsByPath.get(skillPath);
-      if (!expectedSkill || !actualSkill) {
-        continue;
-      }
-      if (
-        expectedSkill.contentHash &&
-        actualSkill.contentHash &&
-        expectedSkill.contentHash !== actualSkill.contentHash
-      ) {
-        changedSkills.push(skillPath);
+      for (const skillPath of skillsDrift.missing) {
+        const expectedSkill = expectedSkillsByPath.get(skillPath);
         classes.push({
-          code: "content-mismatch",
+          code: "missing-skill",
           severity: "error",
           agentId: agent.tool,
-          skillName: expectedSkill.canonicalName,
+          skillName: expectedSkill?.canonicalName ?? skillPath,
           skillPath,
-          message: `Installed skill '${skillPath}' does not match expected content for '${expectedSkill.canonicalName}'.`
+          message: `Expected skill '${skillPath}' is missing from agent '${agent.tool}'.`
         });
       }
-    }
-
-    for (const mcpName of mcpDrift.missing) {
-      classes.push({
-        code: "missing-managed-mcp",
-        severity: "error",
-        agentId: agent.tool,
-        mcpName,
-        message: `Managed MCP '${mcpName}' is missing from agent '${agent.tool}'.`
-      });
-    }
-    for (const mcpName of expectedMcpServers) {
-      const expectedSpec = expectedMcpByName.get(mcpName);
-      const actualEntry = actualMcpByName.get(mcpName);
-      if (!expectedSpec || !actualEntry?.spec) {
-        continue;
-      }
-      if (mcpServerSignature(expectedSpec) !== mcpServerSignature(actualEntry.spec)) {
-        changedMcpServers.push(mcpName);
+      for (const skillPath of skillsDrift.extra) {
         classes.push({
-          code: "changed-managed-mcp",
-          severity: "error",
-          agentId: agent.tool,
-          mcpName,
-          message: `Managed MCP '${mcpName}' differs from profile expectation on agent '${agent.tool}'.`
-        });
-      }
-    }
-    for (const mcpName of mcpDrift.extra) {
-      const actualEntry = actualMcpByName.get(mcpName);
-      if (!actualEntry?.managed) {
-        continue;
-      }
-      classes.push({
-        code: "extra-managed-mcp",
-        severity: "warning",
-        agentId: agent.tool,
-        mcpName,
-        message: `Agent '${agent.tool}' has extra managed MCP '${mcpName}'.`
-      });
-    }
-
-    let featureWarnings = 0;
-    for (const item of expectedInventory.skills.items) {
-      const support = summarizeSkillFeatureSupport(item.capabilities, registryById.get(agent.tool));
-      featureWarnings += support.unsupported.length;
-      if (support.unsupported.length > 0) {
-        classes.push({
-          code: "compatibility-degraded",
+          code: "extra-skill",
           severity: "warning",
           agentId: agent.tool,
-          skillName: item.name,
-          message: `Skill '${item.name}' has ${support.unsupported.length} unsupported feature warning(s) for agent '${agent.tool}'.`
+          skillPath,
+          message: `Agent '${agent.tool}' has unexpected skill '${skillPath}'.`
         });
       }
-
-      if (item.sourceType === "imported") {
-        const expectedProjectionVersion = registryById.get(agent.tool)?.projectionVersion ?? 1;
-        const actualProjectionVersion = item.projectionAdapters?.[agent.tool]?.contractVersion ?? null;
-        if (actualProjectionVersion !== null && actualProjectionVersion !== expectedProjectionVersion) {
+      for (const skillPath of expectedSkillPaths) {
+        const expectedSkill = expectedSkillsByPath.get(skillPath);
+        const actualSkill = actualSkillDetailsByPath.get(skillPath);
+        if (!expectedSkill || !actualSkill) {
+          continue;
+        }
+        if (
+          expectedSkill.contentHash &&
+          actualSkill.contentHash &&
+          expectedSkill.contentHash !== actualSkill.contentHash
+        ) {
+          changedSkills.push(skillPath);
           classes.push({
-            code: "projection-mismatch",
+            code: "content-mismatch",
             severity: "error",
             agentId: agent.tool,
-            skillName: item.name,
-            message: `Projection metadata for '${item.name}' is stale for agent '${agent.tool}'.`
+            skillName: expectedSkill.canonicalName,
+            skillPath,
+            message: `Installed skill '${skillPath}' does not match expected content for '${expectedSkill.canonicalName}'.`
           });
         }
       }
-    }
 
-    const sortedClasses = sortDriftClasses(classes);
-    const byClass = countByClass(sortedClasses);
-
-    resolvedDriftAgents.push({
-      tool: agent.tool,
-      name: agent.name,
-      managedSurface: agent.managedSurface,
-      installed: agent.installed,
-      parseErrors: agent.parseErrors,
-      featureWarnings,
-      classes: sortedClasses,
-      drift: {
-        skills: {
-          ...skillsDrift,
-          changed: sortStrings(changedSkills)
-        },
-        mcpServers: {
-          ...mcpDrift,
-          changed: sortStrings(changedMcpServers)
-        }
-      },
-      summary: {
-        missingTotal: skillsDrift.missing.length + mcpDrift.missing.length,
-        extraTotal: skillsDrift.extra.length + mcpDrift.extra.length,
-        changedTotal: changedSkills.length + changedMcpServers.length,
-        parseErrors: agent.parseErrors.length,
-        featureWarnings,
-        byClass
+      for (const mcpName of mcpDrift.missing) {
+        classes.push({
+          code: "missing-managed-mcp",
+          severity: "error",
+          agentId: agent.tool,
+          mcpName,
+          message: `Managed MCP '${mcpName}' is missing from agent '${agent.tool}'.`
+        });
       }
-    });
+      for (const mcpName of expectedAgentMcpServers) {
+        const expectedSpec = expectedMcpByName.get(mcpName);
+        const actualEntry = actualMcpByName.get(mcpName);
+        if (!expectedSpec || !actualEntry?.spec) {
+          continue;
+        }
+        if (mcpServerSignature(expectedSpec) !== mcpServerSignature(actualEntry.spec)) {
+          changedMcpServers.push(mcpName);
+          classes.push({
+            code: "changed-managed-mcp",
+            severity: "error",
+            agentId: agent.tool,
+            mcpName,
+            message: `Managed MCP '${mcpName}' differs from profile expectation on agent '${agent.tool}'.`
+          });
+        }
+      }
+      for (const mcpName of mcpDrift.extra) {
+        const actualEntry = actualMcpByName.get(mcpName);
+        if (!actualEntry?.managed) {
+          continue;
+        }
+        classes.push({
+          code: "extra-managed-mcp",
+          severity: "warning",
+          agentId: agent.tool,
+          mcpName,
+          message: `Agent '${agent.tool}' has extra managed MCP '${mcpName}'.`
+        });
+      }
+
+      let featureWarnings = 0;
+      for (const item of expectedInventory.skills.items) {
+        const support = summarizeSkillFeatureSupport(item.capabilities, registryById.get(agent.tool));
+        featureWarnings += support.unsupported.length;
+        if (support.unsupported.length > 0) {
+          classes.push({
+            code: "compatibility-degraded",
+            severity: "warning",
+            agentId: agent.tool,
+            skillName: item.name,
+            message: `Skill '${item.name}' has ${support.unsupported.length} unsupported feature warning(s) for agent '${agent.tool}'.`
+          });
+        }
+
+        if (item.sourceType === "imported") {
+          const expectedProjectionVersion = registryById.get(agent.tool)?.projectionVersion ?? 1;
+          const actualProjectionVersion = item.projectionAdapters?.[agent.tool]?.contractVersion ?? null;
+          if (actualProjectionVersion !== null && actualProjectionVersion !== expectedProjectionVersion) {
+            classes.push({
+              code: "projection-mismatch",
+              severity: "error",
+              agentId: agent.tool,
+              skillName: item.name,
+              message: `Projection metadata for '${item.name}' is stale for agent '${agent.tool}'.`
+            });
+          }
+        }
+      }
+
+      const sortedClasses = sortDriftClasses(classes);
+      const byClass = countByClass(sortedClasses);
+
+      resolvedDriftAgents.push({
+        tool: agent.tool,
+        name: agent.name,
+        managedSurface: agent.managedSurface,
+        installed: agent.installed,
+        parseErrors: agent.parseErrors,
+        featureWarnings,
+        classes: sortedClasses,
+        drift: {
+          skills: {
+            ...skillsDrift,
+            changed: sortStrings(changedSkills)
+          },
+          mcpServers: {
+            ...mcpDrift,
+            changed: sortStrings(changedMcpServers)
+          }
+        },
+        summary: {
+          missingTotal: skillsDrift.missing.length + mcpDrift.missing.length,
+          extraTotal: skillsDrift.extra.length + mcpDrift.extra.length,
+          changedTotal: changedSkills.length + changedMcpServers.length,
+          parseErrors: agent.parseErrors.length,
+          featureWarnings,
+          byClass
+        }
+      });
     }
 
     const summary = {

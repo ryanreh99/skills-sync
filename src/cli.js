@@ -665,15 +665,18 @@ async function resolveMcpProfileAndServerArgs({
 async function promptForMissingMcpTransportSettings({
   command,
   url,
+  transport,
   args,
   env
 }) {
   const normalizedCommand = normalizeOptionalText(command);
   const normalizedUrl = normalizeOptionalText(url);
-  if (normalizedCommand || normalizedUrl) {
+  const normalizedTransport = normalizeOptionalText(transport);
+  if (normalizedCommand || normalizedUrl || normalizedTransport) {
     return {
       command: normalizedCommand,
       url: normalizedUrl,
+      transport: normalizedTransport,
       args,
       env
     };
@@ -683,12 +686,13 @@ async function promptForMissingMcpTransportSettings({
     return {
       command: normalizedCommand,
       url: normalizedUrl,
+      transport: normalizedTransport,
       args,
       env
     };
   }
 
-  const transport = await promptForSelect({
+  const selectedTransport = await promptForSelect({
     message: "MCP transport",
     options: [
       {
@@ -700,11 +704,16 @@ async function promptForMissingMcpTransportSettings({
         value: "http",
         label: "http endpoint",
         hint: "URL only"
+      },
+      {
+        value: "sse",
+        label: "sse endpoint",
+        hint: "legacy SSE URL"
       }
     ]
   });
 
-  if (transport === "http") {
+  if (selectedTransport === "http" || selectedTransport === "sse") {
     const promptedUrl = await promptForText({
       message: "MCP server URL",
       placeholder: "https://example.com/mcp",
@@ -714,6 +723,7 @@ async function promptForMissingMcpTransportSettings({
     return {
       command: null,
       url: normalizeRequiredText(promptedUrl, "MCP server URL"),
+      transport: selectedTransport,
       args: [],
       env: []
     };
@@ -737,6 +747,7 @@ async function promptForMissingMcpTransportSettings({
   return {
     command: normalizeRequiredText(promptedCommand, "MCP server command"),
     url: null,
+    transport: "stdio",
     args: parseCommaOrWhitespaceList(argsInput),
     env: parseEnvEntries(envInput)
   };
@@ -1251,7 +1262,8 @@ function createProgram() {
     .command("add-mcp [name] [server]")
     .description("Add or update an MCP server in a profile (defaults to current profile when omitted).")
     .option("--command <command>", "server command executable (stdio transport)")
-    .option("--url <url>", "server URL (HTTP transport)")
+    .option("--url <url>", "server URL")
+    .option("--transport <transport>", "transport type: stdio|http|sse")
     .option("--args <values...>", "optional command args")
     .option(
       "--arg <value>",
@@ -1271,6 +1283,7 @@ function createProgram() {
       const resolvedTransport = await promptForMissingMcpTransportSettings({
         command: options.command,
         url: options.url,
+        transport: options.transport,
         args: resolvedArgs,
         env: options.env
       });
@@ -1279,6 +1292,7 @@ function createProgram() {
         name: resolved.server,
         command: resolvedTransport.command,
         url: resolvedTransport.url,
+        transport: resolvedTransport.transport,
         args: resolvedTransport.args,
         env: resolvedTransport.env
       });

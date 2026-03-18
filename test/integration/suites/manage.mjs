@@ -214,6 +214,42 @@ export async function run({ localOverridesPath }) {
     "added http mcp server url should match."
   );
 
+  // --- profile add-mcp upgrades Atlassian's legacy /v1/sse endpoint to /v1/mcp ---
+  runCli([
+    "profile",
+    "add-mcp",
+    "personal",
+    "unit_test_atlassian_server",
+    "--url",
+    "https://mcp.atlassian.com/v1/sse",
+    "--no-sync"
+  ]);
+  const mcpAfterAtlassianAdd = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
+  assert.equal(
+    mcpAfterAtlassianAdd.servers.unit_test_atlassian_server.url,
+    "https://mcp.atlassian.com/v1/mcp",
+    "profile add-mcp should normalize Atlassian's legacy SSE endpoint to the current /v1/mcp URL."
+  );
+
+  // --- profile add-mcp (explicit remote transport) ---
+  runCli([
+    "profile",
+    "add-mcp",
+    "personal",
+    "unit_test_sse_server",
+    "--url",
+    "https://example.com/sse",
+    "--transport",
+    "sse",
+    "--no-sync"
+  ]);
+  const mcpAfterSseAdd = JSON.parse(await fs.readFile(personalMcpPath, "utf8"));
+  assert.equal(
+    mcpAfterSseAdd.servers.unit_test_sse_server.transport,
+    "sse",
+    "profile add-mcp should preserve explicit remote transport metadata."
+  );
+
   // --- profile add-mcp (stdio with dashed args via repeated --arg) ---
   runCli([
     "profile",
@@ -284,6 +320,25 @@ export async function run({ localOverridesPath }) {
     addMcpArgsStyleConflict.stderr.includes("Use either --args or repeated --arg"),
     true,
     "profile add-mcp should reject mixing --args and --arg."
+  );
+
+  const addMcpTransportConflict = runCli(
+    [
+      "profile",
+      "add-mcp",
+      "personal",
+      "unit_test_transport_conflict_server",
+      "--command",
+      "node",
+      "--transport",
+      "sse"
+    ],
+    1
+  );
+  assert.equal(
+    addMcpTransportConflict.stderr.includes("--transport http/sse can only be used with --url"),
+    true,
+    "profile add-mcp should reject non-stdio transports for stdio servers."
   );
 
   // Keep one env-bearing server for downstream projection/apply assertions.

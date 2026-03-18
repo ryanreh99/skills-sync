@@ -13,7 +13,8 @@ import {
   CODEX_MCP_BLOCK_END,
   CODEX_MCP_BLOCK_START,
   MCP_MANAGED_PREFIX,
-  fileSha256
+  fileSha256,
+  sha256Text
 } from "./core.js";
 import { extractCodexMcpTables, renderCodexMcpTables } from "./adapters/codex.js";
 
@@ -123,37 +124,42 @@ function buildManagedNameCandidates(names) {
   return candidates;
 }
 
-export function buildManagedServerEntries(canonicalMcp) {
+export function buildManagedServerEntries(canonicalMcp, options = {}) {
+  const { nameProjector = null } = options;
   const servers = canonicalMcp?.mcpServers ?? {};
   const names = Object.keys(servers).sort((left, right) => left.localeCompare(right));
-  return names.map((name) => ({
-    rawName: name,
-    managedName: name,
-    legacyManagedName: toLegacyManagedName(name),
-    server: (() => {
-      const server = servers[name] ?? {};
-      if (typeof server.url === "string" && server.url.trim().length > 0) {
+  const usedNames = new Set();
+  return names.map((name) => {
+    const managedName = createProjectedServerName(name, usedNames, nameProjector);
+    return {
+      rawName: name,
+      managedName,
+      legacyManagedName: toLegacyManagedName(managedName),
+      server: (() => {
+        const server = servers[name] ?? {};
+        if (typeof server.url === "string" && server.url.trim().length > 0) {
+          const normalized = {
+            url: expandRuntimeValue(server.url.trim())
+          };
+          if (typeof server.transport === "string" && server.transport.trim().length > 0) {
+            normalized.transport = server.transport.trim();
+          }
+          return normalized;
+        }
         const normalized = {
-          url: expandRuntimeValue(server.url.trim())
+          ...server,
+          args: (Array.isArray(server?.args) ? server.args : []).map((arg) => expandRuntimeValue(arg))
         };
-        if (typeof server.transport === "string" && server.transport.trim().length > 0) {
-          normalized.transport = server.transport.trim();
+        const env = normalizeRuntimeEnv(server.env);
+        if (Object.keys(env).length > 0) {
+          normalized.env = env;
+        } else {
+          delete normalized.env;
         }
         return normalized;
-      }
-      const normalized = {
-        ...server,
-        args: (Array.isArray(server?.args) ? server.args : []).map((arg) => expandRuntimeValue(arg))
-      };
-      const env = normalizeRuntimeEnv(server.env);
-      if (Object.keys(env).length > 0) {
-        normalized.env = env;
-      } else {
-        delete normalized.env;
-      }
-      return normalized;
-    })()
-  }));
+      })()
+    };
+  });
 }
 
 function buildBaseCommandServer(server) {
@@ -198,6 +204,33 @@ function normalizeClaudeRemoteType(value) {
   return normalized === "sse" ? "sse" : "http";
 }
 
+function sanitizeClaudeMcpName(value) {
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/[^A-Za-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return normalized.length > 0 ? normalized : "mcp";
+}
+
+function createProjectedServerName(rawName, usedNames, nameProjector = null) {
+  const projectedBase = typeof nameProjector === "function" ? nameProjector(rawName) : String(rawName ?? "").trim();
+  const fallbackBase = projectedBase.length > 0 ? projectedBase : "mcp";
+  let projectedName = fallbackBase;
+
+  if (usedNames.has(projectedName)) {
+    const suffix = sha256Text(rawName).slice(0, 8);
+    projectedName = `${fallbackBase}_${suffix}`;
+    let attempt = 2;
+    while (usedNames.has(projectedName)) {
+      projectedName = `${fallbackBase}_${suffix}_${attempt}`;
+      attempt += 1;
+    }
+  }
+
+  usedNames.add(projectedName);
+  return projectedName;
+}
+
 function projectCopilotServer(server) {
   if (typeof server.url === "string" && server.url.trim().length > 0) {
     return {
@@ -227,17 +260,17 @@ function projectClaudeServer(server) {
 }
 
 function buildProjectedServersFromEntries(canonicalMcp, projectServer, options = {}) {
-  const { managed = false } = options;
+  const { nameProjector = null } = options;
   const projected = {};
-  for (const entry of buildManagedServerEntries(canonicalMcp)) {
-    projected[managed ? entry.managedName : entry.rawName] = projectServer(entry.server);
+  for (const entry of buildManagedServerEntries(canonicalMcp, { nameProjector })) {
+    projected[entry.managedName] = projectServer(entry.server);
   }
   return projected;
 }
 
-function parseTomlManagedBlock(canonicalMcp) {
+function parseTomlManagedBlock(canonicalMcp, entries = null) {
   const lines = [CODEX_MCP_BLOCK_START];
-  for (const entry of buildManagedServerEntries(canonicalMcp)) {
+  for (const entry of entries ?? buildManagedServerEntries(canonicalMcp)) {
     lines.push(`[mcp_servers.${tomlTableKey(entry.managedName)}]`);
     if (typeof entry.server.url === "string" && entry.server.url.trim().length > 0) {
       lines.push(`url = ${tomlString(entry.server.url)}`);
@@ -500,8 +533,9 @@ async function applyManagedJsonConfig({ targetPath, canonicalMcp, dryRun = false
     throw new Error("Target MCP document must contain an object 'mcpServers' field.");
   }
 
+  const managedEntries = kindDefinition.buildManagedEntries(canonicalMcp);
   const shadowedServers = {};
-  for (const entry of buildManagedServerEntries(canonicalMcp)) {
+  for (const entry of managedEntries) {
     if (entry.managedName in document.mcpServers) {
       shadowedServers[entry.managedName] = sortObjectDeep(document.mcpServers[entry.managedName]);
     }
@@ -509,7 +543,7 @@ async function applyManagedJsonConfig({ targetPath, canonicalMcp, dryRun = false
     delete document.mcpServers[entry.legacyManagedName];
   }
 
-  for (const [name, server] of Object.entries(kindDefinition.buildProjectedServers(canonicalMcp, { managed: true }))) {
+  for (const [name, server] of Object.entries(kindDefinition.buildProjectedServers(canonicalMcp))) {
     document.mcpServers[name] = server;
   }
 
@@ -522,7 +556,7 @@ async function applyManagedJsonConfig({ targetPath, canonicalMcp, dryRun = false
   return {
     method: kindDefinition.bindingMethod,
     hash: dryRun ? null : await fileSha256(targetPath),
-    managedNames: buildManagedServerEntries(canonicalMcp).map((entry) => entry.managedName),
+    managedNames: managedEntries.map((entry) => entry.managedName),
     shadowedServers,
     wouldWrite
   };
@@ -631,7 +665,8 @@ async function applyManagedTomlConfig({ targetPath, canonicalMcp, dryRun = false
     existing = await fs.readFile(targetPath, "utf8");
   }
   const stripped = stripCodexManagedBlock(existing).trimEnd();
-  const managedBlock = parseTomlManagedBlock(canonicalMcp).trimEnd();
+  const managedEntries = kindDefinition.buildManagedEntries(canonicalMcp);
+  const managedBlock = parseTomlManagedBlock(canonicalMcp, managedEntries).trimEnd();
   const next = `${stripped.length > 0 ? `${stripped}\n\n` : ""}${managedBlock}\n`;
   const wouldWrite = next !== existing;
   if (!dryRun) {
@@ -641,7 +676,7 @@ async function applyManagedTomlConfig({ targetPath, canonicalMcp, dryRun = false
   return {
     method: kindDefinition.bindingMethod,
     hash: dryRun ? null : await fileSha256(targetPath),
-    managedNames: buildManagedServerEntries(canonicalMcp).map((entry) => entry.managedName),
+    managedNames: managedEntries.map((entry) => entry.managedName),
     wouldWrite
   };
 }
@@ -690,13 +725,17 @@ const MCP_BINDING_METHODS = Object.freeze({
   }
 });
 
-function createJsonKind(id, projectServer, buildRuntimeProjectionServers = null) {
+function createJsonKind(id, projectServer, buildRuntimeProjectionServers = null, options = {}) {
+  const { nameProjector = null } = options;
   return {
     id,
     bindingMethod: "json-namespace",
     readInstalledServers: readJsonInstalledMcpServers,
-    buildProjectedServers(canonicalMcp, options = {}) {
-      return buildProjectedServersFromEntries(canonicalMcp, projectServer, options);
+    buildManagedEntries(canonicalMcp) {
+      return buildManagedServerEntries(canonicalMcp, { nameProjector });
+    },
+    buildProjectedServers(canonicalMcp) {
+      return buildProjectedServersFromEntries(canonicalMcp, projectServer, { nameProjector });
     },
     buildRuntimeProjectionServers(canonicalMcp) {
       if (typeof buildRuntimeProjectionServers === "function") {
@@ -718,7 +757,12 @@ const MCP_CONFIG_KINDS = Object.freeze({
   "claude-json-type": createJsonKind(
     "claude-json-type",
     projectClaudeServer,
-    (canonicalMcp) => buildProjectedServersFromEntries(canonicalMcp, projectClaudeServer)
+    (canonicalMcp) => buildProjectedServersFromEntries(canonicalMcp, projectClaudeServer, {
+      nameProjector: sanitizeClaudeMcpName
+    }),
+    {
+      nameProjector: sanitizeClaudeMcpName
+    }
   ),
   "json-command-url": createJsonKind("json-command-url", projectJsonCommandUrlServer),
   "copilot-json-type": createJsonKind(
@@ -730,6 +774,12 @@ const MCP_CONFIG_KINDS = Object.freeze({
     id: "toml-managed-block",
     bindingMethod: "toml-namespace",
     readInstalledServers: readCodexInstalledMcpServers,
+    buildManagedEntries(canonicalMcp) {
+      return buildManagedServerEntries(canonicalMcp);
+    },
+    buildRuntimeProjectionServers(canonicalMcp) {
+      return canonicalMcp?.mcpServers ?? {};
+    },
     applyManagedConfig(options) {
       return applyManagedTomlConfig({ ...options, kindDefinition: this });
     },
@@ -1025,6 +1075,18 @@ export function buildAgentRuntimeMcpServers(canonicalMcp, agent, options = {}) {
     throw new Error(`MCP config kind '${definition.id}' does not support runtime MCP projection.`);
   }
   return definition.buildRuntimeProjectionServers(canonicalMcp);
+}
+
+export function buildAgentManagedServerEntries(canonicalMcp, agent, options = {}) {
+  const definition = getAgentMcpConfigKindDefinition(agent, options.configKind ?? null);
+  assertAgentSupportsMcp(agent, {
+    canonicalMcp,
+    configKind: definition.id
+  });
+  if (typeof definition.buildManagedEntries !== "function") {
+    throw new Error(`MCP config kind '${definition.id}' does not support managed MCP entry projection.`);
+  }
+  return definition.buildManagedEntries(canonicalMcp);
 }
 
 export async function readInstalledMcpServersForKind({ configKind, configPath, tool = null }) {

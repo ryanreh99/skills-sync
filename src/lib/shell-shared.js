@@ -120,7 +120,7 @@ const SUBCOMMAND_OPTIONS = {
       "--no-sync",
       "--yes"
     ],
-    "add-mcp": ["--command", "--url", "--args", "--arg", "--env", "--no-sync"],
+    "add-mcp": ["--command", "--url", "--transport", "--args", "--arg", "--env", "--no-sync"],
     "remove-mcp": ["--no-sync"],
     export: ["--output"],
     import: ["--input", "--replace", "--no-sync"],

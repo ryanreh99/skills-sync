@@ -17,6 +17,7 @@ import {
   supportsToolFiltering
 } from "../src/lib/agent-registry.js";
 import { createEmptyImportLock } from "../src/lib/import-lock.js";
+import { normalizeMcpManifest } from "../src/lib/config.js";
 import { createSourceIdentity, normalizeSourceInput, inferUpstreamIdFromSourceDescriptor } from "../src/lib/source-normalization.js";
 import { scanSkillDirectory } from "../src/lib/skill-capabilities.js";
 import { summarizeSkillFeatureSupport } from "../src/lib/agent-registry.js";
@@ -741,6 +742,49 @@ test("buildToolJsonMcpServers renders Claude-compatible type-based server shapes
   });
 });
 
+test("buildToolJsonMcpServers sanitizes Claude-incompatible MCP server names", () => {
+  const projected = buildToolJsonMcpServers(
+    {
+      mcpServers: {
+        "io.github.github/github-mcp-server": {
+          url: "https://api.githubcopilot.com/mcp/"
+        },
+        "atlassian/atlassian-mcp-server": {
+          url: "https://mcp.atlassian.com/v1/mcp"
+        }
+      }
+    },
+    "claude"
+  );
+
+  assert.deepEqual(
+    Object.keys(projected).sort((left, right) => left.localeCompare(right)),
+    ["atlassian_atlassian-mcp-server", "io_github_github_github-mcp-server"]
+  );
+});
+
+test("normalizeMcpManifest preserves remote transport metadata and upgrades Atlassian legacy SSE URLs", () => {
+  const normalized = normalizeMcpManifest({
+    servers: {
+      atlassian: {
+        url: "https://mcp.atlassian.com/v1/sse"
+      },
+      events: {
+        url: "https://example.com/sse",
+        transport: "sse"
+      }
+    }
+  });
+
+  assert.deepEqual(normalized.mcpServers.atlassian, {
+    url: "https://mcp.atlassian.com/v1/mcp"
+  });
+  assert.deepEqual(normalized.mcpServers.events, {
+    url: "https://example.com/sse",
+    transport: "sse"
+  });
+});
+
 test("movePathWithFallback copies and removes source when rename is blocked", async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "skills-sync-init-move-fallback-"));
   const sourcePath = path.join(tempRoot, "workspace");
@@ -1077,6 +1121,27 @@ test("guided mcp add flow branches to the correct transport fields", async () =>
   httpSession.ui.selectedIndex = 1;
   await advanceGuidedFlowSession(httpSession);
   assert.equal(httpSession.currentStep.id, "url");
+});
+
+test("guided mcp add flow emits --transport sse for legacy SSE endpoints", async () => {
+  const sseSession = await createGuidedFlowSession({
+    flowId: "mcp-add",
+    activeProfile: "personal"
+  });
+
+  sseSession.ui.textValue = "remote-sse";
+  await advanceGuidedFlowSession(sseSession);
+  sseSession.ui.selectedIndex = 2;
+  await advanceGuidedFlowSession(sseSession);
+  assert.equal(sseSession.currentStep.id, "url");
+
+  sseSession.ui.textValue = "https://example.com/sse";
+  await advanceGuidedFlowSession(sseSession);
+  assert.equal(sseSession.currentStep.id, "advancedFlags");
+
+  await advanceGuidedFlowSession(sseSession);
+  assert.equal(sseSession.currentStep.id, "review");
+  assert.equal(sseSession.currentStep.commandText.includes("--transport sse"), true);
 });
 
 test("createShellOutputRecord returns normalized transcript blocks", () => {

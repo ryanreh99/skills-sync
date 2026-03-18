@@ -487,21 +487,65 @@ function normalizeMcpEnvEntries(rawEntries) {
   return normalizeMcpEnvMap(parsed);
 }
 
+function normalizeMcpTransport(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "stdio" || normalized === "http" || normalized === "sse") {
+    return normalized;
+  }
+  return null;
+}
+
+function normalizeKnownRemoteMcpUrl(url, transport = null) {
+  const normalizedUrl = normalizeOptionalText(url);
+  if (!normalizedUrl) {
+    return null;
+  }
+  const normalizedTransport = normalizeMcpTransport(transport);
+  if (normalizedTransport === "sse") {
+    return normalizedUrl;
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(normalizedUrl);
+  } catch {
+    return normalizedUrl;
+  }
+
+  if (parsed.hostname === "mcp.atlassian.com" && /^\/v1\/sse\/?$/.test(parsed.pathname)) {
+    parsed.pathname = "/v1/mcp";
+    return parsed.toString();
+  }
+
+  return normalizedUrl;
+}
+
 function normalizeMcpServersDocument(document) {
   const serverNames = Object.keys(document.servers ?? {}).sort((left, right) => left.localeCompare(right));
   const servers = {};
   for (const name of serverNames) {
     const server = document.servers[name] ?? {};
     if (typeof server.url === "string" && server.url.trim().length > 0) {
+      const transport = normalizeMcpTransport(server.transport);
       servers[name] = {
-        url: server.url.trim()
+        url: normalizeKnownRemoteMcpUrl(server.url.trim(), transport)
       };
+      if (transport === "http" || transport === "sse") {
+        servers[name].transport = transport;
+      }
       continue;
     }
     const normalizedServer = {
       command: server.command,
       args: Array.isArray(server.args) ? server.args : []
     };
+    const transport = normalizeMcpTransport(server.transport);
+    if (transport === "stdio") {
+      normalizedServer.transport = "stdio";
+    }
     const env = normalizeMcpEnvMap(server.env);
     if (Object.keys(env).length > 0) {
       normalizedServer.env = env;
@@ -525,14 +569,18 @@ async function loadMcpServersForProfile(profileName) {
   };
 }
 
-export async function cmdProfileAddMcp({ profile, name, command, url, args, env }) {
+export async function cmdProfileAddMcp({ profile, name, command, url, args, env, transport = null }) {
   const profileName = normalizeRequiredText(profile, "Profile name");
   const serverName = normalizeRequiredText(name, "MCP server name");
   const serverCommand = normalizeOptionalText(command);
   const serverUrl = normalizeOptionalText(url);
+  const serverTransport = normalizeMcpTransport(transport);
 
   if ((serverCommand ? 1 : 0) + (serverUrl ? 1 : 0) !== 1) {
     throw new Error("Provide exactly one of --command or --url for profile add-mcp.");
+  }
+  if (transport && !serverTransport) {
+    throw new Error("Invalid MCP transport. Use stdio, http, or sse.");
   }
 
   const serverArgs = normalizeMcpArgs(args);
@@ -544,14 +592,24 @@ export async function cmdProfileAddMcp({ profile, name, command, url, args, env 
   if (serverUrl && Object.keys(serverEnv).length > 0) {
     throw new Error("--env cannot be used with --url.");
   }
+  if (serverUrl && serverTransport === "stdio") {
+    throw new Error("--transport stdio cannot be used with --url.");
+  }
+  if (serverCommand && serverTransport && serverTransport !== "stdio") {
+    throw new Error("--transport http/sse can only be used with --url.");
+  }
 
   const { mcpPath, document } = await loadMcpServersForProfile(profileName);
   const existed = Object.prototype.hasOwnProperty.call(document.servers, serverName);
   document.servers[serverName] = serverUrl
-    ? { url: serverUrl }
+    ? {
+        url: normalizeKnownRemoteMcpUrl(serverUrl, serverTransport),
+        ...(serverTransport === "http" || serverTransport === "sse" ? { transport: serverTransport } : {})
+      }
     : {
         command: serverCommand,
         args: serverArgs,
+        ...(serverTransport === "stdio" ? { transport: "stdio" } : {}),
         ...(Object.keys(serverEnv).length > 0 ? { env: serverEnv } : {})
       };
 

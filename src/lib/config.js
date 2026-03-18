@@ -196,6 +196,30 @@ function normalizeMcpTransport(value) {
   return null;
 }
 
+function normalizeKnownRemoteMcpUrl(url, transport = null) {
+  const normalizedUrl = typeof url === "string" ? url.trim() : "";
+  if (normalizedUrl.length === 0) {
+    return normalizedUrl;
+  }
+  if (transport === "sse") {
+    return normalizedUrl;
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(normalizedUrl);
+  } catch {
+    return normalizedUrl;
+  }
+
+  if (parsed.hostname === "mcp.atlassian.com" && /^\/v1\/sse\/?$/.test(parsed.pathname)) {
+    parsed.pathname = "/v1/mcp";
+    return parsed.toString();
+  }
+
+  return normalizedUrl;
+}
+
 export function normalizeMcpManifest(serversManifest) {
   const servers = serversManifest.servers ?? {};
   const sortedNames = Object.keys(servers).sort((left, right) => left.localeCompare(right));
@@ -203,10 +227,10 @@ export function normalizeMcpManifest(serversManifest) {
   for (const name of sortedNames) {
     const server = servers[name] ?? {};
     if (typeof server.url === "string" && server.url.trim().length > 0) {
-      const normalizedServer = {
-        url: server.url.trim()
-      };
       const transport = normalizeMcpTransport(server.transport);
+      const normalizedServer = {
+        url: normalizeKnownRemoteMcpUrl(server.url.trim(), transport)
+      };
       if (transport === "http" || transport === "sse") {
         normalizedServer.transport = transport;
       }
