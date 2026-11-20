@@ -127,7 +127,7 @@ skills-sync profile remove-skill personal --upstream anthropic --path skills/fro
 skills-sync profile remove-skill personal --upstream team_skills --all --prune-upstream --yes
 ```
 
-Use `unlink --agents ...` when you only want to remove runtime materialization from selected agents.
+Use `unlink --entities ...` when you only want to remove one managed surface while keeping the rest in place.
 
 ## Profiles and Skill Authoring
 

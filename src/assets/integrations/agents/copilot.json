@@ -30,6 +30,29 @@
       "helpers": false
     }
   },
+  "commands": {
+    "internalDir": ".copilot/commands",
+    "bindMode": "root",
+    "kind": "unsupported",
+    "supportVersion": 1,
+    "targets": {
+      "windows": {
+        "dir": "%USERPROFILE%\\\\.copilot\\\\commands"
+      },
+      "macos": {
+        "dir": "$HOME/.copilot/commands"
+      },
+      "linux": {
+        "dir": "$HOME/.copilot/commands"
+      }
+    },
+    "support": {
+      "description": false,
+      "args": false,
+      "tags": false,
+      "frontmatter": false
+    }
+  },
   "mcp": {
     "internalConfig": ".copilot/mcp-config.json",
     "kind": "copilot-json-type",
@@ -66,7 +89,47 @@
       }
     }
   },
+  "hooks": {
+    "internalConfig": ".copilot/hooks.json",
+    "kind": "unsupported",
+    "supportVersion": 1,
+    "hasNonHookConfig": false,
+    "targets": {
+      "windows": {
+        "config": "%USERPROFILE%\\\\.copilot\\\\hooks.json"
+      },
+      "macos": {
+        "config": "$HOME/.copilot/hooks.json"
+      },
+      "linux": {
+        "config": "$HOME/.copilot/hooks.json"
+      }
+    },
+    "support": {
+      "actions": {
+        "shell": false,
+        "prompt": false,
+        "http": false,
+        "other": false
+      },
+      "events": {
+        "sessionStart": false,
+        "beforeAgent": false,
+        "afterAgent": false,
+        "beforeTool": false,
+        "afterTool": false,
+        "notification": false
+      },
+      "config": {
+        "conditions": false,
+        "timeoutMs": false,
+        "retry": false,
+        "async": false
+      }
+    }
+  },
   "notes": [
-    "GitHub Copilot preserves imported skill directories and auxiliary files alongside its documented instruction and prompt-file features."
+    "GitHub Copilot preserves imported skill directories and auxiliary files alongside its documented instruction and prompt-file features.",
+    "Custom commands and hooks are intentionally unsupported in conservative user-scope-only v1."
   ]
 }

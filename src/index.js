@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { runCli } from "./cli.js";
+import { runCli } from "./presentation/cli/run-cli.js";
 
 export { runCli };
 

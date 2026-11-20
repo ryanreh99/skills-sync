@@ -16,10 +16,14 @@ export async function run() {
   assert.equal(typeof payload.os, "string", "detect --format json should include os.");
   assert.equal(Array.isArray(payload.tools), true, "detect --format json should include tools array.");
   assert.equal(payload.tools.some((tool) => tool.tool === "copilot"), true, "detect json should include copilot.");
-
-  const filtered = runCli(["detect", "--format", "json", "--agents", "codex,claude"]);
-  const filteredPayload = JSON.parse(filtered.stdout.trim());
-  assert.equal(filteredPayload.tools.length, 2, "detect --agents should filter tool rows.");
-  assert.equal(filteredPayload.tools[0].tool, "codex", "detect --agents should preserve canonical ordering.");
-  assert.equal(filteredPayload.tools[1].tool, "claude", "detect --agents should include requested agents.");
+  assert.equal(
+    payload.tools.some((tool) => tool.tool === "codex"),
+    true,
+    "detect json should include codex."
+  );
+  assert.equal(
+    payload.tools.some((tool) => tool.tool === "claude"),
+    true,
+    "detect json should include claude."
+  );
 }

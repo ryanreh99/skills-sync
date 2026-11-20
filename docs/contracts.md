@@ -33,6 +33,63 @@ Shape:
 { "imports": [] }
 ```
 
+### Commands Input
+Path:
+- `<pack>/commands/commands.json`
+
+Schema:
+- `src/assets/contracts/inputs/commands.schema.json`
+
+Shape:
+```json
+{
+  "commands": [
+    {
+      "id": "review-pr",
+      "name": "review-pr",
+      "description": "Review the current pull request",
+      "body": "Review the staged diff and summarize the highest-risk changes.",
+      "args": [{ "name": "scope" }]
+    }
+  ]
+}
+```
+
+Notes:
+- Commands are local profile-owned content in v1. They do not participate in upstream import or lockfile import rows.
+- Inheritance merge is by `id`. Later profiles override earlier ones in the resolved profile chain.
+- Command projections are global profile intent. Agent capability metadata decides whether an agent gets a real projection, a lossy projection warning, or an unsupported skip.
+
+### Hooks Input
+Path:
+- `<pack>/hooks/hooks.json`
+
+Schema:
+- `src/assets/contracts/inputs/hooks.schema.json`
+
+Shape:
+```json
+{
+  "hooks": [
+    {
+      "id": "pre-tool-check",
+      "name": "pre-tool-check",
+      "event": "beforeTool",
+      "action": {
+        "type": "shell",
+        "payload": "echo validating tool invocation"
+      },
+      "conditions": ["Write"]
+    }
+  ]
+}
+```
+
+Notes:
+- Hooks are local profile-owned content in v1. They do not participate in upstream import or lockfile import rows.
+- Unsupported or partial hook translations are surfaced in sync, inventory, and drift instead of being silently dropped.
+- Hook projections are global profile intent. Agent capability metadata decides whether an agent gets a real projection, a lossy projection warning, or an unsupported skip.
+
 ### MCP Servers Input
 Path:
 - `<pack>/mcp/servers.json`
@@ -77,7 +134,7 @@ Schema:
 
 Notes:
 - Each agent has its own JSON file.
-- These files are authored in `config`, `skills`, and `mcp` sections.
+- These files are authored in `config`, `skills`, `commands`, `mcp`, and `hooks` sections.
 - Registry views and effective target maps are derived in code from these files. They are not separately authored contracts.
 
 Important fields:
@@ -88,6 +145,10 @@ Important fields:
 - `skills.bindMode`
 - `skills.targets.<os>.dir`
 - `skills.support.*`
+- `commands.internalDir`
+- `commands.kind`
+- `commands.targets.<os>.dir`
+- `commands.support.*`
 - `mcp.internalConfig`
 - `mcp.targets.<os>.config`
 - `mcp.hasNonMcpConfig`
@@ -98,12 +159,19 @@ Important fields:
 - `mcp.support.capabilities.*`
 - `mcp.support.advanced.*`
 - `mcp.support.config.*`
+- `hooks.internalConfig`
+- `hooks.kind`
+- `hooks.targets.<os>.config`
+- `hooks.hasNonHookConfig`
+- `hooks.support.*`
 
 ## Runtime Artifact Contract
 
 Canonical artifact:
 - `~/.skills-sync/internal/common/bundle.json`
 - `~/.skills-sync/internal/common/skills/`
+- `~/.skills-sync/internal/common/commands.json`
+- `~/.skills-sync/internal/common/hooks.json`
 - `~/.skills-sync/internal/common/mcp.json`
 
 `~/.skills-sync/internal/common` is authoritative.
@@ -113,10 +181,14 @@ All `~/.skills-sync/internal/.<agent>/*` paths are projections.
 
 `sync` behavior:
 - Skills directories are linked where supported.
+- Command directories or files are linked or copied where supported.
+- Hook config is merged only for agents that declare managed hook support.
 - MCP config is written through the configured `mcp.kind`.
 - Managed MCP servers keep their canonical profile names in target configs.
 - Unmanaged local config is preserved only when `mcp.hasNonMcpConfig` is `true`.
 
 `unlink` behavior:
 - Removes managed links.
+- Removes managed command bindings.
+- Removes only the managed hook groups recorded in active state.
 - Removes managed MCP namespace entries only.

@@ -30,6 +30,29 @@
       "helpers": false
     }
   },
+  "commands": {
+    "internalDir": ".claude/commands",
+    "bindMode": "root",
+    "kind": "markdown-files",
+    "supportVersion": 1,
+    "targets": {
+      "windows": {
+        "dir": "%USERPROFILE%\\\\.claude\\\\commands"
+      },
+      "macos": {
+        "dir": "$HOME/.claude/commands"
+      },
+      "linux": {
+        "dir": "$HOME/.claude/commands"
+      }
+    },
+    "support": {
+      "description": true,
+      "args": true,
+      "tags": false,
+      "frontmatter": true
+    }
+  },
   "mcp": {
     "internalConfig": ".claude/mcp.json",
     "kind": "claude-json-type",
@@ -72,7 +95,46 @@
       }
     }
   },
+  "hooks": {
+    "internalConfig": ".claude/hooks.json",
+    "kind": "json-hooks",
+    "supportVersion": 1,
+    "hasNonHookConfig": true,
+    "targets": {
+      "windows": {
+        "config": "%USERPROFILE%\\\\.claude.json"
+      },
+      "macos": {
+        "config": "$HOME/.claude.json"
+      },
+      "linux": {
+        "config": "$HOME/.claude.json"
+      }
+    },
+    "support": {
+      "actions": {
+        "shell": true,
+        "prompt": true,
+        "http": true,
+        "other": false
+      },
+      "events": {
+        "sessionStart": true,
+        "beforeAgent": true,
+        "afterAgent": true,
+        "beforeTool": true,
+        "afterTool": true,
+        "notification": true
+      },
+      "config": {
+        "conditions": true,
+        "timeoutMs": true,
+        "retry": false,
+        "async": true
+      }
+    }
+  },
   "notes": [
-    "Claude Code preserves imported skill folders and auxiliary files, but Anthropic's documented customization primitives are CLAUDE.md, subagents, and slash commands."
+    "Claude Code preserves imported skill folders and auxiliary files, but Anthropic's documented customization primitives are CLAUDE.md, subagents, slash commands, and hooks."
   ]
 }

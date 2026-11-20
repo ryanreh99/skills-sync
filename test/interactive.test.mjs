@@ -7,7 +7,7 @@ import {
   createShellExplorerTree,
   flattenShellExplorerTree,
   getShellExplorerDefaultExpandedIds
-} from "../src/lib/shell-shared.js";
+} from "../src/infra/internal/shell-shared.js";
 
 const repoRoot = process.cwd();
 const cliPath = path.join(repoRoot, "dist", "index.js");

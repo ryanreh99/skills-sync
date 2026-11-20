@@ -7,7 +7,6 @@ import { runCli } from "../helpers.mjs";
  * Tests for:
  * - agents inventory
  * - agents drift
- * - --agents filtering
  * - parse failure reporting in agent config files
  */
 export async function run({ runtimePath, localOverridesPath }) {
@@ -34,29 +33,31 @@ export async function run({ runtimePath, localOverridesPath }) {
     true,
     "agents inventory should include codex."
   );
-
-  const filteredInventoryJson = runCli([
-    "agents",
-    "inventory",
-    "--format",
-    "json",
-    "--agents",
-    "codex,claude"
-  ]);
-  const filteredInventory = JSON.parse(filteredInventoryJson.stdout.trim());
-  assert.deepEqual(
-    filteredInventory.agents.map((agent) => agent.tool),
-    ["codex", "claude"],
-    "agents inventory --agents should filter output."
+  assert.equal(
+    inventoryPayload.agents.some((agent) => agent.tool === "claude"),
+    true,
+    "agents inventory should include claude."
   );
 
   const driftJson = runCli(["agents", "drift", "--profile", "personal", "--dry-run", "--format", "json"]);
   const driftPayload = JSON.parse(driftJson.stdout.trim());
   assert.equal(driftPayload.profile, "personal", "agents drift should report selected profile.");
   assert.equal(Array.isArray(driftPayload.expected.skills), true, "agents drift should include expected skills.");
+  assert.equal(Array.isArray(driftPayload.expected.commands), true, "agents drift should include expected commands.");
+  assert.equal(Array.isArray(driftPayload.expected.hooks), true, "agents drift should include expected hooks.");
   assert.equal(Array.isArray(driftPayload.expected.mcpServers), true, "agents drift should include expected mcpServers.");
   assert.equal(Array.isArray(driftPayload.agents), true, "agents drift should include per-agent rows.");
   assert.equal(typeof driftPayload.summary?.byClass, "object", "agents drift should include aggregate class counts.");
+  assert.equal(
+    driftPayload.expected.commands.includes("unit-test-command"),
+    true,
+    "agents drift should include authored commands in expected state."
+  );
+  assert.equal(
+    driftPayload.expected.hooks.includes("unit-test-hook"),
+    true,
+    "agents drift should include authored hooks in expected state."
+  );
   for (const agent of driftPayload.agents) {
     assert.deepEqual(
       agent.drift?.skills?.missing ?? [],
@@ -73,6 +74,20 @@ export async function run({ runtimePath, localOverridesPath }) {
       [],
       `agents drift should not report changed managed MCP definitions immediately after sync for ${agent.tool}.`
     );
+    if (["codex", "claude", "cursor", "gemini"].includes(agent.tool)) {
+      assert.deepEqual(
+        agent.drift?.commands?.missing ?? [],
+        [],
+        `agents drift should not report missing commands after sync for ${agent.tool}.`
+      );
+    }
+    if (["claude", "gemini"].includes(agent.tool)) {
+      assert.deepEqual(
+        agent.drift?.hooks?.missing ?? [],
+        [],
+        `agents drift should not report missing hooks after sync for ${agent.tool}.`
+      );
+    }
     assert.equal(Array.isArray(agent.classes), true, `agents drift should include structured classes for ${agent.tool}.`);
     assert.equal(typeof agent.summary?.byClass, "object", `agents drift should include class summary for ${agent.tool}.`);
   }
@@ -85,24 +100,6 @@ export async function run({ runtimePath, localOverridesPath }) {
   assert.equal(driftText.includes("Agent Drift"), true, "agents drift text should render a summary heading.");
   assert.equal(driftText.includes("STATUS"), true, "agents drift text should render table headers.");
   assert.equal(driftText.includes("\t"), false, "agents drift text should not rely on tab separators.");
-
-  const filteredDriftJson = runCli([
-    "agents",
-    "drift",
-    "--profile",
-    "personal",
-    "--dry-run",
-    "--format",
-    "json",
-    "--agents",
-    "codex"
-  ]);
-  const filteredDrift = JSON.parse(filteredDriftJson.stdout.trim());
-  assert.deepEqual(
-    filteredDrift.agents.map((agent) => agent.tool),
-    ["codex"],
-    "agents drift --agents should filter output."
-  );
 
   const reconcileDriftJson = runCli(["agents", "drift", "--profile", "personal", "--format", "json"]);
   const reconcileDriftPayload = JSON.parse(reconcileDriftJson.stdout.trim());
@@ -167,12 +164,12 @@ export async function run({ runtimePath, localOverridesPath }) {
     "personal",
     "--dry-run",
     "--format",
-    "json",
-    "--agents",
-    "cursor"
+    "json"
   ]);
   const classifiedDriftPayload = JSON.parse(classifiedDriftJson.stdout.trim());
-  const classifiedCodes = classifiedDriftPayload.agents[0].classes.map((issue) => issue.code);
+  const cursorClassifiedAgent = classifiedDriftPayload.agents.find((agent) => agent.tool === "cursor");
+  assert.equal(Boolean(cursorClassifiedAgent), true, "agents drift should include cursor in classified output.");
+  const classifiedCodes = cursorClassifiedAgent.classes.map((issue) => issue.code);
   assert.equal(
     classifiedCodes.includes("projection-mismatch"),
     true,
@@ -217,12 +214,12 @@ export async function run({ runtimePath, localOverridesPath }) {
       "personal",
       "--dry-run",
       "--format",
-      "json",
-      "--agents",
-      "cursor"
+      "json"
     ]);
     const changedDriftPayload = JSON.parse(changedDriftJson.stdout.trim());
-    const changedCodes = changedDriftPayload.agents[0].classes.map((issue) => issue.code);
+    const cursorChangedAgent = changedDriftPayload.agents.find((agent) => agent.tool === "cursor");
+    assert.equal(Boolean(cursorChangedAgent), true, "agents drift should include cursor after runtime changes.");
+    const changedCodes = cursorChangedAgent.classes.map((issue) => issue.code);
     assert.equal(
       changedCodes.includes("content-mismatch"),
       true,
@@ -242,18 +239,12 @@ export async function run({ runtimePath, localOverridesPath }) {
   const originalClaude = await fs.readFile(claudePath, "utf8");
   try {
     await fs.writeFile(claudePath, "{ not valid json", "utf8");
-    const parseIssueJson = runCli([
-      "agents",
-      "inventory",
-      "--format",
-      "json",
-      "--agents",
-      "claude"
-    ]);
+    const parseIssueJson = runCli(["agents", "inventory", "--format", "json"]);
     const parseIssuePayload = JSON.parse(parseIssueJson.stdout.trim());
-    assert.equal(parseIssuePayload.agents.length, 1, "filtered parse error inventory should include one agent.");
+    const claudeAgent = parseIssuePayload.agents.find((agent) => agent.tool === "claude");
+    assert.equal(Boolean(claudeAgent), true, "agents inventory should include claude after parse failures.");
     assert.equal(
-      parseIssuePayload.agents[0].parseErrors.length > 0,
+      claudeAgent.parseErrors.length > 0,
       true,
       "agents inventory should report parse errors for invalid config."
     );

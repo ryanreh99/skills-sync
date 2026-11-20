@@ -30,6 +30,29 @@
       "helpers": false
     }
   },
+  "commands": {
+    "internalDir": ".cursor/commands",
+    "bindMode": "root",
+    "kind": "markdown-files",
+    "supportVersion": 1,
+    "targets": {
+      "windows": {
+        "dir": "%USERPROFILE%\\\\.cursor\\\\commands"
+      },
+      "macos": {
+        "dir": "$HOME/.cursor/commands"
+      },
+      "linux": {
+        "dir": "$HOME/.cursor/commands"
+      }
+    },
+    "support": {
+      "description": false,
+      "args": false,
+      "tags": false,
+      "frontmatter": false
+    }
+  },
   "mcp": {
     "internalConfig": ".cursor/mcp.json",
     "kind": "json-mcpServers",
@@ -72,7 +95,47 @@
       }
     }
   },
+  "hooks": {
+    "internalConfig": ".cursor/hooks.json",
+    "kind": "unsupported",
+    "supportVersion": 1,
+    "hasNonHookConfig": true,
+    "targets": {
+      "windows": {
+        "config": "%USERPROFILE%\\\\.cursor\\\\settings.json"
+      },
+      "macos": {
+        "config": "$HOME/.cursor/settings.json"
+      },
+      "linux": {
+        "config": "$HOME/.cursor/settings.json"
+      }
+    },
+    "support": {
+      "actions": {
+        "shell": false,
+        "prompt": false,
+        "http": false,
+        "other": false
+      },
+      "events": {
+        "sessionStart": false,
+        "beforeAgent": false,
+        "afterAgent": false,
+        "beforeTool": false,
+        "afterTool": false,
+        "notification": false
+      },
+      "config": {
+        "conditions": false,
+        "timeoutMs": false,
+        "retry": false,
+        "async": false
+      }
+    }
+  },
   "notes": [
-    "Top-level vendor aliases are retained for discoverability, and imported auxiliary files remain available as regular files."
+    "Top-level vendor aliases are retained for discoverability, and imported auxiliary files remain available as regular files.",
+    "Hooks remain unsupported in conservative v1 because the user-scope config contract is not sufficiently documented."
   ]
 }

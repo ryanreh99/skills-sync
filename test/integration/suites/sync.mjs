@@ -12,6 +12,8 @@ import { pathExists, runCli } from "../helpers.mjs";
 export async function run({ localOverridesPath, runtimePath }) {
   const statePath = path.join(localOverridesPath, "state", "active-profile.json");
   const cursorMcpPath = path.join(runtimePath, ".cursor", "mcp.json");
+  const cursorCommandsPath = path.join(runtimePath, ".cursor", "commands");
+  const geminiSettingsPath = path.join(runtimePath, ".gemini", "settings.json");
   const localSourceRoot = path.join(localOverridesPath, "fixtures", "sync-source");
   const localSkillPath = path.join(localSourceRoot, "auto-sync-skill");
   const runtimeSkillPath = path.join(runtimePath, ".cursor", "skills", "sync-fixtures", "auto-sync-skill", "SKILL.md");
@@ -92,6 +94,94 @@ export async function run({ localOverridesPath, runtimePath }) {
     Object.prototype.hasOwnProperty.call(cursorMcpDoc.mcpServers ?? {}, "sync_auto_server"),
     false,
     "profile remove-mcp should auto-sync by default."
+  );
+
+  const cursorPartialCommandPath = path.join(cursorCommandsPath, "sync-partial-command.md");
+  runCli([
+    "profile",
+    "add-command",
+    "personal",
+    "sync-partial-command",
+    "--body",
+    "Summarize only the staged changes.",
+    "--no-sync"
+  ]);
+  assert.equal(
+    await pathExists(cursorPartialCommandPath),
+    false,
+    "--no-sync should prevent runtime command changes."
+  );
+
+  const cursorMcpBeforeCommandOnlySync = await fs.readFile(cursorMcpPath, "utf8");
+  runCli([
+    "sync",
+    "--profile",
+    "personal",
+    "--entities",
+    "commands"
+  ]);
+  assert.equal(
+    await pathExists(cursorPartialCommandPath),
+    true,
+    "sync --entities commands should apply command projections without requiring a full sync."
+  );
+  assert.equal(
+    await fs.readFile(cursorMcpPath, "utf8"),
+    cursorMcpBeforeCommandOnlySync,
+    "sync --entities commands should not rewrite unrelated MCP config."
+  );
+
+  runCli(["profile", "remove-command", "personal", "sync-partial-command"]);
+  assert.equal(
+    await pathExists(cursorPartialCommandPath),
+    false,
+    "profile remove-command should auto-sync command removals by default."
+  );
+
+  runCli([
+    "profile",
+    "add-hook",
+    "personal",
+    "sync-partial-hook",
+    "--event",
+    "beforeTool",
+    "--command",
+    "echo partial hook",
+    "--no-sync"
+  ]);
+  let geminiSettingsDoc = JSON.parse(await fs.readFile(geminiSettingsPath, "utf8"));
+  assert.equal(
+    JSON.stringify(geminiSettingsDoc).includes("echo partial hook"),
+    false,
+    "--no-sync should prevent runtime hook changes."
+  );
+
+  const geminiSettingsBeforeHookOnlySync = await fs.readFile(geminiSettingsPath, "utf8");
+  runCli([
+    "sync",
+    "--profile",
+    "personal",
+    "--entities",
+    "hooks"
+  ]);
+  geminiSettingsDoc = JSON.parse(await fs.readFile(geminiSettingsPath, "utf8"));
+  assert.equal(
+    JSON.stringify(geminiSettingsDoc).includes("echo partial hook"),
+    true,
+    "sync --entities hooks should apply hook projections without requiring a full sync."
+  );
+  assert.deepEqual(
+    geminiSettingsDoc.mcpServers,
+    JSON.parse(geminiSettingsBeforeHookOnlySync).mcpServers,
+    "sync --entities hooks should not rewrite unrelated MCP state."
+  );
+
+  runCli(["profile", "remove-hook", "personal", "sync-partial-hook"]);
+  geminiSettingsDoc = JSON.parse(await fs.readFile(geminiSettingsPath, "utf8"));
+  assert.equal(
+    JSON.stringify(geminiSettingsDoc).includes("echo partial hook"),
+    false,
+    "profile remove-hook should auto-sync hook removals by default."
   );
 
   await fs.mkdir(localSkillPath, { recursive: true });

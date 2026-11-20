@@ -30,6 +30,29 @@
       "helpers": false
     }
   },
+  "commands": {
+    "internalDir": ".codex/commands",
+    "bindMode": "root",
+    "kind": "skills-backed",
+    "supportVersion": 1,
+    "targets": {
+      "windows": {
+        "dir": "%USERPROFILE%\\\\.codex\\\\skills\\\\vendor_imports\\\\commands"
+      },
+      "macos": {
+        "dir": "$HOME/.codex/skills/vendor_imports/commands"
+      },
+      "linux": {
+        "dir": "$HOME/.codex/skills/vendor_imports/commands"
+      }
+    },
+    "support": {
+      "description": true,
+      "args": false,
+      "tags": false,
+      "frontmatter": true
+    }
+  },
   "mcp": {
     "internalConfig": ".codex/config.toml",
     "kind": "toml-managed-block",
@@ -80,8 +103,48 @@
       }
     }
   },
+  "hooks": {
+    "internalConfig": ".codex/hooks.json",
+    "kind": "unsupported",
+    "supportVersion": 1,
+    "hasNonHookConfig": true,
+    "targets": {
+      "windows": {
+        "config": "%USERPROFILE%\\\\.codex\\\\config.toml"
+      },
+      "macos": {
+        "config": "$HOME/.codex/config.toml"
+      },
+      "linux": {
+        "config": "$HOME/.codex/config.toml"
+      }
+    },
+    "support": {
+      "actions": {
+        "shell": false,
+        "prompt": false,
+        "http": false,
+        "other": false
+      },
+      "events": {
+        "sessionStart": false,
+        "beforeAgent": false,
+        "afterAgent": false,
+        "beforeTool": false,
+        "afterTool": false,
+        "notification": false
+      },
+      "config": {
+        "conditions": false,
+        "timeoutMs": false,
+        "retry": false,
+        "async": false
+      }
+    }
+  },
   "notes": [
     "Uses a vendor_imports skills path for managed materialization.",
-    "Codex natively supports SKILL.md packages with frontmatter and optional scripts, references, and assets."
+    "Codex natively supports SKILL.md packages with frontmatter and optional scripts, references, and assets.",
+    "Slash-command projection is skills-backed; hooks remain unsupported in conservative v1."
   ]
 }

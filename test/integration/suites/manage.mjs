@@ -32,6 +32,8 @@ export async function run({ localOverridesPath }) {
 
   const personalSourcesPath = path.join(localOverridesPath, "packs", "personal", "sources.json");
   const personalMcpPath = path.join(localOverridesPath, "packs", "personal", "mcp", "servers.json");
+  const personalCommandsPath = path.join(localOverridesPath, "packs", "personal", "commands", "commands.json");
+  const personalHooksPath = path.join(localOverridesPath, "packs", "personal", "hooks", "hooks.json");
   const localUpstreamsPath = path.join(localOverridesPath, "upstreams.json");
   const lockPath = path.join(localOverridesPath, "skills-sync.lock.json");
 
@@ -50,6 +52,8 @@ export async function run({ localOverridesPath }) {
   const profilePayload = JSON.parse(profileShow.stdout.trim());
   assert.equal(profilePayload.profile.name, "personal", "profile show should target personal profile.");
   assert.equal(Array.isArray(profilePayload.skills.items), true, "profile show should include skills.items array.");
+  assert.equal(Array.isArray(profilePayload.commands.items), true, "profile show should include commands.items array.");
+  assert.equal(Array.isArray(profilePayload.hooks.items), true, "profile show should include hooks.items array.");
   assert.equal(
     profilePayload.skills.items.every((item) => typeof item.sourceType === "string"),
     true,
@@ -58,8 +62,70 @@ export async function run({ localOverridesPath }) {
   assert.equal(Array.isArray(profilePayload.mcp.servers), true, "profile show should include mcp.servers array.");
   const profileShowText = runCli(["profile", "show", "personal"]).stdout;
   assert.equal(profileShowText.includes("Skills ("), true, "profile show text should include the skills section.");
+  assert.equal(profileShowText.includes("Commands ("), true, "profile show text should include the commands section.");
+  assert.equal(profileShowText.includes("Hooks ("), true, "profile show text should include the hooks section.");
   assert.equal(profileShowText.includes("TARGET"), true, "profile show text should render MCP target columns.");
   assert.equal(profileShowText.includes("\t"), false, "profile show text should not rely on tab separators.");
+
+  // --- profile add-command ---
+  runCli([
+    "profile",
+    "add-command",
+    "personal",
+    "unit-test-command",
+    "--description",
+    "Command fixture",
+    "--body",
+    "Explain the current change set.",
+    "--arg",
+    "context",
+    "--tag",
+    "fixture",
+    "--no-sync"
+  ]);
+  const commandsAfterAdd = JSON.parse(await fs.readFile(personalCommandsPath, "utf8"));
+  assert.equal(
+    commandsAfterAdd.commands.some((entry) => entry.id === "unit-test-command"),
+    true,
+    "profile add-command should write commands.json."
+  );
+
+  const listCommandsJson = JSON.parse(
+    runCli(["list", "commands", "--profile", "personal", "--format", "json"]).stdout.trim()
+  );
+  assert.equal(
+    listCommandsJson.commands.some((entry) => entry.id === "unit-test-command"),
+    true,
+    "list commands should surface authored commands."
+  );
+
+  // --- profile add-hook ---
+  runCli([
+    "profile",
+    "add-hook",
+    "personal",
+    "unit-test-hook",
+    "--event",
+    "beforeTool",
+    "--command",
+    "echo hook-fixture",
+    "--no-sync"
+  ]);
+  const hooksAfterAdd = JSON.parse(await fs.readFile(personalHooksPath, "utf8"));
+  assert.equal(
+    hooksAfterAdd.hooks.some((entry) => entry.id === "unit-test-hook"),
+    true,
+    "profile add-hook should write hooks.json."
+  );
+
+  const listHooksJson = JSON.parse(
+    runCli(["list", "hooks", "--profile", "personal", "--format", "json"]).stdout.trim()
+  );
+  assert.equal(
+    listHooksJson.hooks.some((entry) => entry.id === "unit-test-hook"),
+    true,
+    "list hooks should surface authored hooks."
+  );
 
   // --- profile add-skill ---
   runCli([
@@ -773,18 +839,42 @@ export async function run({ localOverridesPath }) {
     true,
     "profile export should include mcpServers."
   );
+  assert.equal(
+    Array.isArray(exportedPayload.profile?.pack?.commands?.commands),
+    true,
+    "profile export should include commands."
+  );
+  assert.equal(
+    Array.isArray(exportedPayload.profile?.pack?.hooks?.hooks),
+    true,
+    "profile export should include hooks."
+  );
 
   const importedProfileName = "imported-profile-from-export";
   runCli(["profile", "import", importedProfileName, "--input", exportPath, "--no-sync"]);
   const importedProfilePath = path.join(localOverridesPath, "profiles", `${importedProfileName}.json`);
   const importedPackMcpPath = path.join(localOverridesPath, "packs", importedProfileName, "mcp", "servers.json");
+  const importedPackCommandsPath = path.join(localOverridesPath, "packs", importedProfileName, "commands", "commands.json");
+  const importedPackHooksPath = path.join(localOverridesPath, "packs", importedProfileName, "hooks", "hooks.json");
   const importedProfileDoc = JSON.parse(await fs.readFile(importedProfilePath, "utf8"));
   const importedMcpDoc = JSON.parse(await fs.readFile(importedPackMcpPath, "utf8"));
+  const importedCommandsDoc = JSON.parse(await fs.readFile(importedPackCommandsPath, "utf8"));
+  const importedHooksDoc = JSON.parse(await fs.readFile(importedPackHooksPath, "utf8"));
   assert.equal(importedProfileDoc.name, importedProfileName, "profile import should create profile JSON.");
   assert.equal(
     Object.prototype.hasOwnProperty.call(importedMcpDoc.servers ?? {}, "unit_test_env_server"),
     true,
     "profile import should restore exported mcp server entries."
+  );
+  assert.equal(
+    importedCommandsDoc.commands.some((entry) => entry.id === "unit-test-command"),
+    true,
+    "profile import should restore exported commands."
+  );
+  assert.equal(
+    importedHooksDoc.hooks.some((entry) => entry.id === "unit-test-hook"),
+    true,
+    "profile import should restore exported hooks."
   );
 
   // --- list upstream-content ---

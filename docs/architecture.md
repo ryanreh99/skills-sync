@@ -1,6 +1,6 @@
 # Architecture
 
-`skills-sync` is a profile-driven environment manager for agent skills and MCP configuration.
+`skills-sync` is a profile-driven environment manager for agent skills, commands, hooks, and MCP configuration.
 
 It is not a registry clone and it is not just a one-shot installer. The workspace is the stable source of truth, the internal bundle is the stable runtime model, and agent adapters translate that model into each tool's current contract.
 
@@ -16,8 +16,8 @@ It is not a registry clone and it is not just a one-shot installer. The workspac
 - `Source`: a raw origin of skills, such as a git repo, repo subdirectory, or local path.
 - `Upstream`: a registered source with a normalized identity, default ref, and provider metadata.
 - `Profile`: a named desired environment.
-- `Pack`: the profile-local manifests that define imported skills and MCP servers.
-- `Bundle`: the canonical internal artifact built from local skills, imported skills, and normalized MCP config.
+- `Pack`: the profile-local manifests that define imported skills, commands, hooks, and MCP servers.
+- `Bundle`: the canonical internal artifact built from local skills, imported skills, normalized commands, normalized hooks, and normalized MCP config.
 - `Projection`: an agent-specific runtime view derived from the canonical bundle.
 - `Inventory`: a derived read model that combines workspace config, lock state, runtime state, and compatibility metadata.
 
@@ -32,6 +32,8 @@ The workspace root stores user-authored and workspace-owned inputs:
 - `workspace/upstreams.json`
 - `workspace/profiles/<name>.json`
 - `workspace/packs/<profile>/sources.json`
+- `workspace/packs/<profile>/commands/commands.json`
+- `workspace/packs/<profile>/hooks/hooks.json`
 - `workspace/packs/<profile>/mcp/servers.json`
 - `workspace/skills-sync.manifest.json`
 
@@ -57,6 +59,8 @@ The authoritative common artifact is:
 
 - `~/.skills-sync/internal/common/bundle.json`
 - `~/.skills-sync/internal/common/skills/`
+- `~/.skills-sync/internal/common/commands.json`
+- `~/.skills-sync/internal/common/hooks.json`
 - `~/.skills-sync/internal/common/mcp.json`
 
 Per-agent projections are written beside it:
@@ -74,6 +78,8 @@ The common bundle is the stable internal model. The per-agent folders are genera
 `sync` and `apply` materialize the generated projections into agent runtime locations.
 
 - skills are linked where possible
+- commands are linked or copied from generated projections
+- hooks are merged into supported agent config files through managed hook sections
 - MCP config is merged into managed sections only
 - unmanaged user config is preserved
 
@@ -91,27 +97,49 @@ The main control flow is:
 2. Collect source planning from pack imports and registered upstreams.
 3. Resolve upstream references against providers, cache, and lock state.
 4. Build the canonical bundle in `~/.skills-sync/internal/common`.
-5. Project the bundle into per-agent runtime shapes under `~/.skills-sync/internal/.<agent>`.
+5. Project skills, commands, hooks, and MCP config into per-agent runtime shapes under `~/.skills-sync/internal/.<agent>`.
 6. Update lock pins and import records with resolved revisions, digests, projection metadata, and refresh metadata.
-7. Apply managed bindings and MCP updates to the selected agent runtimes.
+7. Apply managed bindings and config updates to the selected agent runtimes.
 
 ## Module Boundaries
 
-The current code is organized around a small set of stable control points.
+The refactor-in-progress uses a layered source layout so orchestration, policy, persistence, and rendering can evolve independently.
 
-- `src/lib/manage.js`
+- `src/presentation/`
+  CLI registration, shell/TUI wiring, and text/json presenters.
+- `src/app/`
+  Use cases and workflow orchestration.
+- `src/domain/`
+  Pure report shapes, normalization, and policy rules.
+- `src/infra/`
+  Filesystem-backed repositories and adapter-facing persistence helpers.
+- `src/infra/internal/`
+  Internal implementation modules that back the layered entrypoints.
+- `src/shared/`
+  Cross-cutting text/result/error helpers.
+Within that layout, the main control points remain:
+
+- `src/infra/internal/manage.js`
   Workspace mutation commands such as upstream registration, `profile add-skill`, `profile remove-skill`, and MCP edits.
-- `src/lib/upstreams.js`
+- `src/infra/internal/upstreams.js`
   Upstream normalization, reference planning, ref resolution, pin management, and lockfile helpers.
-- `src/lib/build.js`
+- `src/infra/internal/build.js`
   Canonical bundle build, per-agent projection generation, and lockfile import record updates.
-- `src/lib/bundle.js`
-  Bundle assembly from local skills, imported skills, and MCP state.
-- `src/lib/bindings.js`
-  Runtime apply and unlink behavior for managed skills and MCP config.
-- `src/lib/inventory.js`
+- `src/infra/internal/bundle.js`
+  Bundle assembly from local skills, imported skills, command manifests, hook manifests, and MCP state.
+- `src/infra/internal/profile-entities.js`
+  Normalization and inheritance merge logic for profile-managed commands and hooks.
+- `src/infra/internal/bindings.js`
+  Runtime apply and unlink behavior for managed skills, commands, hooks, and MCP config.
+- `src/infra/internal/inventory.js`
   Derived read model used by list, inspect, doctor, and drift reporting.
-- `src/lib/adapters/*.js`
+- `src/infra/internal/commands.js`
+  Normalized command projection, command artifact rendering, and installed-command discovery.
+- `src/infra/internal/hook-config.js`
+  Hook projection, managed hook merge/remove behavior, and installed-hook discovery/validation.
+- `src/infra/internal/entity-surfaces.js`
+  Shared surface metadata used by selective sync, apply, unlink, inventory, and drift filters.
+- `src/infra/internal/adapters/*.js`
   Thin per-agent projection code. These modules should stay mechanical and should not absorb policy decisions.
 
 ## Adapter Strategy
@@ -121,6 +149,8 @@ Adapters are intentionally limited in scope.
 Each adapter is responsible for:
 
 - projecting the canonical skill bundle into the target agent's discoverable layout
+- projecting normalized commands into the target agent's supported command format
+- projecting normalized hooks into the target agent's documented user-level hook format when available
 - projecting MCP config into the target agent's native config format
 - preserving or merging local unmanaged config where the target contract requires it
 
@@ -136,6 +166,8 @@ That separation is important because agent contracts change often. The system sh
 `sync` applies only managed changes.
 
 - skills directories are linked from internal projections into agent runtime locations
+- commands are linked or copied from internal projections into agent runtime locations
+- hooks are merged only where the agent advertises supported hook config in the integration registry
 - managed MCP entries are written with their canonical profile names, or into the managed block format required by the agent
 - unmanaged entries are preserved
 
@@ -143,11 +175,13 @@ That separation is important because agent contracts change often. The system sh
 
 ## Compatibility Model
 
-Compatibility policy is driven by the agent integration files in `src/assets/integrations/agents/` and the derived registry built by `src/lib/agent-registry.js`.
+Compatibility policy is driven by the agent integration files in `src/assets/integrations/agents/` and the derived registry built by `src/infra/internal/agent-registry.js`.
 
-That registry defines per-agent projection contract versions, nested skill handling, MCP config assumptions, and capability expectations. Inventory and drift use that metadata to classify:
+That registry defines per-agent projection contract versions, nested skill handling, command and hook support, MCP config assumptions, and capability expectations. Inventory and drift use that metadata to classify:
 
 - missing or changed managed runtime content
+- unsupported commands or hooks skipped by design
+- lossy command or hook translations
 - stale projection metadata
 - capability degradation that stays diagnostic-only vs cases that should be highlighted more prominently
 

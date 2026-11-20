@@ -23,5 +23,77 @@ export default [
         ...globals.node
       }
     }
+  },
+  {
+    files: ["src/shared/**/*.js"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            "../app/*",
+            "../domain/*",
+            "../infra/*",
+            "../lib/*",
+            "../presentation/*",
+            "../../app/*",
+            "../../domain/*",
+            "../../infra/*",
+            "../../lib/*",
+            "../../presentation/*",
+            "../../../app/*",
+            "../../../domain/*",
+            "../../../infra/*",
+            "../../../lib/*",
+            "../../../presentation/*"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    files: ["src/domain/**/*.js"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            "../app/*",
+            "../infra/*",
+            "../lib/*",
+            "../presentation/*",
+            "../../app/*",
+            "../../infra/*",
+            "../../lib/*",
+            "../../presentation/*",
+            "../../../app/*",
+            "../../../infra/*",
+            "../../../lib/*",
+            "../../../presentation/*",
+            "../../../../app/*",
+            "../../../../infra/*",
+            "../../../../lib/*",
+            "../../../../presentation/*"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    files: ["src/app/**/*.js", "src/infra/**/*.js"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            "../presentation/*",
+            "../../presentation/*",
+            "../../../presentation/*",
+            "../../../../presentation/*",
+            "../../../../../presentation/*"
+          ]
+        }
+      ]
+    }
   }
 ];

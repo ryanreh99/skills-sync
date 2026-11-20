@@ -14,10 +14,10 @@ When TTY features are unavailable, use normal CLI commands directly instead of s
 ## Root Commands
 
 - `init [--seed] [--dry-run] [--profile <name>]`
-- `sync [--profile <name>] [--agents <comma-list>] [--dry-run]`
-- `unlink [--agents <comma-list>] [--dry-run]`
+- `sync [--profile <name>] [--entities <comma-list>] [--dry-run]`
+- `unlink [--entities <comma-list>] [--dry-run]`
 - `doctor [--profile <name>]`
-- `detect [--format text|json] [--agents <comma-list>]`
+- `detect [--format text|json]`
 - `use [name]`
 - `current`
 - `ls`
@@ -28,12 +28,14 @@ When TTY features are unavailable, use normal CLI commands directly instead of s
 
 ## List
 
-- `list skills [--profile <name>] [--detail concise|full] [--agents <comma-list>] [--format text|json]`
+- `list skills [--profile <name>] [--detail concise|full] [--format text|json]`
+- `list commands [--profile <name>] [--format text|json]`
+- `list hooks [--profile <name>] [--format text|json]`
 - `list mcps [--profile <name>] [--format text|json]`
 - `list upstreams [--format text|json]`
 - `list profiles [--format text|json]`
 - `list everything [--detail concise|full] [--format text|json]`
-- `list agents [--agents <comma-list>] [--format text|json]`
+- `list agents [--format text|json]`
 - `list upstream-content [--upstream <id>] [--source <locator>] [--provider auto|git|local-path] [--root <path>] [--ref <ref>] [--profile <name>] [--verbose] [--format text|json]`
 
 `list skills --detail full` shows profile ownership, source provenance, tracking mode, resolved revision, content digests, materialized agents, projection staleness, and feature-support metadata.
@@ -46,7 +48,7 @@ When TTY features are unavailable, use normal CLI commands directly instead of s
 
 ## Profile
 
-- `profile show [name] [--detail concise|full] [--agents <comma-list>] [--format text|json]`
+- `profile show [name] [--detail concise|full] [--format text|json]`
 - `profile inspect [name] [--format text|json]`
 - `profile refresh [name] [--upstream <id>] [--path <repoPath> ...] [--all] [--no-sync] [--dry-run] [--format text|json]`
 - `profile diff <left> <right> [--format text|json]`
@@ -54,6 +56,10 @@ When TTY features are unavailable, use normal CLI commands directly instead of s
 - `profile new-skill <skillName> [--profile <name>] [--path <path>] [--frontmatter] [--include-scripts] [--include-references]`
 - `profile add-skill [name] [--upstream <id>] [--upstream-id <id>] [--source <locator>] [--provider auto|git|local-path] [--root <path>] [--path <repoPath> ...] [--all] [--interactive] [--ref <ref>] [--pin] [--dest-prefix <prefix>] [--no-sync]`
 - `profile remove-skill [name] [--upstream <id>] [--path <repoPath> ...] [--all] [--interactive] [--ref <ref>] [--dest-prefix <prefix>] [--prune-upstream] [--no-sync] [--yes]`
+- `profile add-command [name] [command] [--display-name <name>] [--description <text>] [--body <text> | --body-file <path>] [--arg <name> ...] [--tag <tag> ...] [--disabled] [--no-sync]`
+- `profile remove-command [name] [command] [--no-sync]`
+- `profile add-hook [name] [hook] [--display-name <name>] [--event <event>] [--type shell|prompt|http|other] [--command <text> | --prompt <text> | --url <url>] [--condition <value> ...] [--timeout-ms <ms>] [--retry <count>] [--async] [--disabled] [--no-sync]`
+- `profile remove-hook [name] [hook] [--no-sync]`
 - `profile add-mcp [name] [server] [--command <command> [--args <arg...> | --arg <arg>...] [--env <KEY=VALUE...>] | --url <url>] [--no-sync]`
 - `profile remove-mcp [name] [server] [--no-sync]`
 - `profile export [name] [--output <path>]`
@@ -67,8 +73,11 @@ Notes:
 - `--repo` remains supported as a backward-compatible alias for git sources
 - `profile add-skill` can auto-register an upstream from `--source`
 - `profile remove-skill` prompts for confirmation in TTY mode unless `--yes` is passed
+- `profile add-command` accepts repeated `--arg`, repeated `--tag`, and `--body-file` for longer prompt bodies
+- profile-managed commands and hooks are authored once per profile and then projected to every supported agent automatically
+- `profile add-hook` requires exactly one payload option from `--command`, `--prompt`, or `--url`
 - these commands sync automatically unless `--no-sync` is passed:
-  `profile add-skill`, `profile remove-skill`, `profile add-mcp`, `profile remove-mcp`, `profile refresh`, `profile import`
+  `profile add-skill`, `profile remove-skill`, `profile add-command`, `profile remove-command`, `profile add-hook`, `profile remove-hook`, `profile add-mcp`, `profile remove-mcp`, `profile refresh`, `profile import`
 
 ## Upstream
 
@@ -86,10 +95,10 @@ Supported native source locators:
 
 ## Agents
 
-- `agents inventory [--agents <comma-list>] [--format text|json]`
-- `agents drift [--profile <name>] [--agents <comma-list>] [--dry-run] [--format text|json]`
+- `agents inventory [--format text|json]`
+- `agents drift [--profile <name>] [--entities <comma-list>] [--dry-run] [--format text|json]`
 
-`agents drift` includes structured classes such as `missing-skill`, `content-mismatch`, `projection-mismatch`, `compatibility-degraded`, `missing-managed-mcp`, `changed-managed-mcp`, and `extra-managed-mcp`.
+`agents drift` includes structured classes such as `missing-skill`, `content-mismatch`, `projection-mismatch`, `compatibility-degraded`, `missing-managed-mcp`, `changed-managed-mcp`, `extra-managed-mcp`, `missing-command`, `changed-command`, `unsupported-command`, `missing-hook`, `changed-hook`, and `unsupported-hook`.
 
 ## Workspace
 
@@ -105,9 +114,12 @@ Default manifest path: `workspace/skills-sync.manifest.json`
 - prompts appear only on interactive TTY terminals
 - `use [name]` and `new [name]` default to `personal`
 - `sync` and `doctor` can omit `--profile` when a default profile is set
+- `sync`, `detect`, `list agents`, `agents inventory`, and `agents drift` always operate across all managed agents; use `--entities` when you only want a surface-level slice
 - `workspace/skills-sync.lock.json` is the canonical imported-source lockfile
 - `workspace/skills-sync.manifest.json` is the canonical whole-workspace manifest
+- `--entities` accepts `skills`, `commands`, `hooks`, and `mcp` for partial sync/apply/unlink/drift flows
 - unsupported optional skill capabilities are surfaced as warnings, not fatal import/sync errors
+- unsupported or lossy command/hook translations are surfaced in inventory and drift output rather than being silently dropped
 - unknown commands fail with `Unknown command. See: help`
 
 ## Interactive Shell Shortcuts

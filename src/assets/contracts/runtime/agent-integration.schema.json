@@ -88,6 +88,66 @@
         }
       }
     },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "internalDir",
+        "bindMode",
+        "kind",
+        "targets",
+        "support"
+      ],
+      "properties": {
+        "internalDir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bindMode": {
+          "type": "string",
+          "enum": [
+            "root",
+            "children"
+          ]
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "unsupported",
+            "markdown-files",
+            "toml-files",
+            "skills-backed"
+          ]
+        },
+        "supportVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "targets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "windows",
+            "macos",
+            "linux"
+          ],
+          "properties": {
+            "windows": {
+              "$ref": "#/definitions/commandTargetEntry"
+            },
+            "macos": {
+              "$ref": "#/definitions/commandTargetEntry"
+            },
+            "linux": {
+              "$ref": "#/definitions/commandTargetEntry"
+            }
+          }
+        },
+        "support": {
+          "$ref": "#/definitions/commandSupport"
+        }
+      }
+    },
     "mcp": {
       "type": "object",
       "additionalProperties": false,
@@ -163,6 +223,60 @@
         }
       }
     },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "internalConfig",
+        "kind",
+        "targets",
+        "hasNonHookConfig",
+        "support"
+      ],
+      "properties": {
+        "internalConfig": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "unsupported",
+            "json-hooks"
+          ]
+        },
+        "supportVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "hasNonHookConfig": {
+          "type": "boolean"
+        },
+        "targets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "windows",
+            "macos",
+            "linux"
+          ],
+          "properties": {
+            "windows": {
+              "$ref": "#/definitions/hookTargetEntry"
+            },
+            "macos": {
+              "$ref": "#/definitions/hookTargetEntry"
+            },
+            "linux": {
+              "$ref": "#/definitions/hookTargetEntry"
+            }
+          }
+        },
+        "support": {
+          "$ref": "#/definitions/hookSupport"
+        }
+      }
+    },
     "notes": {
       "type": "array",
       "items": {
@@ -181,7 +295,30 @@
         }
       }
     },
+    "commandTargetEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dir": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "mcpTargetEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config"
+      ],
+      "properties": {
+        "config": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "hookTargetEntry": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -226,6 +363,30 @@
           "type": "boolean"
         },
         "helpers": {
+          "type": "boolean"
+        }
+      }
+    },
+    "commandSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "args",
+        "tags",
+        "frontmatter"
+      ],
+      "properties": {
+        "description": {
+          "type": "boolean"
+        },
+        "args": {
+          "type": "boolean"
+        },
+        "tags": {
+          "type": "boolean"
+        },
+        "frontmatter": {
           "type": "boolean"
         }
       }
@@ -350,6 +511,81 @@
             "managed-block",
             "cli-managed"
           ]
+        }
+      }
+    },
+    "hookSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "actions": {
+          "$ref": "#/definitions/hookActionSupport"
+        },
+        "events": {
+          "$ref": "#/definitions/hookEventSupport"
+        },
+        "config": {
+          "$ref": "#/definitions/hookConfigSupport"
+        }
+      }
+    },
+    "hookActionSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shell": {
+          "type": "boolean"
+        },
+        "prompt": {
+          "type": "boolean"
+        },
+        "http": {
+          "type": "boolean"
+        },
+        "other": {
+          "type": "boolean"
+        }
+      }
+    },
+    "hookEventSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sessionStart": {
+          "type": "boolean"
+        },
+        "beforeAgent": {
+          "type": "boolean"
+        },
+        "afterAgent": {
+          "type": "boolean"
+        },
+        "beforeTool": {
+          "type": "boolean"
+        },
+        "afterTool": {
+          "type": "boolean"
+        },
+        "notification": {
+          "type": "boolean"
+        }
+      }
+    },
+    "hookConfigSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "conditions": {
+          "type": "boolean"
+        },
+        "timeoutMs": {
+          "type": "boolean"
+        },
+        "retry": {
+          "type": "boolean"
+        },
+        "async": {
+          "type": "boolean"
         }
       }
     }

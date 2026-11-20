@@ -30,6 +30,29 @@
       "helpers": false
     }
   },
+  "commands": {
+    "internalDir": ".gemini/commands",
+    "bindMode": "root",
+    "kind": "toml-files",
+    "supportVersion": 1,
+    "targets": {
+      "windows": {
+        "dir": "%USERPROFILE%\\\\.gemini\\\\commands"
+      },
+      "macos": {
+        "dir": "$HOME/.gemini/commands"
+      },
+      "linux": {
+        "dir": "$HOME/.gemini/commands"
+      }
+    },
+    "support": {
+      "description": true,
+      "args": true,
+      "tags": false,
+      "frontmatter": false
+    }
+  },
   "mcp": {
     "internalConfig": ".gemini/settings.json",
     "kind": "json-command-url",
@@ -72,7 +95,47 @@
       }
     }
   },
+  "hooks": {
+    "internalConfig": ".gemini/hooks.json",
+    "kind": "json-hooks",
+    "supportVersion": 1,
+    "hasNonHookConfig": true,
+    "targets": {
+      "windows": {
+        "config": "%USERPROFILE%\\\\.gemini\\\\settings.json"
+      },
+      "macos": {
+        "config": "$HOME/.gemini/settings.json"
+      },
+      "linux": {
+        "config": "$HOME/.gemini/settings.json"
+      }
+    },
+    "support": {
+      "actions": {
+        "shell": true,
+        "prompt": false,
+        "http": false,
+        "other": false
+      },
+      "events": {
+        "sessionStart": false,
+        "beforeAgent": true,
+        "afterAgent": false,
+        "beforeTool": true,
+        "afterTool": true,
+        "notification": false
+      },
+      "config": {
+        "conditions": true,
+        "timeoutMs": true,
+        "retry": false,
+        "async": false
+      }
+    }
+  },
   "notes": [
-    "Gemini CLI documents Agent Skills with SKILL.md frontmatter, while projected auxiliary files are preserved conservatively."
+    "Gemini CLI documents Agent Skills with SKILL.md frontmatter, while projected auxiliary files are preserved conservatively.",
+    "User-level custom commands and hooks are supported conservatively."
   ]
 }

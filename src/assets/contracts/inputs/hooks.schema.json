@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Hooks Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "hooks"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "hooks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/hook"
+      }
+    }
+  },
+  "definitions": {
+    "hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "event",
+        "action"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "retry": {
+          "$ref": "#/definitions/retry"
+        },
+        "async": {
+          "type": "boolean"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "provenance": {
+          "type": "object"
+        },
+        "action": {
+          "$ref": "#/definitions/hookAction"
+        }
+      }
+    },
+    "hookAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "payload"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "shell",
+            "prompt",
+            "http",
+            "other"
+          ]
+        },
+        "payload": {}
+      }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "backoffMs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

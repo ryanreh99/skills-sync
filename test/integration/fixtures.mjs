@@ -11,28 +11,40 @@ export async function writeTargetsOverride(localOverridesPath, runtimePath) {
   const override = {
     codex: {
       skillsDir: path.join(runtimePath, ".codex", "skills", "vendor_imports"),
+      commandsDir: path.join(runtimePath, ".codex", "skills", "vendor_imports", "commands"),
       mcpConfig: path.join(runtimePath, ".codex", "config.toml"),
+      hooksConfig: path.join(runtimePath, ".codex", "config.toml"),
       hasNonMcpConfig: true
     },
     claude: {
       skillsDir: path.join(runtimePath, ".claude", "skills"),
+      commandsDir: path.join(runtimePath, ".claude", "commands"),
       mcpConfig: path.join(runtimePath, ".claude.json"),
-      hasNonMcpConfig: true
+      hooksConfig: path.join(runtimePath, ".claude.json"),
+      hasNonMcpConfig: true,
+      hasNonHookConfig: true
     },
     cursor: {
       skillsDir: path.join(runtimePath, ".cursor", "skills"),
+      commandsDir: path.join(runtimePath, ".cursor", "commands"),
       mcpConfig: path.join(runtimePath, ".cursor", "mcp.json"),
+      hooksConfig: path.join(runtimePath, ".cursor", "settings.json"),
       hasNonMcpConfig: false
     },
     copilot: {
       skillsDir: path.join(runtimePath, ".copilot", "skills"),
+      commandsDir: path.join(runtimePath, ".copilot", "commands"),
       mcpConfig: path.join(runtimePath, ".copilot", "mcp-config.json"),
+      hooksConfig: path.join(runtimePath, ".copilot", "hooks.json"),
       hasNonMcpConfig: false
     },
     gemini: {
       skillsDir: path.join(runtimePath, ".gemini", "skills"),
+      commandsDir: path.join(runtimePath, ".gemini", "commands"),
       mcpConfig: path.join(runtimePath, ".gemini", "settings.json"),
-      hasNonMcpConfig: true
+      hooksConfig: path.join(runtimePath, ".gemini", "settings.json"),
+      hasNonMcpConfig: true,
+      hasNonHookConfig: true
     }
   };
   await fs.mkdir(path.dirname(overridePath), { recursive: true });

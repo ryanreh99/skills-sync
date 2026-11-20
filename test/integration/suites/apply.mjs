@@ -108,6 +108,52 @@ export async function run({ distPath, runtimePath }) {
     "Dist Gemini config should replace local MCP servers."
   );
 
+  const distClaudeCommandPath = path.join(distPath, ".claude", "commands", "unit-test-command.md");
+  const distCursorCommandPath = path.join(distPath, ".cursor", "commands", "unit-test-command.md");
+  const distGeminiCommandPath = path.join(distPath, ".gemini", "commands", "unit-test-command.toml");
+  const distCodexCommandPath = path.join(distPath, ".codex", "commands", "unit-test-command", "SKILL.md");
+  const distClaudeHooksPath = path.join(distPath, ".claude", "hooks.json");
+  const distGeminiHooksPath = path.join(distPath, ".gemini", "hooks.json");
+
+  assert.equal(await pathExists(distClaudeCommandPath), true, "Dist Claude commands projection should be generated.");
+  assert.equal(await pathExists(distCursorCommandPath), true, "Dist Cursor commands projection should be generated.");
+  assert.equal(await pathExists(distGeminiCommandPath), true, "Dist Gemini commands projection should be generated.");
+  assert.equal(await pathExists(distCodexCommandPath), true, "Dist Codex commands projection should be generated.");
+  assert.equal(await pathExists(distClaudeHooksPath), true, "Dist Claude hooks projection should be generated.");
+  assert.equal(await pathExists(distGeminiHooksPath), true, "Dist Gemini hooks projection should be generated.");
+
+  const distClaudeCommand = await fs.readFile(distClaudeCommandPath, "utf8");
+  const distGeminiCommand = await fs.readFile(distGeminiCommandPath, "utf8");
+  const distCodexCommand = await fs.readFile(distCodexCommandPath, "utf8");
+  const distClaudeHooks = JSON.parse(await fs.readFile(distClaudeHooksPath, "utf8"));
+  const distGeminiHooks = JSON.parse(await fs.readFile(distGeminiHooksPath, "utf8"));
+
+  assert.equal(
+    distClaudeCommand.includes("argument-hint"),
+    true,
+    "Dist Claude commands should preserve the projected argument hint."
+  );
+  assert.equal(
+    distGeminiCommand.includes("User arguments: {{args}}"),
+    true,
+    "Dist Gemini commands should inject the normalized args placeholder."
+  );
+  assert.equal(
+    distCodexCommand.includes("# /unit-test-command"),
+    true,
+    "Dist Codex commands should be rendered as skill-backed slash-command docs."
+  );
+  assert.equal(
+    Array.isArray(distClaudeHooks.hooks?.PreToolUse),
+    true,
+    "Dist Claude hooks projection should map normalized events into Claude hook groups."
+  );
+  assert.equal(
+    Array.isArray(distGeminiHooks.hooks?.BeforeTool),
+    true,
+    "Dist Gemini hooks projection should map normalized events into Gemini hook groups."
+  );
+
   runCli(["apply", "--dry-run"]);
   const codexAfterDryRun = await fs.readFile(path.join(runtimePath, ".codex", "config.toml"), "utf8");
   assert.equal(
@@ -171,6 +217,38 @@ export async function run({ distPath, runtimePath }) {
     await fs.readFile(path.join(runtimePath, ".gemini", "settings.json"), "utf8")
   );
   assertManagedJsonMerged(JSON.stringify(geminiRuntimeDoc), "gemini");
+  assert.equal(
+    await pathExists(path.join(runtimePath, ".claude", "commands", "unit-test-command.md")),
+    true,
+    "Claude command bindings should be applied."
+  );
+  assert.equal(
+    await pathExists(path.join(runtimePath, ".cursor", "commands", "unit-test-command.md")),
+    true,
+    "Cursor command bindings should be applied."
+  );
+  assert.equal(
+    await pathExists(path.join(runtimePath, ".gemini", "commands", "unit-test-command.toml")),
+    true,
+    "Gemini command bindings should be applied."
+  );
+  assert.equal(
+    await pathExists(path.join(runtimePath, ".codex", "skills", "vendor_imports", "commands", "unit-test-command", "SKILL.md")),
+    true,
+    "Codex command bindings should be applied."
+  );
+  assert.equal(
+    Array.isArray(claudeRuntimeDoc.hooks?.PreToolUse),
+    true,
+    "Claude apply should merge managed hooks into the shared settings file."
+  );
+  assert.equal(
+    Array.isArray(geminiRuntimeDoc.hooks?.BeforeTool),
+    true,
+    "Gemini apply should merge managed hooks into the shared settings file."
+  );
+  assert.equal(claudeRuntimeDoc.settings?.verbose, true, "Claude apply should keep unmanaged settings.");
+  assert.equal(geminiRuntimeDoc.ui?.theme, "dark", "Gemini apply should keep unmanaged settings.");
 
   for (const [label, doc] of [
     ["claude", claudeRuntimeDoc],

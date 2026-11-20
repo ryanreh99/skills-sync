@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { buildTargetsDocument, loadAgentIntegrations, normalizeAgentIntegrationEntry } from "../src/lib/agent-integrations.js";
+import { buildTargetsDocument, loadAgentIntegrations, normalizeAgentIntegrationEntry } from "../src/infra/internal/agent-integrations.js";
 import {
   getMcpMergeStrategy,
   loadAgentRegistry,
@@ -15,19 +15,27 @@ import {
   supportsMcpConfigField,
   supportsMcpTransport,
   supportsToolFiltering
-} from "../src/lib/agent-registry.js";
-import { createEmptyImportLock } from "../src/lib/import-lock.js";
-import { normalizeMcpManifest } from "../src/lib/config.js";
-import { createSourceIdentity, normalizeSourceInput, inferUpstreamIdFromSourceDescriptor } from "../src/lib/source-normalization.js";
-import { scanSkillDirectory } from "../src/lib/skill-capabilities.js";
-import { summarizeSkillFeatureSupport } from "../src/lib/agent-registry.js";
-import { movePathWithFallback } from "../src/lib/init.js";
+} from "../src/infra/internal/agent-registry.js";
+import { createEmptyImportLock } from "../src/infra/internal/import-lock.js";
+import { normalizeMcpManifest } from "../src/infra/internal/config.js";
+import { createSourceIdentity, normalizeSourceInput, inferUpstreamIdFromSourceDescriptor } from "../src/infra/internal/source-normalization.js";
+import { buildCommandProjection } from "../src/infra/internal/commands.js";
+import { buildHookProjection } from "../src/infra/internal/hook-config.js";
+import {
+  mergeCommandsDocuments,
+  mergeHooksDocuments,
+  normalizeCommandsDocument,
+  normalizeHooksDocument
+} from "../src/infra/internal/profile-entities.js";
+import { scanSkillDirectory } from "../src/infra/internal/skill-capabilities.js";
+import { summarizeSkillFeatureSupport } from "../src/infra/internal/agent-registry.js";
+import { movePathWithFallback } from "../src/infra/internal/init.js";
 import {
   assessAgentMcpSupport,
   buildAgentRuntimeMcpServers,
   buildToolJsonMcpServers,
   summarizeRequiredMcpSupport
-} from "../src/lib/mcp-config.js";
+} from "../src/infra/internal/mcp-config.js";
 import {
   advanceGuidedFlowSession,
   buildShellTranscriptLineMap,
@@ -49,19 +57,25 @@ import {
   setCommandInput,
   shouldHandoffShellCommand,
   tokenizeCommandLine
-} from "../src/lib/shell.js";
-import { fetchRefAndResolveCommit } from "../src/lib/git-runtime.js";
+} from "../src/presentation/shell/index.js";
+import { fetchRefAndResolveCommit } from "../src/infra/internal/git-runtime.js";
 import {
   materializeProjectedSkillDirectory,
   projectSkillsForAgent,
   renderProjectedSkillMarkdown
-} from "../src/lib/adapters/common.js";
+} from "../src/infra/internal/adapters/common.js";
+import { createDoctorReport } from "../src/domain/doctor/report.js";
+import { renderDetectText } from "../src/presentation/presenters/detect-presenter.js";
+import { presentDoctorReport } from "../src/presentation/presenters/doctor-presenter.js";
+import { redactPathDetails } from "../src/shared/text.js";
 
 function createAgentIntegrationFixture(overrides = {}) {
   const {
     config: configOverrides = null,
     skills: skillsOverrides = null,
+    commands: commandsOverrides = null,
     mcp: mcpOverrides = null,
+    hooks: hooksOverrides = null,
     ...entryOverrides
   } = overrides;
   return {
@@ -101,6 +115,33 @@ function createAgentIntegrationFixture(overrides = {}) {
         Object.entries(skillsOverrides ?? {}).filter(([key]) => key !== "support")
       )
     },
+    commands: {
+      internalDir: ".fixture/commands",
+      bindMode: "root",
+      kind: "markdown-files",
+      supportVersion: 1,
+      targets: {
+        windows: {
+          dir: "%USERPROFILE%\\\\.fixture\\\\commands"
+        },
+        macos: {
+          dir: "$HOME/.fixture/commands"
+        },
+        linux: {
+          dir: "$HOME/.fixture/commands"
+        }
+      },
+      support: {
+        description: true,
+        args: true,
+        tags: false,
+        frontmatter: true,
+        ...((commandsOverrides?.support ?? null) ?? {})
+      },
+      ...Object.fromEntries(
+        Object.entries(commandsOverrides ?? {}).filter(([key]) => key !== "support")
+      )
+    },
     mcp: {
       internalConfig: ".fixture/mcp.json",
       kind: "json-mcpServers",
@@ -122,6 +163,49 @@ function createAgentIntegrationFixture(overrides = {}) {
       },
       ...Object.fromEntries(
         Object.entries(mcpOverrides ?? {}).filter(([key]) => key !== "support")
+      )
+    },
+    hooks: {
+      internalConfig: ".fixture/hooks.json",
+      kind: "json-hooks",
+      supportVersion: 1,
+      hasNonHookConfig: false,
+      targets: {
+        windows: {
+          config: "%USERPROFILE%\\\\.fixture\\\\hooks.json"
+        },
+        macos: {
+          config: "$HOME/.fixture/hooks.json"
+        },
+        linux: {
+          config: "$HOME/.fixture/hooks.json"
+        }
+      },
+      support: {
+        actions: {
+          shell: true,
+          prompt: true,
+          http: false,
+          other: false
+        },
+        events: {
+          sessionStart: true,
+          beforeAgent: true,
+          afterAgent: true,
+          beforeTool: true,
+          afterTool: true,
+          notification: true
+        },
+        config: {
+          conditions: true,
+          timeoutMs: true,
+          retry: false,
+          async: true
+        },
+        ...((hooksOverrides?.support ?? null) ?? {})
+      },
+      ...Object.fromEntries(
+        Object.entries(hooksOverrides ?? {}).filter(([key]) => key !== "support")
       )
     },
     ...entryOverrides
@@ -394,7 +478,9 @@ test("loadImportLock initializes the canonical v3 lockfile when none exists", as
   const workspaceRoot = path.join(tempHome, "workspace");
   await fs.mkdir(workspaceRoot, { recursive: true });
 
-  const importLockUrl = pathToFileURL(path.join(process.cwd(), "src", "lib", "import-lock.js")).href;
+  const importLockUrl = pathToFileURL(
+    path.join(process.cwd(), "src", "infra", "internal", "import-lock.js")
+  ).href;
   const script = `
     import { loadImportLock } from ${JSON.stringify(importLockUrl)};
     const state = await loadImportLock();
@@ -451,13 +537,22 @@ test("loadAgentIntegrations derives registry and targets from per-agent integrat
 
   const windowsTargets = buildTargetsDocument(integrations, "windows");
   assert.equal(typeof windowsTargets.codex?.mcpConfig, "string");
+  assert.equal(typeof windowsTargets.codex?.commandsDir, "string");
   assert.equal(typeof windowsTargets.cursor?.skillsDir, "string");
+  assert.equal(typeof windowsTargets.gemini?.hooksConfig, "string");
   assert.equal(typeof integrations[0]?.hasNonMcpConfig, "boolean");
   assert.equal(typeof windowsTargets.codex?.hasNonMcpConfig, "boolean");
   assert.equal(typeof integrations[0]?.internal?.skillsDir, "string");
+  assert.equal(typeof integrations[0]?.internal?.commandsDir, "string");
+  assert.equal(typeof integrations[0]?.internal?.hooksConfig, "string");
   assert.equal(typeof integrations[0]?.adapter, "string");
+  assert.equal(typeof claude?.commandKind, "string");
+  assert.equal(typeof claude?.hookKind, "string");
   assert.equal(claude?.mcpKind, "claude-json-type");
+  assert.equal(claude?.commandKind, "markdown-files");
+  assert.equal(claude?.hookKind, "json-hooks");
   assert.equal(claude?.hasNonMcpConfig, true);
+  assert.equal(claude?.hasNonHookConfig, true);
   assert.equal(windowsTargets.claude?.mcpConfig, "%USERPROFILE%\\\\.claude.json");
 });
 
@@ -521,6 +616,308 @@ test("normalizeAgentIntegrationEntry deep-merges partial MCP support overrides",
   assert.equal(normalized.support.mcp.config.url, true);
   assert.equal(normalized.support.mcp.config.command, false);
   assert.equal(normalized.support.mcp.config.mergeStrategy, "managed-block");
+});
+
+test("normalizeCommandsDocument and normalizeHooksDocument keep deterministic profile entity state", () => {
+  const commands = normalizeCommandsDocument({
+    commands: [
+      {
+        name: "review-pr",
+        prompt: "Review the current pull request.",
+        tags: ["beta", "alpha", "alpha"],
+        targets: ["Cursor", "claude", "cursor"]
+      }
+    ]
+  });
+  assert.deepEqual(commands, {
+    schemaVersion: 1,
+    commands: [
+      {
+        id: "review-pr",
+        name: "review-pr",
+        body: "Review the current pull request.",
+        tags: ["alpha", "beta"]
+      }
+    ]
+  });
+
+  const hooks = normalizeHooksDocument({
+    hooks: [
+      {
+        name: "pre-tool",
+        event: "beforeTool",
+        conditions: ["Write", "Edit", "Write"],
+        action: {
+          type: "shell",
+          payload: "echo ok"
+        }
+      }
+    ]
+  });
+  assert.deepEqual(hooks, {
+    schemaVersion: 1,
+    hooks: [
+      {
+        id: "pre-tool",
+        name: "pre-tool",
+        event: "beforeTool",
+        conditions: ["Edit", "Write"],
+        action: {
+          type: "shell",
+          payload: "echo ok"
+        }
+      }
+    ]
+  });
+
+  const mergedCommands = mergeCommandsDocuments([
+    normalizeCommandsDocument({
+      commands: [{ id: "review-pr", name: "Review PR", body: "First version." }]
+    }),
+    normalizeCommandsDocument({
+      commands: [{ id: "review-pr", name: "Review PR", body: "Second version.", enabled: false }]
+    })
+  ]);
+  assert.deepEqual(mergedCommands.commands, [
+    {
+      id: "review-pr",
+      name: "Review PR",
+      body: "Second version.",
+      enabled: false
+    }
+  ]);
+
+  const mergedHooks = mergeHooksDocuments([
+    normalizeHooksDocument({
+      hooks: [{
+        id: "pre-tool",
+        name: "pre-tool",
+        event: "beforeTool",
+        action: { type: "shell", payload: "echo first" }
+      }]
+    }),
+    normalizeHooksDocument({
+      hooks: [{
+        id: "pre-tool",
+        name: "pre-tool",
+        event: "beforeTool",
+        action: { type: "shell", payload: "echo second" },
+        enabled: false
+      }]
+    })
+  ]);
+  assert.deepEqual(mergedHooks.hooks, [
+    {
+      id: "pre-tool",
+      name: "pre-tool",
+      event: "beforeTool",
+      action: { type: "shell", payload: "echo second" },
+      enabled: false
+    }
+  ]);
+});
+
+test("buildCommandProjection renders command artifacts and lossy diagnostics per agent", () => {
+  const commands = normalizeCommandsDocument({
+    commands: [
+      {
+        id: "review-pr",
+        name: "review-pr",
+        description: "Review the current pull request.",
+        body: "Inspect the active branch and summarize the risky changes.",
+        args: [{ name: "scope" }],
+        tags: ["triage"]
+      }
+    ]
+  });
+
+  const claudeAgent = normalizeAgentIntegrationEntry(createAgentIntegrationFixture({
+    id: "claude",
+    commands: {
+      kind: "markdown-files",
+      support: {
+        description: true,
+        args: true,
+        tags: false,
+        frontmatter: true
+      }
+    }
+  }));
+  const claudeProjection = buildCommandProjection(commands, claudeAgent);
+  assert.equal(claudeProjection.commands.length, 1);
+  assert.equal(claudeProjection.commands[0].relativePath, "review-pr.md");
+  assert.equal(claudeProjection.commands[0].content.includes('argument-hint: "[scope]"'), true);
+  assert.equal(claudeProjection.commands[0].content.includes("User arguments: $ARGUMENTS"), true);
+  assert.deepEqual(
+    claudeProjection.diagnostics.map((entry) => ({ code: entry.code, fields: entry.fields })),
+    [{ code: "lossy-command-translation", fields: ["tags"] }]
+  );
+
+  const codexAgent = normalizeAgentIntegrationEntry(createAgentIntegrationFixture({
+    id: "codex",
+    commands: {
+      kind: "skills-backed",
+      support: {
+        description: true,
+        args: false,
+        tags: false,
+        frontmatter: true
+      }
+    }
+  }));
+  const codexProjection = buildCommandProjection(commands, codexAgent);
+  assert.equal(codexProjection.commands.length, 1);
+  assert.equal(codexProjection.commands[0].type, "dir");
+  assert.equal(codexProjection.commands[0].relativePath, "review-pr");
+  assert.equal(codexProjection.commands[0].files[0].relativePath, "SKILL.md");
+  assert.equal(codexProjection.commands[0].files[0].content.includes("# /review-pr"), true);
+  assert.deepEqual(
+    codexProjection.diagnostics.map((entry) => ({ code: entry.code, fields: entry.fields })),
+    [{ code: "lossy-command-translation", fields: ["args", "tags"] }]
+  );
+});
+
+test("buildHookProjection maps supported hook events and reports unsupported translations honestly", () => {
+  const hooks = normalizeHooksDocument({
+    hooks: [
+      {
+        id: "pre-tool-shell",
+        name: "pre-tool-shell",
+        event: "beforeTool",
+        conditions: ["Write"],
+        timeoutMs: 1500,
+        action: {
+          type: "shell",
+          payload: "echo ok"
+        }
+      },
+      {
+        id: "prompt-only",
+        name: "prompt-only",
+        event: "beforeTool",
+        action: {
+          type: "prompt",
+          payload: "Reflect before tool use."
+        }
+      }
+    ]
+  });
+
+  const claudeAgent = normalizeAgentIntegrationEntry(createAgentIntegrationFixture({
+    id: "claude",
+    hooks: {
+      kind: "json-hooks",
+      support: {
+        actions: {
+          shell: true,
+          prompt: true,
+          http: true,
+          other: false
+        },
+        events: {
+          sessionStart: true,
+          beforeAgent: true,
+          afterAgent: true,
+          beforeTool: true,
+          afterTool: true,
+          notification: true
+        },
+        config: {
+          conditions: true,
+          timeoutMs: true,
+          retry: false,
+          async: true
+        }
+      }
+    }
+  }));
+  const claudeProjection = buildHookProjection(hooks, claudeAgent);
+  assert.deepEqual(claudeProjection.projectedDocument, {
+    hooks: {
+      PreToolUse: [
+        {
+          hooks: [
+            {
+              type: "prompt",
+              prompt: "Reflect before tool use."
+            }
+          ]
+        },
+        {
+          matcher: "Write",
+          hooks: [
+            {
+              type: "command",
+              command: "echo ok",
+              timeout: 2
+            }
+          ]
+        }
+      ]
+    }
+  });
+  assert.equal(
+    claudeProjection.diagnostics.some((entry) => entry.code === "lossy-hook-translation"),
+    true
+  );
+
+  const geminiAgent = normalizeAgentIntegrationEntry(createAgentIntegrationFixture({
+    id: "gemini",
+    hooks: {
+      kind: "json-hooks",
+      support: {
+        actions: {
+          shell: true,
+          prompt: false,
+          http: false,
+          other: false
+        },
+        events: {
+          sessionStart: true,
+          beforeAgent: true,
+          afterAgent: true,
+          beforeTool: true,
+          afterTool: true,
+          notification: true
+        },
+        config: {
+          conditions: true,
+          timeoutMs: true,
+          retry: false,
+          async: false
+        }
+      }
+    }
+  }));
+  const geminiProjection = buildHookProjection(hooks, geminiAgent);
+  assert.deepEqual(geminiProjection.skipped, [
+    {
+      id: "prompt-only",
+      name: "prompt-only",
+      reason: "action type 'prompt' is not supported by Gemini hooks"
+    }
+  ]);
+  assert.equal(
+    geminiProjection.diagnostics.some((entry) => entry.code === "unsupported-hook"),
+    true
+  );
+  assert.deepEqual(geminiProjection.projectedDocument, {
+    hooks: {
+      BeforeTool: [
+        {
+          matcher: "Write",
+          hooks: [
+            {
+              type: "command",
+              command: "echo ok",
+              name: "pre-tool-shell",
+              timeout: 1500
+            }
+          ]
+        }
+      ]
+    }
+  });
 });
 
 test("MCP support selectors read normalized agent matrices", async () => {
@@ -1214,4 +1611,84 @@ test("extractShellTranscriptSelectionText returns multi-line selections", () => 
   );
 
   assert.equal(selection, "beta gamma\nsecond");
+});
+
+test("redactPathDetails hides concrete filesystem paths", () => {
+  const message = 'Failed to read C:\\Users\\ryan\\.codex\\config.toml and /home/ryan/.gemini/settings.json';
+  const redacted = redactPathDetails(message);
+
+  assert.equal(redacted.includes("C:\\Users"), false);
+  assert.equal(redacted.includes("/home/ryan"), false);
+  assert.equal(redacted.includes("<path>"), true);
+});
+
+test("renderDetectText formats use-case-shaped agent results", () => {
+  const text = renderDetectText({
+    os: "windows",
+    tools: [
+      {
+        tool: "codex",
+        managedSurface: "skills+commands+mcp",
+        hasNonMcpConfig: true,
+        hasSkills: true,
+        hasMcp: true,
+        installed: true,
+        parseErrors: [{ kind: "json-parse", message: "invalid <file>" }]
+      }
+    ]
+  });
+
+  assert.equal(text.includes("Detected Agents"), true);
+  assert.equal(text.includes("Parse Issues"), true);
+  assert.equal(text.includes("codex"), true);
+});
+
+test("presentDoctorReport renders issues and remediation without throwing", () => {
+  const chunks = [];
+  const fakeStream = {
+    write(value) {
+      chunks.push(String(value));
+    }
+  };
+  const previousExitCode = process.exitCode;
+  process.exitCode = undefined;
+
+  try {
+    const report = createDoctorReport();
+    report.errors.push("Missing canonical bundle artifact: <path>");
+    presentDoctorReport(report, { stream: fakeStream });
+  } finally {
+    process.exitCode = previousExitCode;
+  }
+
+  const rendered = chunks.join("");
+  assert.equal(rendered.includes("Doctor Issues"), true);
+  assert.equal(rendered.includes("Remediation"), true);
+});
+
+test("legacy compatibility source trees are removed", async () => {
+  const libRoot = path.resolve("src/lib");
+  const legacyRoot = path.resolve("src/infra/legacy");
+
+  try {
+    async function collectFiles(root) {
+      const entries = await fs.readdir(root, { withFileTypes: true });
+      const files = [];
+      for (const entry of entries) {
+        const fullPath = path.join(root, entry.name);
+        if (entry.isDirectory()) {
+          files.push(...await collectFiles(fullPath));
+          continue;
+        }
+        files.push(fullPath);
+      }
+      return files;
+    }
+
+    const libFiles = await collectFiles(libRoot);
+    assert.deepEqual(libFiles, []);
+  } catch (error) {
+    assert.equal(error.code, "ENOENT");
+  }
+  await assert.rejects(() => fs.access(legacyRoot));
 });
